@@ -1,0 +1,70 @@
+{
+  "expo": {
+    "name": "Mikiri Trails",
+    "slug": "mikiri-trails",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "scheme": "mikiri-trails",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#1B5E20"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.mikiritrails.app",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "We need your location to track your hike and verify checkpoint check-ins.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "We need your location to track your hike progress in the background.",
+        "NSCameraUsageDescription": "We need camera access to take proof photos at checkpoints.",
+        "NSPhotoLibraryUsageDescription": "We need photo library access to select proof photos."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#1B5E20"
+      },
+      "edgeToEdgeEnabled": true,
+      "package": "com.mikiritrails.app",
+      "permissions": [
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.CAMERA",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.RECORD_AUDIO"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "expo-font",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow Mikiri Trails to track your hike progress."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow Mikiri Trails to access your photos for proof submissions."
+        }
+      ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "7ad50ccb-dca8-474c-9958-4cdc628a0bab"
+      }
+    }
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx tsc:*)",
+      "Bash(npx create-expo-app:*)",
+      "Bash(npx expo install:*)",
+      "Bash(npm install:*)",
+      "Bash(curl:*)",
+      "Bash(ipconfig:*)",
+      "Bash(findstr:*)",
+      "Bash(python:*)",
+      "Bash(npm ls expo-image-picker)",
+      "Bash(npx ts-node:*)",
+      "Bash(node -e:*)",
+      "Bash(node:*)",
+      "Bash(npx supabase:*)",
+      "Bash(npx sharp-cli:*)",
+      "Bash(magick:*)",
+      "Bash(echo:*)",
+      "WebFetch(domain:www.openstreetmap.org)",
+      "WebFetch(domain:nominatim.openstreetmap.org)",
+      "Bash(dir:*)",
+      "Bash(ls:*)",
+      "Bash(find:*)"
+    ]
+  }
+}
