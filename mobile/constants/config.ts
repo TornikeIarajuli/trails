@@ -7,7 +7,7 @@ const getApiBaseUrl = () => {
     return `http://${DEV_MACHINE_IP}:3000/api`;
   }
   // Replace with your actual Render URL after deploying
-  return 'https://mikiri-trails-api.onrender.com/api';
+  return 'https://trails-en04.onrender.com/api';
 };
 
 export const Config = {
