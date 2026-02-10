@@ -34,6 +34,8 @@ import { useUploadPhoto } from '../../../hooks/useCommunity';
 import { useTrailReviews } from '../../../hooks/useReviews';
 import { ReviewsList } from '../../../components/trail/ReviewsList';
 import { WriteReviewModal } from '../../../components/trail/WriteReviewModal';
+import { WeatherCard } from '../../../components/trail/WeatherCard';
+import { trailCache } from '../../../utils/trailCache';
 
 export default function TrailDetailScreen() {
   const Colors = useColors();
@@ -49,6 +51,30 @@ export default function TrailDetailScreen() {
   const [reviewModalVisible, setReviewModalVisible] = useState(false);
   const uploadPhotoMutation = useUploadPhoto();
   const { data: reviews = [] } = useTrailReviews(id);
+
+  const [isSavedOffline, setIsSavedOffline] = useState(() =>
+    trailCache.isTrailSavedOffline(id),
+  );
+
+  // Cache trail data when loaded
+  React.useEffect(() => {
+    if (trail) {
+      trailCache.setTrailDetail(id, trail);
+    }
+  }, [trail, id]);
+
+  const startPoint = trail ? parseGeoPoint(trail.start_point) : null;
+
+  const toggleOfflineSave = () => {
+    if (isSavedOffline) {
+      trailCache.removeOfflineTrail(id);
+      setIsSavedOffline(false);
+    } else if (trail) {
+      trailCache.saveTrailOffline(id, trail);
+      setIsSavedOffline(true);
+      Alert.alert('Saved', 'Trail saved for offline viewing');
+    }
+  };
 
   if (isLoading || !trail) return <LoadingSpinner />;
 
@@ -99,6 +125,13 @@ export default function TrailDetailScreen() {
 
         {/* Top-right overlay buttons */}
         <View style={[styles.topRightButtons, { top: insets.top + 8 }]}>
+          <TouchableOpacity style={styles.overlayButton} onPress={toggleOfflineSave}>
+            <Ionicons
+              name={isSavedOffline ? 'download' : 'download-outline'}
+              size={20}
+              color={isSavedOffline ? Colors.primary : Colors.text}
+            />
+          </TouchableOpacity>
           <ShareButton trail={trail} />
           <BookmarkButton trailId={id} />
           {isAdmin && (
@@ -132,6 +165,12 @@ export default function TrailDetailScreen() {
               <Text style={styles.reviewCount}>({trail.review_count} reviews)</Text>
             </View>
           )}
+
+          {/* Weather */}
+          <WeatherCard
+            latitude={startPoint?.latitude ?? null}
+            longitude={startPoint?.longitude ?? null}
+          />
 
           {/* Elevation Profile */}
           <ElevationProfile

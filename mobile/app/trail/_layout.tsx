@@ -9,6 +9,8 @@ export default function TrailLayout() {
       <Stack.Screen name="[id]/photos" />
       <Stack.Screen name="[id]/conditions" />
       <Stack.Screen name="user/[id]" />
+      <Stack.Screen name="user/followers" />
+      <Stack.Screen name="completion/[id]" />
     </Stack>
   );
 }

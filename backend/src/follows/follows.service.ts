@@ -1,9 +1,13 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { SupabaseService } from '../config/supabase.config';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class FollowsService {
-  constructor(private supabaseService: SupabaseService) {}
+  constructor(
+    private supabaseService: SupabaseService,
+    private notificationsService: NotificationsService,
+  ) {}
 
   async toggle(followerId: string, followingId: string) {
     if (followerId === followingId) {
@@ -34,6 +38,22 @@ export class FollowsService {
       .insert({ follower_id: followerId, following_id: followingId });
 
     if (error) throw error;
+
+    // Send push notification to the followed user
+    const { data: followerProfile } = await admin
+      .from('profiles')
+      .select('username')
+      .eq('id', followerId)
+      .single();
+
+    const username = followerProfile?.username ?? 'Someone';
+    this.notificationsService
+      .sendToUser(followingId, 'New Follower', `${username} started following you`, {
+        type: 'new_follower',
+        followerId,
+      })
+      .catch(() => {}); // fire-and-forget
+
     return { following: true };
   }
 

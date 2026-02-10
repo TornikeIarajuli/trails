@@ -15,6 +15,13 @@ export function useMyBadges() {
   });
 }
 
+export function useBadgeProgress() {
+  return useQuery({
+    queryKey: ['badges', 'progress'],
+    queryFn: () => badgesService.getProgress(),
+  });
+}
+
 export function useCheckBadges() {
   const queryClient = useQueryClient();
 

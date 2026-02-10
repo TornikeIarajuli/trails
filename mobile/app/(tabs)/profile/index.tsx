@@ -26,6 +26,7 @@ import { BadgeCard } from '../../../components/badges/BadgeCard';
 import { formatDate } from '../../../utils/formatters';
 import { useMyBadges } from '../../../hooks/useBadges';
 import { useMyBookmarks } from '../../../hooks/useBookmarks';
+import { useFollowCounts } from '../../../hooks/useFollows';
 
 export default function ProfileScreen() {
   const Colors = useColors();
@@ -47,6 +48,7 @@ export default function ProfileScreen() {
   const deleteCompletion = useDeleteCompletion();
   const { data: myBadges } = useMyBadges();
   const { data: bookmarksData } = useMyBookmarks();
+  const { data: followCounts } = useFollowCounts(profile?.id ?? '');
 
   const handleDeleteCompletion = (id: string, trailName: string) => {
     Alert.alert(
@@ -216,6 +218,30 @@ export default function ProfileScreen() {
               </TouchableOpacity>
             )}
           </View>
+
+          {followCounts && (
+            <View style={styles.followRow}>
+              <TouchableOpacity
+                style={styles.followItem}
+                onPress={() =>
+                  router.push(`/trail/user/followers?userId=${profile.id}&tab=followers`)
+                }
+              >
+                <Text style={styles.followNumber}>{followCounts.followers_count}</Text>
+                <Text style={styles.followLabel}>Followers</Text>
+              </TouchableOpacity>
+              <View style={styles.followDivider} />
+              <TouchableOpacity
+                style={styles.followItem}
+                onPress={() =>
+                  router.push(`/trail/user/followers?userId=${profile.id}&tab=following`)
+                }
+              >
+                <Text style={styles.followNumber}>{followCounts.following_count}</Text>
+                <Text style={styles.followLabel}>Following</Text>
+              </TouchableOpacity>
+            </View>
+          )}
 
           <StatsGrid stats={profile.stats} />
 
@@ -413,6 +439,31 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: Colors.textOnPrimary,
+  },
+  followRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  followItem: {
+    alignItems: 'center',
+    paddingHorizontal: 24,
+  },
+  followNumber: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: Colors.text,
+  },
+  followLabel: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    marginTop: 2,
+  },
+  followDivider: {
+    width: 1,
+    height: 28,
+    backgroundColor: Colors.border,
   },
   completionsSection: {
     paddingHorizontal: 16,

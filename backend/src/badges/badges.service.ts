@@ -36,6 +36,17 @@ export class BadgesService {
     return data;
   }
 
+  async getProgress(userId: string) {
+    const admin = this.supabaseService.getAdminClient();
+
+    const { data, error } = await admin.rpc('get_badge_progress', {
+      p_user_id: userId,
+    });
+
+    if (error) throw error;
+    return data;
+  }
+
   async checkAndAward(userId: string) {
     const admin = this.supabaseService.getAdminClient();
 

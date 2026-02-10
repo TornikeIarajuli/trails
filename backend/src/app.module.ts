@@ -12,6 +12,7 @@ import { CommunityModule } from './community/community.module';
 import { ReviewsModule } from './reviews/reviews.module';
 import { FollowsModule } from './follows/follows.module';
 import { FeedModule } from './feed/feed.module';
+import { NotificationsModule } from './notifications/notifications.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { FeedModule } from './feed/feed.module';
     ReviewsModule,
     FollowsModule,
     FeedModule,
+    NotificationsModule,
   ],
 })
 export class AppModule {}

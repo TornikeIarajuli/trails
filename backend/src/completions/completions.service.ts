@@ -5,6 +5,7 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { SupabaseService } from '../config/supabase.config';
+import { NotificationsService } from '../notifications/notifications.service';
 import { SubmitCompletionDto } from './dto/submit-completion.dto';
 
 @Injectable()
@@ -12,7 +13,10 @@ export class CompletionsService {
   // Max distance in meters between proof photo GPS and trail endpoint
   private readonly GPS_PROXIMITY_THRESHOLD_M = 500;
 
-  constructor(private supabaseService: SupabaseService) {}
+  constructor(
+    private supabaseService: SupabaseService,
+    private notificationsService: NotificationsService,
+  ) {}
 
   async submit(userId: string, dto: SubmitCompletionDto) {
     const admin = this.supabaseService.getAdminClient();
@@ -116,6 +120,100 @@ export class CompletionsService {
     await admin.rpc('increment_trail_count', { p_user_id: userId });
   }
 
+  async recordHike(userId: string, trailId: string, elapsedSeconds?: number) {
+    const admin = this.supabaseService.getAdminClient();
+
+    // Check if already completed this trail
+    const { data: existing } = await admin
+      .from('trail_completions')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('trail_id', trailId)
+      .single();
+
+    if (existing) {
+      // Already have a record — just return it silently
+      return { id: existing.id, already_existed: true };
+    }
+
+    const { data: trail } = await admin
+      .from('trails')
+      .select('id')
+      .eq('id', trailId)
+      .single();
+
+    if (!trail) {
+      throw new NotFoundException('Trail not found');
+    }
+
+    const { data, error } = await admin
+      .from('trail_completions')
+      .insert({
+        user_id: userId,
+        trail_id: trailId,
+        status: 'approved',
+        completed_at: new Date().toISOString(),
+        elapsed_seconds: elapsedSeconds ?? null,
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    await this.incrementUserCompletionCount(admin, userId);
+    const badgeResult = await admin.rpc('check_and_award_badges', { p_user_id: userId });
+
+    // Notify user about new badges
+    if (badgeResult.data && badgeResult.data.length > 0) {
+      const { data: newBadges } = await admin
+        .from('badges')
+        .select('name_en')
+        .in('id', badgeResult.data);
+
+      const names = newBadges?.map((b) => b.name_en).join(', ') ?? 'a new badge';
+      this.notificationsService
+        .sendToUser(userId, 'Badge Earned!', `You earned: ${names}`, {
+          type: 'badge_earned',
+          badgeIds: badgeResult.data,
+        })
+        .catch(() => {});
+    }
+
+    return data;
+  }
+
+  async deleteCompletion(userId: string, completionId: string) {
+    const admin = this.supabaseService.getAdminClient();
+
+    const { data: completion } = await admin
+      .from('trail_completions')
+      .select('id, user_id, status')
+      .eq('id', completionId)
+      .single();
+
+    if (!completion) {
+      throw new NotFoundException('Completion not found');
+    }
+
+    if (completion.user_id !== userId) {
+      throw new BadRequestException('You can only delete your own completions');
+    }
+
+    const { error } = await admin
+      .from('trail_completions')
+      .delete()
+      .eq('id', completionId);
+
+    if (error) throw error;
+
+    // Decrement count if the deleted completion was approved
+    if (completion.status === 'approved') {
+      await admin.rpc('decrement_trail_count', { p_user_id: userId });
+    }
+
+    return { deleted: true };
+  }
+
   async getUserCompletions(userId: string) {
     const admin = this.supabaseService.getAdminClient();
 
@@ -124,7 +222,7 @@ export class CompletionsService {
       .select(
         `
         *,
-        trails:trail_id (id, name_en, name_ka, difficulty, region, cover_image_url)
+        trails:trail_id (id, name_en, name_ka, difficulty, region, cover_image_url, distance_km, elevation_gain_m, estimated_hours)
       `,
       )
       .eq('user_id', userId)

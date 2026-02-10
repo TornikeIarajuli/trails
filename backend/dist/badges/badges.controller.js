@@ -28,6 +28,9 @@ let BadgesController = class BadgesController {
     getMyBadges(userId) {
         return this.badgesService.getUserBadges(userId);
     }
+    getProgress(userId) {
+        return this.badgesService.getProgress(userId);
+    }
     checkBadges(userId) {
         return this.badgesService.checkAndAward(userId);
     }
@@ -47,6 +50,14 @@ __decorate([
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", void 0)
 ], BadgesController.prototype, "getMyBadges", null);
+__decorate([
+    (0, common_1.Get)('progress'),
+    (0, common_1.UseGuards)(auth_guard_1.AuthGuard),
+    __param(0, (0, current_user_decorator_1.CurrentUser)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], BadgesController.prototype, "getProgress", null);
 __decorate([
     (0, common_1.Post)('check'),
     (0, common_1.UseGuards)(auth_guard_1.AuthGuard),

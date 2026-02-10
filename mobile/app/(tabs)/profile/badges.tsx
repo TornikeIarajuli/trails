@@ -10,7 +10,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { TouchableOpacity } from 'react-native';
 import { useColors, ColorPalette } from '../../../constants/colors';
-import { useAllBadges, useMyBadges } from '../../../hooks/useBadges';
+import { useAllBadges, useMyBadges, useBadgeProgress } from '../../../hooks/useBadges';
 import { BadgeCard } from '../../../components/badges/BadgeCard';
 import { LoadingSpinner } from '../../../components/ui/LoadingSpinner';
 import { Badge, BadgeCategory } from '../../../types/badge';
@@ -23,6 +23,36 @@ const CATEGORY_LABELS: Record<BadgeCategory, string> = {
   special: 'Special Achievements',
 };
 
+function getProgressForBadge(
+  badge: Badge,
+  progress: {
+    total_completions: number;
+    completions_by_difficulty: Record<string, number>;
+    completions_by_region: Record<string, number>;
+    unique_regions: number;
+  } | undefined,
+): { current: number; target: number } | null {
+  if (!progress || !badge.threshold) return null;
+
+  const target = badge.threshold;
+
+  if (badge.category === 'completions') {
+    return { current: Math.min(progress.total_completions, target), target };
+  }
+
+  if (badge.category === 'difficulty' && badge.difficulty) {
+    const count = progress.completions_by_difficulty[badge.difficulty] ?? 0;
+    return { current: Math.min(count, target), target };
+  }
+
+  if (badge.category === 'region' && badge.region) {
+    const count = progress.completions_by_region[badge.region] ?? 0;
+    return { current: Math.min(count, target), target };
+  }
+
+  return null;
+}
+
 export default function BadgesScreen() {
   const Colors = useColors();
   const styles = useMemo(() => createStyles(Colors), [Colors]);
@@ -30,6 +60,7 @@ export default function BadgesScreen() {
   const insets = useSafeAreaInsets();
   const { data: allBadges, isLoading: loadingAll } = useAllBadges();
   const { data: myBadges, isLoading: loadingMy } = useMyBadges();
+  const { data: progress } = useBadgeProgress();
 
   const earnedIds = useMemo(
     () => new Set(myBadges?.map((ub) => ub.badges.id) ?? []),
@@ -61,7 +92,7 @@ export default function BadgesScreen() {
         <View style={{ width: 24 }} />
       </View>
 
-      {/* Progress */}
+      {/* Overall Progress */}
       <View style={styles.progressCard}>
         <Text style={styles.progressTitle}>
           {earnedCount} / {totalCount} Unlocked
@@ -87,13 +118,18 @@ export default function BadgesScreen() {
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.badgesRow}
             >
-              {badges.map((badge) => (
-                <BadgeCard
-                  key={badge.id}
-                  badge={badge}
-                  earned={earnedIds.has(badge.id)}
-                />
-              ))}
+              {badges.map((badge) => {
+                const earned = earnedIds.has(badge.id);
+                const prog = !earned ? getProgressForBadge(badge, progress) : null;
+                return (
+                  <BadgeCard
+                    key={badge.id}
+                    badge={badge}
+                    earned={earned}
+                    progress={prog ?? undefined}
+                  />
+                );
+              })}
             </ScrollView>
           </View>
         ))}

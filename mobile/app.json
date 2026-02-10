@@ -61,6 +61,13 @@
         {
           "photosPermission": "Allow Mikiri Trails to access your photos for proof submissions."
         }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#1B5E20"
+        }
       ]
     ],
     "extra": {

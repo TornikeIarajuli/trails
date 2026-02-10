@@ -8,6 +8,7 @@ interface BadgeCardProps {
   badge: Badge;
   earned: boolean;
   compact?: boolean;
+  progress?: { current: number; target: number };
 }
 
 const ICON_MAP: Record<string, string> = {
@@ -26,7 +27,7 @@ const ICON_MAP: Record<string, string> = {
   bookmark: 'bookmark',
 };
 
-export function BadgeCard({ badge, earned, compact }: BadgeCardProps) {
+export function BadgeCard({ badge, earned, compact, progress }: BadgeCardProps) {
   const Colors = useColors();
   const styles = useMemo(() => createStyles(Colors), [Colors]);
   const iconName = ICON_MAP[badge.icon] ?? 'ribbon';
@@ -66,6 +67,21 @@ export function BadgeCard({ badge, earned, compact }: BadgeCardProps) {
       <Text style={styles.description} numberOfLines={2}>
         {badge.description_en}
       </Text>
+      {progress && !earned && (
+        <View style={styles.progressContainer}>
+          <View style={styles.progressBar}>
+            <View
+              style={[
+                styles.progressFill,
+                { width: `${(progress.current / progress.target) * 100}%` },
+              ]}
+            />
+          </View>
+          <Text style={styles.progressText}>
+            {progress.current}/{progress.target}
+          </Text>
+        </View>
+      )}
     </View>
   );
 }
@@ -81,7 +97,7 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     borderColor: Colors.borderLight,
   },
   locked: {
-    opacity: 0.5,
+    opacity: 0.7,
   },
   iconContainer: {
     width: 52,
@@ -117,6 +133,29 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     color: Colors.textSecondary,
     textAlign: 'center',
     marginTop: 4,
+  },
+  progressContainer: {
+    width: '100%',
+    marginTop: 8,
+    alignItems: 'center',
+    gap: 3,
+  },
+  progressBar: {
+    width: '100%',
+    height: 4,
+    backgroundColor: Colors.borderLight,
+    borderRadius: 2,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: Colors.primary,
+    borderRadius: 2,
+  },
+  progressText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: Colors.textSecondary,
   },
   compact: {
     alignItems: 'center',

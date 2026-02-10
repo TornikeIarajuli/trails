@@ -6,6 +6,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { useAuthStore } from '../store/authStore';
 import { useSettingsStore } from '../store/settingsStore';
 import { useColors, ColorPalette } from '../constants/colors';
+import { useNotificationSetup } from '../hooks/useNotifications';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -24,6 +25,8 @@ export default function RootLayout() {
   const isDarkMode = useSettingsStore((s) => s.isDarkMode);
   const Colors = useColors();
   const styles = useMemo(() => createStyles(Colors), [Colors]);
+
+  useNotificationSetup();
 
   useEffect(() => {
     restoreSession().finally(() => {

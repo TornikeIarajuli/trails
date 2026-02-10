@@ -8,6 +8,7 @@ export declare class BadgesService {
         earned_at: any;
         badges: any[];
     }[]>;
+    getProgress(userId: string): Promise<any>;
     checkAndAward(userId: string): Promise<{
         new_badges: any[];
         count: any;

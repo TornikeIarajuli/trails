@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Patch,
+  Delete,
   Body,
   Param,
   UseGuards,
@@ -21,6 +22,16 @@ export class CompletionsController {
   @UseGuards(AuthGuard)
   submit(@CurrentUser('id') userId: string, @Body() dto: SubmitCompletionDto) {
     return this.completionsService.submit(userId, dto);
+  }
+
+  @Post('record')
+  @UseGuards(AuthGuard)
+  recordHike(
+    @CurrentUser('id') userId: string,
+    @Body('trail_id') trailId: string,
+    @Body('elapsed_seconds') elapsedSeconds?: number,
+  ) {
+    return this.completionsService.recordHike(userId, trailId, elapsedSeconds);
   }
 
   @Get('me')
@@ -42,5 +53,14 @@ export class CompletionsController {
     @Body('reviewer_note') reviewerNote?: string,
   ) {
     return this.completionsService.reviewCompletion(id, status, reviewerNote);
+  }
+
+  @Delete(':id')
+  @UseGuards(AuthGuard)
+  deleteCompletion(
+    @CurrentUser('id') userId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.completionsService.deleteCompletion(userId, id);
   }
 }

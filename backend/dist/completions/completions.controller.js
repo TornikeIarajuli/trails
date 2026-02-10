@@ -26,6 +26,9 @@ let CompletionsController = class CompletionsController {
     submit(userId, dto) {
         return this.completionsService.submit(userId, dto);
     }
+    recordHike(userId, trailId, elapsedSeconds) {
+        return this.completionsService.recordHike(userId, trailId, elapsedSeconds);
+    }
     getMyCompletions(userId) {
         return this.completionsService.getUserCompletions(userId);
     }
@@ -34,6 +37,9 @@ let CompletionsController = class CompletionsController {
     }
     reviewCompletion(id, status, reviewerNote) {
         return this.completionsService.reviewCompletion(id, status, reviewerNote);
+    }
+    deleteCompletion(userId, id) {
+        return this.completionsService.deleteCompletion(userId, id);
     }
 };
 exports.CompletionsController = CompletionsController;
@@ -46,6 +52,16 @@ __decorate([
     __metadata("design:paramtypes", [String, submit_completion_dto_1.SubmitCompletionDto]),
     __metadata("design:returntype", void 0)
 ], CompletionsController.prototype, "submit", null);
+__decorate([
+    (0, common_1.Post)('record'),
+    (0, common_1.UseGuards)(auth_guard_1.AuthGuard),
+    __param(0, (0, current_user_decorator_1.CurrentUser)('id')),
+    __param(1, (0, common_1.Body)('trail_id')),
+    __param(2, (0, common_1.Body)('elapsed_seconds')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String, Number]),
+    __metadata("design:returntype", void 0)
+], CompletionsController.prototype, "recordHike", null);
 __decorate([
     (0, common_1.Get)('me'),
     (0, common_1.UseGuards)(auth_guard_1.AuthGuard),
@@ -71,6 +87,15 @@ __decorate([
     __metadata("design:paramtypes", [String, String, String]),
     __metadata("design:returntype", void 0)
 ], CompletionsController.prototype, "reviewCompletion", null);
+__decorate([
+    (0, common_1.Delete)(':id'),
+    (0, common_1.UseGuards)(auth_guard_1.AuthGuard),
+    __param(0, (0, current_user_decorator_1.CurrentUser)('id')),
+    __param(1, (0, common_1.Param)('id', common_1.ParseUUIDPipe)),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:returntype", void 0)
+], CompletionsController.prototype, "deleteCompletion", null);
 exports.CompletionsController = CompletionsController = __decorate([
     (0, common_1.Controller)('completions'),
     __metadata("design:paramtypes", [completions_service_1.CompletionsService])

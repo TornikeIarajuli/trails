@@ -21,6 +21,7 @@ const community_module_1 = require("./community/community.module");
 const reviews_module_1 = require("./reviews/reviews.module");
 const follows_module_1 = require("./follows/follows.module");
 const feed_module_1 = require("./feed/feed.module");
+const notifications_module_1 = require("./notifications/notifications.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -40,6 +41,7 @@ exports.AppModule = AppModule = __decorate([
             reviews_module_1.ReviewsModule,
             follows_module_1.FollowsModule,
             feed_module_1.FeedModule,
+            notifications_module_1.NotificationsModule,
         ],
     })
 ], AppModule);

@@ -8,6 +8,7 @@ export declare class BadgesController {
         earned_at: any;
         badges: any[];
     }[]>;
+    getProgress(userId: string): Promise<any>;
     checkBadges(userId: string): Promise<{
         new_badges: any[];
         count: any;

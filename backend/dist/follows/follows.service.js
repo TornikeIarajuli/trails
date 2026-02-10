@@ -12,10 +12,13 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.FollowsService = void 0;
 const common_1 = require("@nestjs/common");
 const supabase_config_1 = require("../config/supabase.config");
+const notifications_service_1 = require("../notifications/notifications.service");
 let FollowsService = class FollowsService {
     supabaseService;
-    constructor(supabaseService) {
+    notificationsService;
+    constructor(supabaseService, notificationsService) {
         this.supabaseService = supabaseService;
+        this.notificationsService = notificationsService;
     }
     async toggle(followerId, followingId) {
         if (followerId === followingId) {
@@ -41,6 +44,18 @@ let FollowsService = class FollowsService {
             .insert({ follower_id: followerId, following_id: followingId });
         if (error)
             throw error;
+        const { data: followerProfile } = await admin
+            .from('profiles')
+            .select('username')
+            .eq('id', followerId)
+            .single();
+        const username = followerProfile?.username ?? 'Someone';
+        this.notificationsService
+            .sendToUser(followingId, 'New Follower', `${username} started following you`, {
+            type: 'new_follower',
+            followerId,
+        })
+            .catch(() => { });
         return { following: true };
     }
     async isFollowing(followerId, followingId) {
@@ -126,6 +141,7 @@ let FollowsService = class FollowsService {
 exports.FollowsService = FollowsService;
 exports.FollowsService = FollowsService = __decorate([
     (0, common_1.Injectable)(),
-    __metadata("design:paramtypes", [supabase_config_1.SupabaseService])
+    __metadata("design:paramtypes", [supabase_config_1.SupabaseService,
+        notifications_service_1.NotificationsService])
 ], FollowsService);
 //# sourceMappingURL=follows.service.js.map

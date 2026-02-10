@@ -42,6 +42,15 @@ let BadgesService = class BadgesService {
             throw error;
         return data;
     }
+    async getProgress(userId) {
+        const admin = this.supabaseService.getAdminClient();
+        const { data, error } = await admin.rpc('get_badge_progress', {
+            p_user_id: userId,
+        });
+        if (error)
+            throw error;
+        return data;
+    }
     async checkAndAward(userId) {
         const admin = this.supabaseService.getAdminClient();
         const { data, error } = await admin.rpc('check_and_award_badges', {

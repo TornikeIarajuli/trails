@@ -18,6 +18,12 @@ export class BadgesController {
     return this.badgesService.getUserBadges(userId);
   }
 
+  @Get('progress')
+  @UseGuards(AuthGuard)
+  getProgress(@CurrentUser('id') userId: string) {
+    return this.badgesService.getProgress(userId);
+  }
+
   @Post('check')
   @UseGuards(AuthGuard)
   checkBadges(@CurrentUser('id') userId: string) {

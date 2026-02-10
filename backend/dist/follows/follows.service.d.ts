@@ -1,7 +1,9 @@
 import { SupabaseService } from '../config/supabase.config';
+import { NotificationsService } from '../notifications/notifications.service';
 export declare class FollowsService {
     private supabaseService;
-    constructor(supabaseService: SupabaseService);
+    private notificationsService;
+    constructor(supabaseService: SupabaseService, notificationsService: NotificationsService);
     toggle(followerId: string, followingId: string): Promise<{
         following: boolean;
     }>;

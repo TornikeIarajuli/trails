@@ -12,9 +12,11 @@ import {
 import { useLocalSearchParams, Stack, router } from 'expo-router';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import { useColors, ColorPalette } from '../../../constants/colors';
 import { useTrail } from '../../../hooks/useTrails';
 import { trailsService, UpdateTrailData } from '../../../services/trails';
+import { mediaService } from '../../../services/media';
 import { Input } from '../../../components/ui/Input';
 import { Button } from '../../../components/ui/Button';
 import { LoadingSpinner } from '../../../components/ui/LoadingSpinner';
@@ -60,14 +62,16 @@ function DifficultyPicker({
 function MediaGrid({
   media,
   onDelete,
+  onAdd,
+  isUploading,
 }: {
   media: TrailMedia[];
   onDelete: (id: string) => void;
+  onAdd: () => void;
+  isUploading: boolean;
 }) {
   const Colors = useColors();
   const styles = useMemo(() => createStyles(Colors), [Colors]);
-
-  if (media.length === 0) return null;
 
   return (
     <View style={styles.fieldContainer}>
@@ -89,6 +93,20 @@ function MediaGrid({
             </TouchableOpacity>
           </View>
         ))}
+        <TouchableOpacity
+          style={styles.addPhotoBtn}
+          onPress={onAdd}
+          disabled={isUploading}
+        >
+          {isUploading ? (
+            <ActivityIndicator size="small" color={Colors.primary} />
+          ) : (
+            <>
+              <Ionicons name="add-circle-outline" size={28} color={Colors.primary} />
+              <Text style={styles.addPhotoText}>Add Photo</Text>
+            </>
+          )}
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -112,6 +130,7 @@ export default function TrailEditScreen() {
   const [estimatedHours, setEstimatedHours] = useState('');
   const [coverImageUrl, setCoverImageUrl] = useState('');
   const [localMedia, setLocalMedia] = useState<TrailMedia[]>([]);
+  const [photosChanged, setPhotosChanged] = useState(false);
 
   useEffect(() => {
     if (trail) {
@@ -147,12 +166,47 @@ export default function TrailEditScreen() {
     mutationFn: (mediaId: string) => trailsService.deleteTrailMedia(mediaId),
     onSuccess: (_data, mediaId) => {
       setLocalMedia((prev) => prev.filter((m) => m.id !== mediaId));
+      setPhotosChanged(true);
       queryClient.invalidateQueries({ queryKey: ['trail', id] });
     },
     onError: (err: Error) => {
       Alert.alert('Error', err.message || 'Failed to delete photo');
     },
   });
+
+  const uploadMediaMutation = useMutation({
+    mutationFn: async (uri: string) => {
+      const fileName = uri.split('/').pop() || 'photo.jpg';
+      const ext = fileName.split('.').pop()?.toLowerCase();
+      const mimeType = ext === 'png' ? 'image/png' : 'image/jpeg';
+      return mediaService.uploadHikePhoto(id, uri, fileName, mimeType);
+    },
+    onSuccess: () => {
+      setPhotosChanged(true);
+      queryClient.invalidateQueries({ queryKey: ['trail', id] });
+    },
+    onError: (err: Error) => {
+      Alert.alert('Error', err.message || 'Failed to upload photo');
+    },
+  });
+
+  const pickPhoto = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission needed', 'Please allow access to your photos');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      quality: 0.8,
+    });
+
+    if (!result.canceled && result.assets[0]) {
+      uploadMediaMutation.mutate(result.assets[0].uri);
+    }
+  };
 
   const handleSave = () => {
     const data: UpdateTrailData = {};
@@ -173,7 +227,13 @@ export default function TrailEditScreen() {
       data.cover_image_url = coverImageUrl || undefined;
 
     if (Object.keys(data).length === 0) {
-      Alert.alert('No Changes', 'Nothing to update.');
+      if (photosChanged) {
+        Alert.alert('Saved', 'Photo changes saved successfully.', [
+          { text: 'OK', onPress: () => router.back() },
+        ]);
+      } else {
+        Alert.alert('No Changes', 'Nothing to update.');
+      }
       return;
     }
 
@@ -258,7 +318,12 @@ export default function TrailEditScreen() {
           <Image source={{ uri: coverImageUrl }} style={styles.coverPreview} />
         ) : null}
 
-        <MediaGrid media={localMedia} onDelete={(mid) => deleteMediaMutation.mutate(mid)} />
+        <MediaGrid
+          media={localMedia}
+          onDelete={(mid) => deleteMediaMutation.mutate(mid)}
+          onAdd={pickPhoto}
+          isUploading={uploadMediaMutation.isPending}
+        />
 
         <View style={styles.infoBox}>
           <Ionicons name="lock-closed-outline" size={16} color={Colors.textLight} />
@@ -360,6 +425,23 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     right: 4,
     backgroundColor: Colors.surface,
     borderRadius: 11,
+  },
+  addPhotoBtn: {
+    width: '31%',
+    aspectRatio: 1,
+    borderRadius: 8,
+    borderWidth: 1.5,
+    borderColor: Colors.primary + '40',
+    borderStyle: 'dashed',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: Colors.primary + '08',
+  },
+  addPhotoText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: Colors.primary,
+    marginTop: 4,
   },
   infoBox: {
     flexDirection: 'row',

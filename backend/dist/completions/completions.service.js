@@ -12,11 +12,14 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.CompletionsService = void 0;
 const common_1 = require("@nestjs/common");
 const supabase_config_1 = require("../config/supabase.config");
+const notifications_service_1 = require("../notifications/notifications.service");
 let CompletionsService = class CompletionsService {
     supabaseService;
+    notificationsService;
     GPS_PROXIMITY_THRESHOLD_M = 500;
-    constructor(supabaseService) {
+    constructor(supabaseService, notificationsService) {
         this.supabaseService = supabaseService;
+        this.notificationsService = notificationsService;
     }
     async submit(userId, dto) {
         const admin = this.supabaseService.getAdminClient();
@@ -86,13 +89,86 @@ let CompletionsService = class CompletionsService {
     async incrementUserCompletionCount(admin, userId) {
         await admin.rpc('increment_trail_count', { p_user_id: userId });
     }
+    async recordHike(userId, trailId, elapsedSeconds) {
+        const admin = this.supabaseService.getAdminClient();
+        const { data: existing } = await admin
+            .from('trail_completions')
+            .select('id')
+            .eq('user_id', userId)
+            .eq('trail_id', trailId)
+            .single();
+        if (existing) {
+            return { id: existing.id, already_existed: true };
+        }
+        const { data: trail } = await admin
+            .from('trails')
+            .select('id')
+            .eq('id', trailId)
+            .single();
+        if (!trail) {
+            throw new common_1.NotFoundException('Trail not found');
+        }
+        const { data, error } = await admin
+            .from('trail_completions')
+            .insert({
+            user_id: userId,
+            trail_id: trailId,
+            status: 'approved',
+            completed_at: new Date().toISOString(),
+            elapsed_seconds: elapsedSeconds ?? null,
+        })
+            .select()
+            .single();
+        if (error)
+            throw error;
+        await this.incrementUserCompletionCount(admin, userId);
+        const badgeResult = await admin.rpc('check_and_award_badges', { p_user_id: userId });
+        if (badgeResult.data && badgeResult.data.length > 0) {
+            const { data: newBadges } = await admin
+                .from('badges')
+                .select('name_en')
+                .in('id', badgeResult.data);
+            const names = newBadges?.map((b) => b.name_en).join(', ') ?? 'a new badge';
+            this.notificationsService
+                .sendToUser(userId, 'Badge Earned!', `You earned: ${names}`, {
+                type: 'badge_earned',
+                badgeIds: badgeResult.data,
+            })
+                .catch(() => { });
+        }
+        return data;
+    }
+    async deleteCompletion(userId, completionId) {
+        const admin = this.supabaseService.getAdminClient();
+        const { data: completion } = await admin
+            .from('trail_completions')
+            .select('id, user_id, status')
+            .eq('id', completionId)
+            .single();
+        if (!completion) {
+            throw new common_1.NotFoundException('Completion not found');
+        }
+        if (completion.user_id !== userId) {
+            throw new common_1.BadRequestException('You can only delete your own completions');
+        }
+        const { error } = await admin
+            .from('trail_completions')
+            .delete()
+            .eq('id', completionId);
+        if (error)
+            throw error;
+        if (completion.status === 'approved') {
+            await admin.rpc('decrement_trail_count', { p_user_id: userId });
+        }
+        return { deleted: true };
+    }
     async getUserCompletions(userId) {
         const admin = this.supabaseService.getAdminClient();
         const { data, error } = await admin
             .from('trail_completions')
             .select(`
         *,
-        trails:trail_id (id, name_en, name_ka, difficulty, region, cover_image_url)
+        trails:trail_id (id, name_en, name_ka, difficulty, region, cover_image_url, distance_km, elevation_gain_m, estimated_hours)
       `)
             .eq('user_id', userId)
             .order('completed_at', { ascending: false });
@@ -146,6 +222,7 @@ let CompletionsService = class CompletionsService {
 exports.CompletionsService = CompletionsService;
 exports.CompletionsService = CompletionsService = __decorate([
     (0, common_1.Injectable)(),
-    __metadata("design:paramtypes", [supabase_config_1.SupabaseService])
+    __metadata("design:paramtypes", [supabase_config_1.SupabaseService,
+        notifications_service_1.NotificationsService])
 ], CompletionsService);
 //# sourceMappingURL=completions.service.js.map

@@ -11,11 +11,13 @@ const common_1 = require("@nestjs/common");
 const follows_controller_1 = require("./follows.controller");
 const follows_service_1 = require("./follows.service");
 const supabase_config_1 = require("../config/supabase.config");
+const notifications_module_1 = require("../notifications/notifications.module");
 let FollowsModule = class FollowsModule {
 };
 exports.FollowsModule = FollowsModule;
 exports.FollowsModule = FollowsModule = __decorate([
     (0, common_1.Module)({
+        imports: [notifications_module_1.NotificationsModule],
         controllers: [follows_controller_1.FollowsController],
         providers: [follows_service_1.FollowsService, supabase_config_1.SupabaseService],
         exports: [follows_service_1.FollowsService],

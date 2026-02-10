@@ -11,11 +11,13 @@ const common_1 = require("@nestjs/common");
 const completions_controller_1 = require("./completions.controller");
 const completions_service_1 = require("./completions.service");
 const supabase_config_1 = require("../config/supabase.config");
+const notifications_module_1 = require("../notifications/notifications.module");
 let CompletionsModule = class CompletionsModule {
 };
 exports.CompletionsModule = CompletionsModule;
 exports.CompletionsModule = CompletionsModule = __decorate([
     (0, common_1.Module)({
+        imports: [notifications_module_1.NotificationsModule],
         controllers: [completions_controller_1.CompletionsController],
         providers: [completions_service_1.CompletionsService, supabase_config_1.SupabaseService],
         exports: [completions_service_1.CompletionsService],
