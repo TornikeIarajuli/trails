@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { router } from 'expo-router';
-import { Colors } from '../../constants/colors';
+import { useColors, ColorPalette } from '../../constants/colors';
 import { LeaderboardEntry } from '../../types/user';
 import { Avatar } from '../ui/Avatar';
 
@@ -13,6 +13,9 @@ interface LeaderboardRowProps {
 const RANK_COLORS = ['#FFD700', '#C0C0C0', '#CD7F32'];
 
 export function LeaderboardRow({ entry, isTopThree }: LeaderboardRowProps) {
+  const Colors = useColors();
+  const styles = useMemo(() => createStyles(Colors), [Colors]);
+
   return (
     <TouchableOpacity
       style={[styles.row, isTopThree && styles.topRow]}
@@ -48,7 +51,7 @@ export function LeaderboardRow({ entry, isTopThree }: LeaderboardRowProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',

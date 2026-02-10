@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   View,
   Text,
@@ -6,7 +6,7 @@ import {
   RefreshControl,
   StyleSheet,
 } from 'react-native';
-import { Colors } from '../../../constants/colors';
+import { useColors, ColorPalette } from '../../../constants/colors';
 import { useFeed } from '../../../hooks/useFeed';
 import { ActivityCard } from '../../../components/feed/ActivityCard';
 import { EmptyFeed } from '../../../components/feed/EmptyFeed';
@@ -14,6 +14,9 @@ import { LoadingSpinner } from '../../../components/ui/LoadingSpinner';
 import { FeedItem } from '../../../types/feed';
 
 export default function FeedScreen() {
+  const Colors = useColors();
+  const styles = useMemo(() => createStyles(Colors), [Colors]);
+
   const {
     data,
     isLoading,
@@ -64,7 +67,7 @@ export default function FeedScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,

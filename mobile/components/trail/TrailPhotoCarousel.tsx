@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   View,
   Image,
@@ -7,7 +7,7 @@ import {
   Dimensions,
   Text,
 } from 'react-native';
-import { Colors } from '../../constants/colors';
+import { useColors, ColorPalette } from '../../constants/colors';
 import { TrailMedia } from '../../types/trail';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -18,6 +18,9 @@ interface TrailPhotoCarouselProps {
 }
 
 export function TrailPhotoCarousel({ coverUrl, media }: TrailPhotoCarouselProps) {
+  const Colors = useColors();
+  const styles = useMemo(() => createStyles(Colors), [Colors]);
+
   const images = [
     ...(coverUrl ? [{ id: 'cover', url: coverUrl }] : []),
     ...media.filter((m) => m.type === 'photo').map((m) => ({ id: m.id, url: m.url })),
@@ -50,7 +53,7 @@ export function TrailPhotoCarousel({ coverUrl, media }: TrailPhotoCarouselProps)
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   carousel: {
     height: 280,
   },

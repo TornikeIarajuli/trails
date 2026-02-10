@@ -13,7 +13,7 @@ import { useLocalSearchParams, router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import { Colors } from '../../../constants/colors';
+import { useColors, ColorPalette } from '../../../constants/colors';
 import { useTrailPhotos, useUploadPhoto, useTogglePhotoLike } from '../../../hooks/useCommunity';
 import { useAuthStore } from '../../../store/authStore';
 import { mediaService } from '../../../services/media';
@@ -25,6 +25,8 @@ const SCREEN_WIDTH = Dimensions.get('window').width;
 const PHOTO_SIZE = (SCREEN_WIDTH - 48) / 2;
 
 export default function PhotoGalleryScreen() {
+  const Colors = useColors();
+  const styles = useMemo(() => createStyles(Colors), [Colors]);
   const { id } = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
@@ -139,7 +141,7 @@ export default function PhotoGalleryScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,

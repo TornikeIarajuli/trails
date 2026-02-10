@@ -1,8 +1,8 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, Image, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { Colors } from '../../constants/colors';
+import { useColors, ColorPalette } from '../../constants/colors';
 import { Trail } from '../../types/trail';
 import { DifficultyBadge } from './DifficultyBadge';
 import { formatDistance, formatDuration } from '../../utils/formatters';
@@ -13,6 +13,8 @@ interface TrailCardProps {
 }
 
 export function TrailCard({ trail }: TrailCardProps) {
+  const Colors = useColors();
+  const styles = useMemo(() => createStyles(Colors), [Colors]);
   const language = useSettingsStore((s) => s.language);
   const name = language === 'ka' && trail.name_ka ? trail.name_ka : trail.name_en;
 
@@ -55,7 +57,7 @@ export function TrailCard({ trail }: TrailCardProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   card: {
     backgroundColor: Colors.surface,
     borderRadius: 16,

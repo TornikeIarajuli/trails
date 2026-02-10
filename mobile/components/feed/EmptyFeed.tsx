@@ -1,10 +1,13 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors } from '../../constants/colors';
+import { useColors, ColorPalette } from '../../constants/colors';
 
 export function EmptyFeed() {
+  const Colors = useColors();
+  const styles = useMemo(() => createStyles(Colors), [Colors]);
+
   return (
     <View style={styles.container}>
       <Ionicons name="newspaper-outline" size={56} color={Colors.borderLight} />
@@ -23,7 +26,7 @@ export function EmptyFeed() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   container: {
     alignItems: 'center',
     paddingHorizontal: 40,

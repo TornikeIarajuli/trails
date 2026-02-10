@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { Colors } from '../../constants/colors';
+import { useColors, ColorPalette } from '../../constants/colors';
 import { TrailDifficulty } from '../../types/trail';
 
 interface DifficultyBadgeProps {
@@ -9,6 +9,8 @@ interface DifficultyBadgeProps {
 }
 
 export function DifficultyBadge({ difficulty, size = 'sm' }: DifficultyBadgeProps) {
+  const Colors = useColors();
+  const styles = useMemo(() => createStyles(Colors), [Colors]);
   const color = Colors.difficulty[difficulty];
 
   return (
@@ -20,7 +22,7 @@ export function DifficultyBadge({ difficulty, size = 'sm' }: DifficultyBadgeProp
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   badge: {
     paddingHorizontal: 8,
     paddingVertical: 3,

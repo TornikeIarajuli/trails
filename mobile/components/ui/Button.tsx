@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   TouchableOpacity,
   Text,
@@ -6,7 +6,7 @@ import {
   ActivityIndicator,
   ViewStyle,
 } from 'react-native';
-import { Colors } from '../../constants/colors';
+import { useColors, ColorPalette } from '../../constants/colors';
 
 interface ButtonProps {
   title: string;
@@ -25,6 +25,8 @@ export function Button({
   disabled = false,
   style,
 }: ButtonProps) {
+  const Colors = useColors();
+  const styles = useMemo(() => createStyles(Colors), [Colors]);
   const isDisabled = disabled || loading;
 
   return (
@@ -58,7 +60,7 @@ export function Button({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   base: {
     height: 50,
     borderRadius: 12,

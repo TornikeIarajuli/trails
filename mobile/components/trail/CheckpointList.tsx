@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors } from '../../constants/colors';
+import { useColors, ColorPalette } from '../../constants/colors';
 import { Checkpoint, CheckpointType } from '../../types/checkpoint';
 import { useSettingsStore } from '../../store/settingsStore';
 
@@ -27,6 +27,8 @@ interface CheckpointListProps {
 }
 
 export function CheckpointList({ checkpoints, visitedIds = [] }: CheckpointListProps) {
+  const Colors = useColors();
+  const styles = useMemo(() => createStyles(Colors), [Colors]);
   const language = useSettingsStore((s) => s.language);
 
   if (checkpoints.length === 0) return null;
@@ -77,7 +79,7 @@ export function CheckpointList({ checkpoints, visitedIds = [] }: CheckpointListP
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   container: {
     padding: 16,
   },

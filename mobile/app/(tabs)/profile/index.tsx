@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -12,11 +12,11 @@ import { router } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import { Colors } from '../../../constants/colors';
+import { useColors, ColorPalette } from '../../../constants/colors';
 import { useAuthStore } from '../../../store/authStore';
 import { usersService } from '../../../services/users';
 import { mediaService } from '../../../services/media';
-import { useMyCompletions } from '../../../hooks/useCompletions';
+import { useMyCompletions, useDeleteCompletion } from '../../../hooks/useCompletions';
 import { Avatar } from '../../../components/ui/Avatar';
 import { StatsGrid } from '../../../components/profile/StatsGrid';
 import { LoadingSpinner } from '../../../components/ui/LoadingSpinner';
@@ -28,6 +28,9 @@ import { useMyBadges } from '../../../hooks/useBadges';
 import { useMyBookmarks } from '../../../hooks/useBookmarks';
 
 export default function ProfileScreen() {
+  const Colors = useColors();
+  const styles = useMemo(() => createStyles(Colors), [Colors]);
+
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState(false);
@@ -41,8 +44,24 @@ export default function ProfileScreen() {
   });
 
   const { data: completions } = useMyCompletions();
+  const deleteCompletion = useDeleteCompletion();
   const { data: myBadges } = useMyBadges();
   const { data: bookmarksData } = useMyBookmarks();
+
+  const handleDeleteCompletion = (id: string, trailName: string) => {
+    Alert.alert(
+      'Delete Completion',
+      `Remove "${trailName}" from your history?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => deleteCompletion.mutate(id),
+        },
+      ],
+    );
+  };
 
   const avatarMutation = useMutation({
     mutationFn: async (uri: string) => {
@@ -225,21 +244,28 @@ export default function ProfileScreen() {
             <View style={styles.completionsSection}>
               <Text style={styles.sectionTitle}>Completed Trails</Text>
               {completions.map((c) => (
-                <TouchableOpacity
-                  key={c.id}
-                  style={styles.completionRow}
-                  onPress={() => router.push(`/trail/${c.trail_id}`)}
-                >
-                  <View style={styles.completionInfo}>
-                    <Text style={styles.completionName} numberOfLines={1}>
-                      {c.trails?.name_en ?? 'Unknown Trail'}
-                    </Text>
-                    <Text style={styles.completionDate}>{formatDate(c.completed_at)}</Text>
-                  </View>
-                  {c.trails?.difficulty && (
-                    <DifficultyBadge difficulty={c.trails.difficulty as TrailDifficulty} />
-                  )}
-                </TouchableOpacity>
+                <View key={c.id} style={styles.completionRow}>
+                  <TouchableOpacity
+                    style={styles.completionTouchable}
+                    onPress={() => router.push(`/trail/completion/${c.id}`)}
+                  >
+                    <View style={styles.completionInfo}>
+                      <Text style={styles.completionName} numberOfLines={1}>
+                        {c.trails?.name_en ?? 'Unknown Trail'}
+                      </Text>
+                      <Text style={styles.completionDate}>{formatDate(c.completed_at)}</Text>
+                    </View>
+                    {c.trails?.difficulty && (
+                      <DifficultyBadge difficulty={c.trails.difficulty as TrailDifficulty} />
+                    )}
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.deleteButton}
+                    onPress={() => handleDeleteCompletion(c.id, c.trails?.name_en ?? 'this trail')}
+                  >
+                    <Ionicons name="trash-outline" size={18} color={Colors.error} />
+                  </TouchableOpacity>
+                </View>
               ))}
             </View>
           )}
@@ -273,7 +299,7 @@ export default function ProfileScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,
@@ -400,16 +426,26 @@ const styles = StyleSheet.create({
   },
   completionRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
     backgroundColor: Colors.surface,
-    padding: 14,
     borderRadius: 12,
     marginBottom: 8,
+  },
+  completionTouchable: {
+    flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 14,
   },
   completionInfo: {
     flex: 1,
     marginRight: 12,
+  },
+  deleteButton: {
+    padding: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   completionName: {
     fontSize: 15,

@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors } from '../../constants/colors';
+import { useColors, ColorPalette } from '../../constants/colors';
 import { formatDistance, formatElevation, formatDuration } from '../../utils/formatters';
 
 interface TrailStatsProps {
@@ -11,6 +11,9 @@ interface TrailStatsProps {
 }
 
 export function TrailStats({ distanceKm, elevationGainM, estimatedHours }: TrailStatsProps) {
+  const Colors = useColors();
+  const styles = useMemo(() => createStyles(Colors), [Colors]);
+
   return (
     <View style={styles.container}>
       <View style={styles.stat}>
@@ -31,7 +34,7 @@ export function TrailStats({ distanceKm, elevationGainM, estimatedHours }: Trail
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',

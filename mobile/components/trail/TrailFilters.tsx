@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   View,
   Text,
@@ -8,7 +8,7 @@ import {
   StyleSheet,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors } from '../../constants/colors';
+import { useColors, ColorPalette } from '../../constants/colors';
 import { TrailDifficulty } from '../../types/trail';
 
 const DIFFICULTIES: (TrailDifficulty | null)[] = [null, 'easy', 'medium', 'hard', 'ultra'];
@@ -32,6 +32,9 @@ export function TrailFilters({
   onRegionChange,
   regions,
 }: TrailFiltersProps) {
+  const Colors = useColors();
+  const styles = useMemo(() => createStyles(Colors), [Colors]);
+
   return (
     <View style={styles.container}>
       <View style={styles.searchRow}>
@@ -95,7 +98,7 @@ export function TrailFilters({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   container: {
     paddingTop: 8,
     paddingBottom: 4,

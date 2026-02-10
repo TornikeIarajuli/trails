@@ -4,10 +4,11 @@ export interface TrailCompletion {
   id: string;
   user_id: string;
   trail_id: string;
-  proof_photo_url: string;
-  photo_lat: number;
-  photo_lng: number;
+  proof_photo_url: string | null;
+  photo_lat: number | null;
+  photo_lng: number | null;
   status: CompletionStatus;
+  elapsed_seconds: number | null;
   reviewer_note: string | null;
   completed_at: string;
   created_at: string;
@@ -18,5 +19,8 @@ export interface TrailCompletion {
     difficulty: string;
     region: string;
     cover_image_url: string | null;
+    distance_km: number | null;
+    elevation_gain_m: number | null;
+    estimated_hours: number | null;
   };
 }

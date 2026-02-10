@@ -1,17 +1,10 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, Image, StyleSheet } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors } from '../../constants/colors';
+import { useColors, ColorPalette } from '../../constants/colors';
 import { Avatar } from '../ui/Avatar';
 import { FeedItem, ActivityType } from '../../types/feed';
-
-const ACTION_CONFIG: Record<ActivityType, { verb: string; icon: string; color: string }> = {
-  completion: { verb: 'completed', icon: 'checkmark-circle', color: Colors.success },
-  photo: { verb: 'uploaded a photo on', icon: 'camera', color: '#2196F3' },
-  condition: { verb: 'reported a condition on', icon: 'warning', color: '#FF9800' },
-  review: { verb: 'reviewed', icon: 'star', color: '#FFC107' },
-};
 
 function getRelativeTime(dateStr: string): string {
   const now = Date.now();
@@ -43,6 +36,16 @@ function getConditionLabel(conditionType: string): string {
 }
 
 export function ActivityCard({ item }: { item: FeedItem }) {
+  const Colors = useColors();
+  const styles = useMemo(() => createStyles(Colors), [Colors]);
+
+  const ACTION_CONFIG: Record<ActivityType, { verb: string; icon: string; color: string }> = {
+    completion: { verb: 'completed', icon: 'checkmark-circle', color: Colors.success },
+    photo: { verb: 'uploaded a photo on', icon: 'camera', color: '#2196F3' },
+    condition: { verb: 'reported a condition on', icon: 'warning', color: '#FF9800' },
+    review: { verb: 'reviewed', icon: 'star', color: '#FFC107' },
+  };
+
   const config = ACTION_CONFIG[item.activity_type];
 
   return (
@@ -120,7 +123,7 @@ export function ActivityCard({ item }: { item: FeedItem }) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   card: {
     flexDirection: 'row',
     backgroundColor: Colors.surface,

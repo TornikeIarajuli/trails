@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { TouchableOpacity, StyleSheet, ViewStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors } from '../../constants/colors';
+import { useColors, ColorPalette } from '../../constants/colors';
 import { useIsBookmarked, useToggleBookmark } from '../../hooks/useBookmarks';
 import { useAuthStore } from '../../store/authStore';
 
@@ -11,6 +11,8 @@ interface BookmarkButtonProps {
 }
 
 export function BookmarkButton({ trailId, style }: BookmarkButtonProps) {
+  const Colors = useColors();
+  const styles = useMemo(() => createStyles(Colors), [Colors]);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const { data } = useIsBookmarked(trailId);
   const toggleBookmark = useToggleBookmark();
@@ -34,7 +36,7 @@ export function BookmarkButton({ trailId, style }: BookmarkButtonProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   button: {
     width: 40,
     height: 40,

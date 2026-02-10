@@ -32,3 +32,28 @@ export function useSubmitCompletion() {
     },
   });
 }
+
+export function useRecordHike() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: { trailId: string; elapsedSeconds?: number }) =>
+      completionsService.recordHike(data.trailId, data.elapsedSeconds),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['completions'] });
+      queryClient.invalidateQueries({ queryKey: ['profile'] });
+    },
+  });
+}
+
+export function useDeleteCompletion() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => completionsService.deleteCompletion(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['completions'] });
+      queryClient.invalidateQueries({ queryKey: ['profile'] });
+    },
+  });
+}

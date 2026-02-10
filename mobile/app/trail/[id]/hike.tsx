@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback, useState } from 'react';
+import React, { useEffect, useCallback, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -13,15 +13,19 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import MapView, { Marker, Polyline } from 'react-native-maps';
 import * as ImagePicker from 'expo-image-picker';
-import { Colors } from '../../../constants/colors';
+import { useColors, ColorPalette } from '../../../constants/colors';
 import { useTrail } from '../../../hooks/useTrails';
 import { useHikeStore } from '../../../store/hikeStore';
 import { useLocationTracking } from '../../../hooks/useLocation';
 import { Config } from '../../../constants/config';
 import { parseGeoPoint, parseGeoLineString } from '../../../utils/geo';
 import { mediaService } from '../../../services/media';
+import { useRecordHike } from '../../../hooks/useCompletions';
 
 export default function HikeScreen() {
+  const Colors = useColors();
+  const styles = useMemo(() => createStyles(Colors), [Colors]);
+
   const { id } = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
   const { data: trail } = useTrail(id);
@@ -39,6 +43,7 @@ export default function HikeScreen() {
   } = useHikeStore();
 
   const location = useLocationTracking(isActive);
+  const recordHike = useRecordHike();
 
   // Parse route from trail data
   const routeCoords = trail?.route ? parseGeoLineString(trail.route) : [];
@@ -84,8 +89,20 @@ export default function HikeScreen() {
         text: 'End Hike',
         style: 'destructive',
         onPress: () => {
-          endHike();
-          router.back();
+          if (id) {
+            recordHike.mutate(
+              { trailId: id, elapsedSeconds },
+              {
+                onSettled: () => {
+                  endHike();
+                  router.back();
+                },
+              },
+            );
+          } else {
+            endHike();
+            router.back();
+          }
         },
       },
     ]);
@@ -249,7 +266,7 @@ export default function HikeScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   container: {
     flex: 1,
   },

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -9,7 +9,7 @@ import {
 import { useLocalSearchParams, router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors } from '../../../constants/colors';
+import { useColors, ColorPalette } from '../../../constants/colors';
 import { useTrailConditions } from '../../../hooks/useCommunity';
 import { useAuthStore } from '../../../store/authStore';
 import { ReportConditionModal } from '../../../components/community/ReportConditionModal';
@@ -47,6 +47,8 @@ const CONDITION_LABELS: Record<string, string> = {
 };
 
 export default function ConditionsScreen() {
+  const Colors = useColors();
+  const styles = useMemo(() => createStyles(Colors), [Colors]);
   const { id } = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
@@ -136,7 +138,7 @@ export default function ConditionsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,

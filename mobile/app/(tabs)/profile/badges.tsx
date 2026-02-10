@@ -9,7 +9,7 @@ import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { TouchableOpacity } from 'react-native';
-import { Colors } from '../../../constants/colors';
+import { useColors, ColorPalette } from '../../../constants/colors';
 import { useAllBadges, useMyBadges } from '../../../hooks/useBadges';
 import { BadgeCard } from '../../../components/badges/BadgeCard';
 import { LoadingSpinner } from '../../../components/ui/LoadingSpinner';
@@ -24,6 +24,9 @@ const CATEGORY_LABELS: Record<BadgeCategory, string> = {
 };
 
 export default function BadgesScreen() {
+  const Colors = useColors();
+  const styles = useMemo(() => createStyles(Colors), [Colors]);
+
   const insets = useSafeAreaInsets();
   const { data: allBadges, isLoading: loadingAll } = useAllBadges();
   const { data: myBadges, isLoading: loadingMy } = useMyBadges();
@@ -100,7 +103,7 @@ export default function BadgesScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -12,7 +12,7 @@ import {
 import { useLocalSearchParams, Stack, router } from 'expo-router';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors } from '../../../constants/colors';
+import { useColors, ColorPalette } from '../../../constants/colors';
 import { useTrail } from '../../../hooks/useTrails';
 import { trailsService, UpdateTrailData } from '../../../services/trails';
 import { Input } from '../../../components/ui/Input';
@@ -29,6 +29,9 @@ function DifficultyPicker({
   value: TrailDifficulty;
   onChange: (d: TrailDifficulty) => void;
 }) {
+  const Colors = useColors();
+  const styles = useMemo(() => createStyles(Colors), [Colors]);
+
   return (
     <View style={styles.fieldContainer}>
       <Text style={styles.fieldLabel}>Difficulty</Text>
@@ -61,6 +64,9 @@ function MediaGrid({
   media: TrailMedia[];
   onDelete: (id: string) => void;
 }) {
+  const Colors = useColors();
+  const styles = useMemo(() => createStyles(Colors), [Colors]);
+
   if (media.length === 0) return null;
 
   return (
@@ -89,6 +95,8 @@ function MediaGrid({
 }
 
 export default function TrailEditScreen() {
+  const Colors = useColors();
+  const styles = useMemo(() => createStyles(Colors), [Colors]);
   const { id } = useLocalSearchParams<{ id: string }>();
   const queryClient = useQueryClient();
   const { data: trail, isLoading } = useTrail(id);
@@ -269,7 +277,7 @@ export default function TrailEditScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,

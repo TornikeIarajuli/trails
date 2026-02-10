@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,7 @@ import {
 import { useLocalSearchParams, Stack, router } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors } from '../../../constants/colors';
+import { useColors, ColorPalette } from '../../../constants/colors';
 import { usersService } from '../../../services/users';
 import { Avatar } from '../../../components/ui/Avatar';
 import { StatsGrid } from '../../../components/profile/StatsGrid';
@@ -25,7 +25,7 @@ function formatDate(dateStr: string) {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
-function DifficultyBadge({ difficulty }: { difficulty: string }) {
+function DifficultyBadgeLocal({ difficulty, Colors, styles }: { difficulty: string; Colors: ColorPalette; styles: any }) {
   const color = Colors.difficulty[difficulty as keyof typeof Colors.difficulty] || Colors.textSecondary;
   return (
     <View style={[styles.badge, { backgroundColor: color + '20' }]}>
@@ -34,7 +34,7 @@ function DifficultyBadge({ difficulty }: { difficulty: string }) {
   );
 }
 
-function CompletionCard({ completion }: { completion: TrailCompletion }) {
+function CompletionCard({ completion, Colors, styles }: { completion: TrailCompletion; Colors: ColorPalette; styles: any }) {
   const trail = completion.trails;
   if (!trail) return null;
 
@@ -54,7 +54,7 @@ function CompletionCard({ completion }: { completion: TrailCompletion }) {
       <View style={styles.completionInfo}>
         <Text style={styles.trailName} numberOfLines={1}>{trail.name_en}</Text>
         <View style={styles.trailMeta}>
-          <DifficultyBadge difficulty={trail.difficulty} />
+          <DifficultyBadgeLocal difficulty={trail.difficulty} Colors={Colors} styles={styles} />
           <Text style={styles.trailRegion}>{trail.region}</Text>
         </View>
         <View style={styles.trailDetails}>
@@ -71,7 +71,7 @@ function CompletionCard({ completion }: { completion: TrailCompletion }) {
   );
 }
 
-function ProofPhotosGrid({ completions }: { completions: TrailCompletion[] }) {
+function ProofPhotosGrid({ completions, Colors, styles }: { completions: TrailCompletion[]; Colors: ColorPalette; styles: any }) {
   const photosWithTrail = completions.filter(c => c.proof_photo_url);
   if (photosWithTrail.length === 0) return null;
 
@@ -92,7 +92,7 @@ function ProofPhotosGrid({ completions }: { completions: TrailCompletion[] }) {
   );
 }
 
-function FollowButton({ userId }: { userId: string }) {
+function FollowButton({ userId, Colors, styles }: { userId: string; Colors: ColorPalette; styles: any }) {
   const currentUserId = useAuthStore((s) => s.user?.id);
   const { data: followData, isLoading } = useIsFollowing(userId);
   const toggleFollow = useToggleFollow();
@@ -125,7 +125,7 @@ function FollowButton({ userId }: { userId: string }) {
   );
 }
 
-function FollowCounts({ userId }: { userId: string }) {
+function FollowCounts({ userId, Colors, styles }: { userId: string; Colors: ColorPalette; styles: any }) {
   const { data: counts } = useFollowCounts(userId);
 
   if (!counts) return null;
@@ -152,6 +152,9 @@ function FollowCounts({ userId }: { userId: string }) {
 }
 
 export default function PublicProfileScreen() {
+  const Colors = useColors();
+  const styles = useMemo(() => createStyles(Colors), [Colors]);
+
   const { id } = useLocalSearchParams<{ id: string }>();
 
   const { data: profile, isLoading } = useQuery<PublicProfile>({
@@ -187,8 +190,8 @@ export default function PublicProfileScreen() {
             <Text style={styles.bioEmpty}>No bio yet</Text>
           )}
 
-          <FollowCounts userId={id} />
-          <FollowButton userId={id} />
+          <FollowCounts userId={id} Colors={Colors} styles={styles} />
+          <FollowButton userId={id} Colors={Colors} styles={styles} />
 
           <Text style={styles.memberSince}>
             Member since {formatDate(profile.created_at)}
@@ -199,7 +202,7 @@ export default function PublicProfileScreen() {
         {profile.stats && <StatsGrid stats={profile.stats} />}
 
         {/* Proof Photos */}
-        <ProofPhotosGrid completions={profile.completions} />
+        <ProofPhotosGrid completions={profile.completions} Colors={Colors} styles={styles} />
 
         {/* Completed Trails */}
         {profile.completions.length > 0 && (
@@ -208,7 +211,7 @@ export default function PublicProfileScreen() {
               Completed Trails ({profile.completions.length})
             </Text>
             {profile.completions.map((completion) => (
-              <CompletionCard key={completion.id} completion={completion} />
+              <CompletionCard key={completion.id} completion={completion} Colors={Colors} styles={styles} />
             ))}
           </View>
         )}
@@ -224,7 +227,7 @@ export default function PublicProfileScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,

@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -8,7 +8,7 @@ import {
   Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors } from '../../constants/colors';
+import { useColors, ColorPalette } from '../../constants/colors';
 import { Badge } from '../../types/badge';
 
 interface BadgeUnlockModalProps {
@@ -38,6 +38,8 @@ export function BadgeUnlockModal({
   visible,
   onClose,
 }: BadgeUnlockModalProps) {
+  const Colors = useColors();
+  const styles = useMemo(() => createStyles(Colors), [Colors]);
   const scaleAnim = new Animated.Value(0.5);
   const opacityAnim = new Animated.Value(0);
 
@@ -93,7 +95,7 @@ export function BadgeUnlockModal({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.6)',

@@ -1,10 +1,11 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import * as SplashScreen from 'expo-splash-screen';
 import { useAuthStore } from '../store/authStore';
-import { Colors } from '../constants/colors';
+import { useSettingsStore } from '../store/settingsStore';
+import { useColors, ColorPalette } from '../constants/colors';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -20,6 +21,9 @@ const queryClient = new QueryClient({
 export default function RootLayout() {
   const restoreSession = useAuthStore((s) => s.restoreSession);
   const isLoading = useAuthStore((s) => s.isLoading);
+  const isDarkMode = useSettingsStore((s) => s.isDarkMode);
+  const Colors = useColors();
+  const styles = useMemo(() => createStyles(Colors), [Colors]);
 
   useEffect(() => {
     restoreSession().finally(() => {
@@ -31,7 +35,7 @@ export default function RootLayout() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <StatusBar style="dark" />
+      <StatusBar style={isDarkMode ? 'light' : 'dark'} />
       <Stack
         screenOptions={{
           headerStyle: { backgroundColor: Colors.surface },
@@ -49,3 +53,5 @@ export default function RootLayout() {
     </QueryClientProvider>
   );
 }
+
+const createStyles = (Colors: ColorPalette) => ({});

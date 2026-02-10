@@ -1,11 +1,14 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, FlatList, Text, StyleSheet } from 'react-native';
-import { Colors } from '../../../constants/colors';
+import { useColors, ColorPalette } from '../../../constants/colors';
 import { useLeaderboard } from '../../../hooks/useLeaderboard';
 import { LeaderboardRow } from '../../../components/leaderboard/LeaderboardRow';
 import { LoadingSpinner } from '../../../components/ui/LoadingSpinner';
 
 export default function LeaderboardScreen() {
+  const Colors = useColors();
+  const styles = useMemo(() => createStyles(Colors), [Colors]);
+
   const { data, isLoading } = useLeaderboard(50);
 
   return (
@@ -37,7 +40,7 @@ export default function LeaderboardScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,

@@ -6,7 +6,7 @@ import {
   Text,
   RefreshControl,
 } from 'react-native';
-import { Colors } from '../../../constants/colors';
+import { useColors, ColorPalette } from '../../../constants/colors';
 import { useTrails, useRegions } from '../../../hooks/useTrails';
 import { useDebounce } from '../../../hooks/useDebounce';
 import { TrailCard } from '../../../components/trail/TrailCard';
@@ -15,6 +15,9 @@ import { LoadingSpinner } from '../../../components/ui/LoadingSpinner';
 import { TrailDifficulty, Trail } from '../../../types/trail';
 
 export default function HomeScreen() {
+  const Colors = useColors();
+  const styles = useMemo(() => createStyles(Colors), [Colors]);
+
   const [search, setSearch] = useState('');
   const [difficulty, setDifficulty] = useState<TrailDifficulty | null>(null);
   const [region, setRegion] = useState<string | null>(null);
@@ -83,7 +86,7 @@ export default function HomeScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,

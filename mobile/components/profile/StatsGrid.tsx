@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { Colors } from '../../constants/colors';
+import { useColors, ColorPalette } from '../../constants/colors';
 import { ProfileStats } from '../../types/user';
 
 interface StatsGridProps {
@@ -8,6 +8,8 @@ interface StatsGridProps {
 }
 
 export function StatsGrid({ stats }: StatsGridProps) {
+  const Colors = useColors();
+  const styles = useMemo(() => createStyles(Colors), [Colors]);
   const items = [
     { label: 'Easy', value: stats.easy, color: Colors.difficulty.easy },
     { label: 'Medium', value: stats.medium, color: Colors.difficulty.medium },
@@ -34,7 +36,7 @@ export function StatsGrid({ stats }: StatsGridProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   container: {
     padding: 16,
   },

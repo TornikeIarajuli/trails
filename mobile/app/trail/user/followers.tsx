@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -7,7 +7,7 @@ import {
   StyleSheet,
 } from 'react-native';
 import { useLocalSearchParams, Stack, router } from 'expo-router';
-import { Colors } from '../../../constants/colors';
+import { useColors, ColorPalette } from '../../../constants/colors';
 import { Avatar } from '../../../components/ui/Avatar';
 import { LoadingSpinner } from '../../../components/ui/LoadingSpinner';
 import { useFollowers, useFollowing } from '../../../hooks/useFollows';
@@ -15,7 +15,7 @@ import { FollowUser } from '../../../types/follow';
 
 type Tab = 'followers' | 'following';
 
-function UserRow({ user }: { user: { profiles: FollowUser } }) {
+function UserRow({ user, styles }: { user: { profiles: FollowUser }; styles: any }) {
   const profile = user.profiles;
   if (!profile) return null;
 
@@ -41,6 +41,9 @@ function UserRow({ user }: { user: { profiles: FollowUser } }) {
 }
 
 export default function FollowersScreen() {
+  const Colors = useColors();
+  const styles = useMemo(() => createStyles(Colors), [Colors]);
+
   const { userId, tab: initialTab } = useLocalSearchParams<{
     userId: string;
     tab: Tab;
@@ -82,7 +85,7 @@ export default function FollowersScreen() {
           <FlatList
             data={data?.data ?? []}
             keyExtractor={(item: any) => item.id}
-            renderItem={({ item }) => <UserRow user={item} />}
+            renderItem={({ item }) => <UserRow user={item} styles={styles} />}
             contentContainerStyle={styles.list}
             ListEmptyComponent={
               <View style={styles.empty}>
@@ -100,7 +103,7 @@ export default function FollowersScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,

@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, StyleSheet, Text } from 'react-native';
 import MapView, { Marker, Polyline } from 'react-native-maps';
-import { Colors } from '../../constants/colors';
+import { useColors, ColorPalette } from '../../constants/colors';
 import { Checkpoint } from '../../types/checkpoint';
 import { parseGeoPoint } from '../../utils/geo';
 
@@ -20,6 +20,9 @@ export function TrailMap({
   endPoint,
   height = 250,
 }: TrailMapProps) {
+  const Colors = useColors();
+  const styles = useMemo(() => createStyles(Colors), [Colors]);
+
   // Parse checkpoint coordinates
   const parsedCheckpoints = checkpoints
     .map((cp) => {
@@ -88,7 +91,7 @@ export function TrailMap({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   container: {
     borderRadius: 12,
     overflow: 'hidden',

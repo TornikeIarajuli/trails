@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors } from '../../constants/colors';
+import { useColors, ColorPalette } from '../../constants/colors';
 
 interface ConditionItem {
   id: string;
@@ -40,6 +40,9 @@ const CONDITION_LABELS: Record<string, string> = {
 };
 
 export function ConditionsBanner({ conditions, onPress }: ConditionsBannerProps) {
+  const Colors = useColors();
+  const styles = useMemo(() => createStyles(Colors), [Colors]);
+
   if (conditions.length === 0) return null;
 
   const latest = conditions[0];
@@ -71,7 +74,7 @@ export function ConditionsBanner({ conditions, onPress }: ConditionsBannerProps)
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   banner: {
     marginHorizontal: 16,
     backgroundColor: Colors.surface,

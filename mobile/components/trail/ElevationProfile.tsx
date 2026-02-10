@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, Dimensions } from 'react-native';
-import { Colors } from '../../constants/colors';
+import { useColors, ColorPalette } from '../../constants/colors';
 import { Checkpoint } from '../../types/checkpoint';
 
 interface ElevationProfileProps {
@@ -14,6 +14,9 @@ export function ElevationProfile({
   distanceKm,
   height = 120,
 }: ElevationProfileProps) {
+  const Colors = useColors();
+  const styles = useMemo(() => createStyles(Colors), [Colors]);
+
   const elevationData = useMemo(() => {
     const withElevation = checkpoints
       .filter((cp) => cp.elevation_m !== null && cp.elevation_m !== undefined)
@@ -40,6 +43,13 @@ export function ElevationProfile({
   const { elevations, minElev, maxElev, range } = elevationData;
   const chartWidth = Dimensions.get('window').width - 80;
   const chartHeight = height - 40;
+
+  const getElevationColor = (elev: number, min: number, max: number): string => {
+    const ratio = max === min ? 0.5 : (elev - min) / (max - min);
+    if (ratio < 0.33) return Colors.primaryLight;
+    if (ratio < 0.66) return Colors.primary;
+    return Colors.primaryDark;
+  };
 
   return (
     <View style={styles.container}>
@@ -111,14 +121,7 @@ export function ElevationProfile({
   );
 }
 
-function getElevationColor(elev: number, min: number, max: number): string {
-  const ratio = max === min ? 0.5 : (elev - min) / (max - min);
-  if (ratio < 0.33) return Colors.primaryLight;
-  if (ratio < 0.66) return Colors.primary;
-  return Colors.primaryDark;
-}
-
-const styles = StyleSheet.create({
+const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   container: {
     paddingHorizontal: 16,
     paddingVertical: 12,

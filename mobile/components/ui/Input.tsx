@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, Text, TextInput, StyleSheet, TextInputProps, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors } from '../../constants/colors';
+import { useColors, ColorPalette } from '../../constants/colors';
 
 interface InputProps extends TextInputProps {
   label?: string;
@@ -9,6 +9,8 @@ interface InputProps extends TextInputProps {
 }
 
 export function Input({ label, error, style, secureTextEntry, ...props }: InputProps) {
+  const Colors = useColors();
+  const styles = useMemo(() => createStyles(Colors), [Colors]);
   const [hidden, setHidden] = useState(true);
   const isPassword = secureTextEntry !== undefined;
 
@@ -33,7 +35,7 @@ export function Input({ label, error, style, secureTextEntry, ...props }: InputP
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   container: {
     marginBottom: 16,
   },

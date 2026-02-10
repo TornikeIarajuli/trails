@@ -21,4 +21,16 @@ export const completionsService = {
     const response = await api.get(`/completions/trail/${trailId}`);
     return response.data;
   },
+
+  async recordHike(trailId: string, elapsedSeconds?: number): Promise<TrailCompletion> {
+    const response = await api.post('/completions/record', {
+      trail_id: trailId,
+      elapsed_seconds: elapsedSeconds,
+    });
+    return response.data;
+  },
+
+  async deleteCompletion(id: string): Promise<void> {
+    await api.delete(`/completions/${id}`);
+  },
 };

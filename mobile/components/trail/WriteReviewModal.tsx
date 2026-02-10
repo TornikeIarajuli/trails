@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,7 @@ import {
   Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors } from '../../constants/colors';
+import { useColors, ColorPalette } from '../../constants/colors';
 import { useSubmitReview } from '../../hooks/useReviews';
 
 interface Props {
@@ -21,6 +21,8 @@ interface Props {
 }
 
 export function WriteReviewModal({ trailId, visible, onClose }: Props) {
+  const Colors = useColors();
+  const styles = useMemo(() => createStyles(Colors), [Colors]);
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState('');
   const submitMutation = useSubmitReview();
@@ -128,7 +130,7 @@ export function WriteReviewModal({ trailId, visible, onClose }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   overlay: {
     flex: 1,
     justifyContent: 'flex-end',

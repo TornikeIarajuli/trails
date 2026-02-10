@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   View,
   Text,
@@ -8,7 +8,7 @@ import {
   StyleSheet,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors } from '../../constants/colors';
+import { useColors, ColorPalette } from '../../constants/colors';
 import { useTrailPhotos } from '../../hooks/useCommunity';
 import { useAuthStore } from '../../store/authStore';
 
@@ -25,6 +25,8 @@ export function CommunityPhotos({
   onViewAll,
   onAddPhoto,
 }: CommunityPhotosProps) {
+  const Colors = useColors();
+  const styles = useMemo(() => createStyles(Colors), [Colors]);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const { data } = useTrailPhotos(trailId);
   const photos = data?.pages.flatMap((p) => p.data) ?? [];
@@ -76,7 +78,7 @@ export function CommunityPhotos({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   container: {
     paddingVertical: 8,
   },

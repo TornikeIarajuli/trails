@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors } from '../../constants/colors';
+import { useColors, ColorPalette } from '../../constants/colors';
 import { Badge } from '../../types/badge';
 
 interface BadgeCardProps {
@@ -27,6 +27,8 @@ const ICON_MAP: Record<string, string> = {
 };
 
 export function BadgeCard({ badge, earned, compact }: BadgeCardProps) {
+  const Colors = useColors();
+  const styles = useMemo(() => createStyles(Colors), [Colors]);
   const iconName = ICON_MAP[badge.icon] ?? 'ribbon';
 
   if (compact) {
@@ -68,7 +70,7 @@ export function BadgeCard({ badge, earned, compact }: BadgeCardProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   card: {
     width: 120,
     alignItems: 'center',

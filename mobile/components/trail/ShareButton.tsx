@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { TouchableOpacity, Share, StyleSheet, ViewStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors } from '../../constants/colors';
+import { useColors, ColorPalette } from '../../constants/colors';
 import { Trail } from '../../types/trail';
 
 interface ShareButtonProps {
@@ -10,6 +10,9 @@ interface ShareButtonProps {
 }
 
 export function ShareButton({ trail, style }: ShareButtonProps) {
+  const Colors = useColors();
+  const styles = useMemo(() => createStyles(Colors), [Colors]);
+
   const handleShare = async () => {
     const parts = [trail.name_en];
     if (trail.distance_km) parts.push(`${trail.distance_km}km`);
@@ -30,7 +33,7 @@ export function ShareButton({ trail, style }: ShareButtonProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   button: {
     width: 40,
     height: 40,

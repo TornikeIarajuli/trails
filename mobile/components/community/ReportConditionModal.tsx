@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -10,7 +10,7 @@ import {
   Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors } from '../../constants/colors';
+import { useColors, ColorPalette } from '../../constants/colors';
 import { useReportCondition } from '../../hooks/useCommunity';
 import { ConditionType, SeverityLevel } from '../../types/community';
 
@@ -42,6 +42,8 @@ export function ReportConditionModal({
   visible,
   onClose,
 }: ReportConditionModalProps) {
+  const Colors = useColors();
+  const styles = useMemo(() => createStyles(Colors), [Colors]);
   const [conditionType, setConditionType] = useState<ConditionType | null>(null);
   const [severity, setSeverity] = useState<SeverityLevel>('info');
   const [description, setDescription] = useState('');
@@ -164,7 +166,7 @@ export function ReportConditionModal({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',

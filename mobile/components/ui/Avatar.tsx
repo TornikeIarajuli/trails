@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Image, Text, StyleSheet } from 'react-native';
-import { Colors } from '../../constants/colors';
+import { useColors, ColorPalette } from '../../constants/colors';
 
 interface AvatarProps {
   uri?: string | null;
@@ -9,6 +9,8 @@ interface AvatarProps {
 }
 
 export function Avatar({ uri, name, size = 40 }: AvatarProps) {
+  const Colors = useColors();
+  const styles = useMemo(() => createStyles(Colors), [Colors]);
   const initials = name
     ? name
         .split(' ')
@@ -39,7 +41,7 @@ export function Avatar({ uri, name, size = 40 }: AvatarProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   image: {
     backgroundColor: Colors.borderLight,
   },

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   View,
   Text,
@@ -8,7 +8,7 @@ import {
   Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors } from '../../constants/colors';
+import { useColors, ColorPalette } from '../../constants/colors';
 import { Review } from '../../types/review';
 import { useAuthStore } from '../../store/authStore';
 import { useDeleteReview } from '../../hooks/useReviews';
@@ -20,6 +20,9 @@ interface Props {
 }
 
 function StarRating({ rating }: { rating: number }) {
+  const Colors = useColors();
+  const styles = useMemo(() => createStyles(Colors), [Colors]);
+
   return (
     <View style={styles.stars}>
       {[1, 2, 3, 4, 5].map((star) => (
@@ -35,6 +38,8 @@ function StarRating({ rating }: { rating: number }) {
 }
 
 function ReviewItem({ review, trailId }: { review: Review; trailId: string }) {
+  const Colors = useColors();
+  const styles = useMemo(() => createStyles(Colors), [Colors]);
   const userId = useAuthStore((s) => s.user?.id);
   const deleteMutation = useDeleteReview();
   const isOwn = userId === review.user_id;
@@ -94,6 +99,8 @@ function ReviewItem({ review, trailId }: { review: Review; trailId: string }) {
 }
 
 export function ReviewsList({ reviews, trailId, onWriteReview }: Props) {
+  const Colors = useColors();
+  const styles = useMemo(() => createStyles(Colors), [Colors]);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const userId = useAuthStore((s) => s.user?.id);
   const hasReviewed = reviews.some((r) => r.user_id === userId);
@@ -122,7 +129,7 @@ export function ReviewsList({ reviews, trailId, onWriteReview }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   container: {
     paddingHorizontal: 16,
     paddingBottom: 16,
