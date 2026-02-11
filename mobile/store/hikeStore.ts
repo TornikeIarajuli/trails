@@ -61,7 +61,12 @@ export const useHikeStore = create<HikeState>((set, get) => ({
     })),
 
   addGpsPoint: (lat, lng) =>
-    set((state) => ({
-      gpsPoints: [...state.gpsPoints, { lat, lng, timestamp: Date.now() }],
-    })),
+    set((state) => {
+      const point = { lat, lng, timestamp: Date.now() };
+      // Keep only last 500 points (~40 min at 5s interval) to prevent memory leak
+      const points = state.gpsPoints.length >= 500
+        ? [...state.gpsPoints.slice(-499), point]
+        : [...state.gpsPoints, point];
+      return { gpsPoints: points };
+    }),
 }));

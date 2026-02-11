@@ -1,5 +1,8 @@
 const https = require('https');
 
+const TOKEN = process.env.SUPABASE_MGMT_TOKEN;
+if (!TOKEN) { console.error('Set SUPABASE_MGMT_TOKEN env var'); process.exit(1); }
+
 function query(sql) {
   return new Promise((resolve, reject) => {
     const body = JSON.stringify({ query: sql });
@@ -8,7 +11,7 @@ function query(sql) {
       path: '/v1/projects/neoqkksermbixgeflwjd/database/query',
       method: 'POST',
       headers: {
-        'Authorization': 'Bearer sbp_d7fb4d25309b19b810d54f35ae582452ee68c7fc',
+        'Authorization': `Bearer ${TOKEN}`,
         'Content-Type': 'application/json',
       },
     };

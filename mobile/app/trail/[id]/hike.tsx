@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -23,6 +23,32 @@ import { parseGeoPoint, parseGeoLineString } from '../../../utils/geo';
 import { mediaService } from '../../../services/media';
 import { useRecordHike } from '../../../hooks/useCompletions';
 
+// Isolated timer component — only this re-renders every second
+function HikeTimer({ styles }: { styles: ReturnType<typeof createStyles> }) {
+  const isActive = useHikeStore((s) => s.isActive);
+  const tick = useHikeStore((s) => s.tick);
+  const elapsedSeconds = useHikeStore((s) => s.elapsedSeconds);
+  const Colors = useColors();
+
+  useEffect(() => {
+    if (!isActive) return;
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+  }, [isActive, tick]);
+
+  const h = Math.floor(elapsedSeconds / 3600);
+  const m = Math.floor((elapsedSeconds % 3600) / 60);
+  const s = elapsedSeconds % 60;
+  const formatted = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+
+  return (
+    <View style={styles.timerContainer}>
+      <Ionicons name="time-outline" size={18} color={Colors.primary} />
+      <Text style={styles.timer}>{formatted}</Text>
+    </View>
+  );
+}
+
 export default function HikeScreen() {
   const Colors = useColors();
   const styles = useMemo(() => createStyles(Colors), [Colors]);
@@ -32,16 +58,14 @@ export default function HikeScreen() {
   const { data: trail } = useTrail(id);
   const [hikePhotos, setHikePhotos] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
+  const mapRef = useRef<MapView>(null);
+  const hasInitialLocation = useRef(false);
 
-  const {
-    isActive,
-    elapsedSeconds,
-    visitedCheckpointIds,
-    startHike,
-    endHike,
-    tick,
-    addGpsPoint,
-  } = useHikeStore();
+  const isActive = useHikeStore((s) => s.isActive);
+  const visitedCheckpointIds = useHikeStore((s) => s.visitedCheckpointIds);
+  const startHike = useHikeStore((s) => s.startHike);
+  const endHike = useHikeStore((s) => s.endHike);
+  const addGpsPoint = useHikeStore((s) => s.addGpsPoint);
 
   const location = useLocationTracking(isActive);
   const recordHike = useRecordHike();
@@ -62,26 +86,21 @@ export default function HikeScreen() {
     }
   }, [id]);
 
-  // Update elapsed time
-  useEffect(() => {
-    if (!isActive) return;
-    const interval = setInterval(tick, 1000);
-    return () => clearInterval(interval);
-  }, [isActive]);
-
-  // Track GPS points
+  // Track GPS points & center map on first fix
   useEffect(() => {
     if (location && isActive) {
       addGpsPoint(location.latitude, location.longitude);
+      if (!hasInitialLocation.current) {
+        hasInitialLocation.current = true;
+        mapRef.current?.animateToRegion({
+          latitude: location.latitude,
+          longitude: location.longitude,
+          latitudeDelta: 0.01,
+          longitudeDelta: 0.01,
+        }, 1000);
+      }
     }
   }, [location]);
-
-  const formatTime = useCallback((seconds: number) => {
-    const h = Math.floor(seconds / 3600);
-    const m = Math.floor((seconds % 3600) / 60);
-    const s = seconds % 60;
-    return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-  }, []);
 
   const handleEndHike = () => {
     Alert.alert('End Hike', 'Are you sure you want to end this hike?', [
@@ -90,9 +109,10 @@ export default function HikeScreen() {
         text: 'End Hike',
         style: 'destructive',
         onPress: () => {
+          const elapsed = useHikeStore.getState().elapsedSeconds;
           if (id) {
             recordHike.mutate(
-              { trailId: id, elapsedSeconds },
+              { trailId: id, elapsedSeconds: elapsed },
               {
                 onSettled: () => {
                   endHike();
@@ -117,7 +137,7 @@ export default function HikeScreen() {
     }
 
     const result = await ImagePicker.launchCameraAsync({
-      quality: 0.8,
+      quality: 0.6,
       allowsEditing: false,
     });
 
@@ -146,7 +166,7 @@ export default function HikeScreen() {
 
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
-      quality: 0.8,
+      quality: 0.6,
     });
 
     if (!result.canceled && result.assets[0] && id) {
@@ -173,21 +193,13 @@ export default function HikeScreen() {
     ]);
   };
 
-  const mapRegion = location
-    ? {
-        latitude: location.latitude,
-        longitude: location.longitude,
-        latitudeDelta: 0.01,
-        longitudeDelta: 0.01,
-      }
-    : Config.DEFAULT_MAP_REGION;
-
   return (
     <View style={styles.container}>
       <MapView
+        ref={mapRef}
         style={styles.map}
         provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
-        region={mapRegion}
+        initialRegion={Config.DEFAULT_MAP_REGION}
         showsUserLocation
       >
         {/* Trail route polyline */}
@@ -243,10 +255,7 @@ export default function HikeScreen() {
           <Ionicons name="close" size={24} color={Colors.text} />
         </TouchableOpacity>
 
-        <View style={styles.timerContainer}>
-          <Ionicons name="time-outline" size={18} color={Colors.primary} />
-          <Text style={styles.timer}>{formatTime(elapsedSeconds)}</Text>
-        </View>
+        <HikeTimer styles={styles} />
 
         <View style={styles.checkpointCount}>
           <Ionicons name="camera" size={16} color={Colors.textOnPrimary} style={{ marginRight: 4 }} />

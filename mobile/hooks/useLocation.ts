@@ -59,9 +59,9 @@ export function useLocationTracking(enabled: boolean) {
 
       subscriptionRef.current = await Location.watchPositionAsync(
         {
-          accuracy: Location.Accuracy.High,
-          distanceInterval: 10,
-          timeInterval: 5000,
+          accuracy: Location.Accuracy.Balanced,
+          distanceInterval: 20,
+          timeInterval: 10000,
         },
         (loc) => {
           setLocation({

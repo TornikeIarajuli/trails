@@ -9,7 +9,14 @@ async function bootstrap() {
   });
 
   app.setGlobalPrefix('api');
-  app.enableCors();
+  app.enableCors({
+    origin: [
+      'http://localhost:3000',
+      'http://localhost:3001',
+      process.env.WEB_ADMIN_URL,
+    ].filter(Boolean) as string[],
+    credentials: true,
+  });
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,

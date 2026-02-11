@@ -1,5 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { APP_GUARD } from '@nestjs/core';
 import { AuthModule } from './auth/auth.module';
 import { TrailsModule } from './trails/trails.module';
 import { MediaModule } from './media/media.module';
@@ -17,6 +19,10 @@ import { NotificationsModule } from './notifications/notifications.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    ThrottlerModule.forRoot([{
+      ttl: 60000,   // 1 minute window
+      limit: 60,    // 60 requests per minute per IP
+    }]),
     AuthModule,
     TrailsModule,
     MediaModule,
@@ -31,5 +37,6 @@ import { NotificationsModule } from './notifications/notifications.module';
     FeedModule,
     NotificationsModule,
   ],
+  providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
 export class AppModule {}

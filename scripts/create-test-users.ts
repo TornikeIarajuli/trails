@@ -5,8 +5,9 @@
  * Usage: npx ts-node scripts/create-test-users.ts
  */
 
-const SUPABASE_URL = 'https://neoqkksermbixgeflwjd.supabase.co';
-const SERVICE_ROLE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5lb3Fra3Nlcm1iaXhnZWZsd2pkIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MDU2MDg2OSwiZXhwIjoyMDg2MTM2ODY5fQ.XkSfkxwImnuS_khlxdh2xmtZgowHnt-S4B-wVAOkMvQ';
+const SUPABASE_URL = process.env.SUPABASE_URL || 'https://neoqkksermbixgeflwjd.supabase.co';
+const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+if (!SERVICE_ROLE_KEY) { console.error('Set SUPABASE_SERVICE_ROLE_KEY env var'); process.exit(1); }
 
 const TEST_USERS = [
   {

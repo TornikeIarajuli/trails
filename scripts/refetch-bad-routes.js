@@ -5,7 +5,8 @@
 
 const https = require('https');
 
-const TOKEN = 'sbp_d7fb4d25309b19b810d54f35ae582452ee68c7fc';
+const TOKEN = process.env.SUPABASE_MGMT_TOKEN;
+if (!TOKEN) { console.error('Set SUPABASE_MGMT_TOKEN env var'); process.exit(1); }
 const PROJECT = 'neoqkksermbixgeflwjd';
 
 // Trail name -> OSM relation ID (manually looked up or from previous fetches)
