@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
-import { View, StyleSheet, Text } from 'react-native';
-import MapView, { Marker, Polyline } from 'react-native-maps';
+import { View, StyleSheet, Text, Platform } from 'react-native';
+import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
 import { useColors, ColorPalette } from '../../constants/colors';
 import { Checkpoint } from '../../types/checkpoint';
 import { parseGeoPoint } from '../../utils/geo';
@@ -63,7 +63,11 @@ export function TrailMap({
 
   return (
     <View style={[styles.container, { height }]}>
-      <MapView style={styles.map} initialRegion={region}>
+      <MapView
+        style={styles.map}
+        provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
+        initialRegion={region}
+      >
         {route.length > 1 && (
           <Polyline
             coordinates={route}
@@ -98,7 +102,7 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     marginHorizontal: 16,
   },
   map: {
-    flex: 1,
+    ...StyleSheet.absoluteFillObject,
   },
   placeholder: {
     backgroundColor: Colors.borderLight,

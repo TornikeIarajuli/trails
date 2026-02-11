@@ -26,10 +26,12 @@ export default function RootLayout() {
   const Colors = useColors();
   const styles = useMemo(() => createStyles(Colors), [Colors]);
 
+  const hydrateSettings = useSettingsStore((s) => s.hydrate);
+
   useNotificationSetup();
 
   useEffect(() => {
-    restoreSession().finally(() => {
+    Promise.all([restoreSession(), hydrateSettings()]).finally(() => {
       SplashScreen.hideAsync();
     });
   }, []);
@@ -48,6 +50,7 @@ export default function RootLayout() {
         }}
       >
         <Stack.Screen name="index" options={{ headerShown: false }} />
+        <Stack.Screen name="onboarding" options={{ headerShown: false }} />
         <Stack.Screen name="(auth)" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="trail" options={{ headerShown: false }} />

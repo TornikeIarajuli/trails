@@ -38,10 +38,15 @@ export default function HomeScreen() {
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading, refetch, isRefetching } =
     useTrails(params);
 
-  const trails = useMemo(
-    () => data?.pages.flatMap((page) => page.data) ?? [],
-    [data],
-  );
+  const trails = useMemo(() => {
+    const all = data?.pages.flatMap((page) => page.data) ?? [];
+    const seen = new Set<string>();
+    return all.filter((t) => {
+      if (seen.has(t.id)) return false;
+      seen.add(t.id);
+      return true;
+    });
+  }, [data]);
 
   return (
     <View style={styles.container}>

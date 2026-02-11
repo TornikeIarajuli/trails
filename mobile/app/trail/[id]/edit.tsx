@@ -244,7 +244,16 @@ export default function TrailEditScreen() {
 
   return (
     <>
-      <Stack.Screen options={{ headerShown: true, title: 'Edit Trail' }} />
+      <Stack.Screen
+        options={{
+          headerShown: true,
+          title: 'Edit Trail',
+          headerStyle: { backgroundColor: Colors.background },
+          headerTintColor: Colors.text,
+          headerTitleStyle: { color: Colors.text },
+          headerShadowVisible: false,
+        }}
+      />
       <ScrollView
         style={styles.container}
         contentContainerStyle={styles.content}

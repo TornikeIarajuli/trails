@@ -58,7 +58,15 @@ export default function FollowersScreen() {
 
   return (
     <>
-      <Stack.Screen options={{ headerShown: true, title: '' }} />
+      <Stack.Screen
+        options={{
+          headerShown: true,
+          title: '',
+          headerStyle: { backgroundColor: Colors.background },
+          headerTintColor: Colors.text,
+          headerShadowVisible: false,
+        }}
+      />
       <View style={styles.container}>
         <View style={styles.tabs}>
           <TouchableOpacity

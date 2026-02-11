@@ -167,7 +167,16 @@ export default function PublicProfileScreen() {
 
   return (
     <>
-      <Stack.Screen options={{ headerShown: true, title: profile.username }} />
+      <Stack.Screen
+        options={{
+          headerShown: true,
+          title: profile.username,
+          headerStyle: { backgroundColor: Colors.background },
+          headerTintColor: Colors.text,
+          headerTitleStyle: { color: Colors.text },
+          headerShadowVisible: false,
+        }}
+      />
       <ScrollView
         style={styles.container}
         contentContainerStyle={styles.content}

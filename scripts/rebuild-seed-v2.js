@@ -1,6 +1,6 @@
 /**
- * Rebuild seed.sql with ALL trails (12 existing + new from OSM).
- * Reads all_routes.json, coords_3817920.json, new_routes.json.
+ * Rebuild seed.sql with ALL trails (12 existing + new from OSM + discovered).
+ * Reads all_routes.json, coords_3817920.json, new_routes.json, all_discovered_routes.json.
  */
 
 const fs = require('fs');
@@ -10,6 +10,14 @@ const path = require('path');
 const routesData = JSON.parse(fs.readFileSync(path.join(__dirname, 'all_routes.json'), 'utf8'));
 const jutaRoshkaCoords = JSON.parse(fs.readFileSync(path.join(__dirname, 'coords_3817920.json'), 'utf8'));
 const newRoutesData = JSON.parse(fs.readFileSync(path.join(__dirname, 'new_routes.json'), 'utf8'));
+
+// Load discovered routes (if available)
+const discoveredPath = path.join(__dirname, 'all_discovered_routes.json');
+let discoveredRoutesData = { found: [] };
+if (fs.existsSync(discoveredPath)) {
+  discoveredRoutesData = JSON.parse(fs.readFileSync(discoveredPath, 'utf8'));
+  console.log(`Loaded ${discoveredRoutesData.found.length} discovered routes`);
+}
 
 // Build lookup: trail id -> coordinates
 const routeMap = new Map();
@@ -22,6 +30,189 @@ routeMap.set('a0000000-0000-0000-0000-000000000003', {
   start: jutaRoshkaCoords.start,
   end: jutaRoshkaCoords.end,
 });
+
+// === UTILITIES FOR AUTO-GENERATING TRAIL METADATA ===
+
+function haversineDistance(coords) {
+  let totalKm = 0;
+  for (let i = 1; i < coords.length; i++) {
+    const [lon1, lat1] = coords[i - 1];
+    const [lon2, lat2] = coords[i];
+    const R = 6371;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat / 2) ** 2 +
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+      Math.sin(dLon / 2) ** 2;
+    totalKm += R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  }
+  return Math.round(totalKm * 10) / 10;
+}
+
+// Region mapping based on start coordinates
+// Order matters: check narrower/more specific regions before broader ones
+function guessRegion(lat, lon) {
+  if (lat > 42.8 && lon > 41.5 && lon < 43.5) return 'Svaneti';
+  // Check Kazbegi & Khevsureti BEFORE Tusheti (they overlap in lon range)
+  if (lat > 42.3 && lon >= 44.3 && lon < 44.8) return 'Kazbegi';
+  if (lat > 42.3 && lat < 42.8 && lon >= 44.8 && lon < 45.1) return 'Khevsureti';
+  if (lat > 42.3 && lat <= 42.8 && lon >= 45.0 && lon < 46.0) return 'Tusheti';
+  if (lat < 42.2 && lon > 45.0) return 'Kakheti';
+  if (lat > 41.5 && lat < 42.0 && lon > 44.0 && lon < 44.8) return 'Tbilisi';
+  if (lat < 41.5 && lon > 43.0 && lon < 44.5) return 'Samtskhe-Javakheti';
+  if (lat < 42.0 && lon > 43.0 && lon < 44.0) return 'Borjomi-Kharagauli';
+  if (lat < 42.0 && lon > 44.0 && lon < 44.5) return 'Samtskhe-Javakheti';
+  if (lat > 41.5 && lat < 42.0 && lon < 42.7) return 'Adjara';
+  if (lat > 41.7 && lat < 42.6 && lon > 42.0 && lon < 43.5) return 'Imereti';
+  if (lat > 42.0 && lat < 42.8 && lon > 43.0 && lon < 44.3) return 'Racha';
+  if (lat > 42.0 && lat < 42.5 && lon > 41.5 && lon < 42.5) return 'Samegrelo';
+  return 'Georgia';
+}
+
+function guessDifficulty(distanceKm, elevationEstimate) {
+  if (distanceKm >= 35 || elevationEstimate >= 2500) return 'ultra';
+  if (distanceKm >= 20 || elevationEstimate >= 1200) return 'hard';
+  if (distanceKm >= 10 || elevationEstimate >= 600) return 'medium';
+  return 'easy';
+}
+
+function estimateElevation(distanceKm, coordCount) {
+  // Rough estimate based on distance and terrain density
+  const factor = coordCount > 100 ? 60 : 40;
+  return Math.round(distanceKm * factor);
+}
+
+function estimateHours(distanceKm, difficulty) {
+  const speeds = { easy: 4, medium: 3, hard: 2.5, ultra: 2 };
+  return Math.round(distanceKm / (speeds[difficulty] || 3) * 10) / 10;
+}
+
+const unsplashCovers = [
+  'https://images.unsplash.com/photo-1565008576549-57569a49371d?w=800',
+  'https://images.unsplash.com/photo-1551632811-561732d1e306?w=800',
+  'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=800',
+  'https://images.unsplash.com/photo-1486870591958-9b9d0d1dda99?w=800',
+  'https://images.unsplash.com/photo-1483728642387-6c3bdd6c93e5?w=800',
+  'https://images.unsplash.com/photo-1501555088652-021faa106b9b?w=800',
+  'https://images.unsplash.com/photo-1454496522488-7a8e488e8606?w=800',
+  'https://images.unsplash.com/photo-1519681393784-d120267933ba?w=800',
+  'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800',
+  'https://images.unsplash.com/photo-1473773508845-188df298d2d1?w=800',
+  'https://images.unsplash.com/photo-1448375240586-882707db888b?w=800',
+  'https://images.unsplash.com/photo-1432405972618-c60b0225b8f9?w=800',
+];
+
+// Clean tangled routes using nearest-neighbor ordering
+function cleanRoute(coords) {
+  if (coords.length < 3) return coords;
+
+  // Check if route needs cleaning (count jumps)
+  let jumpCount = 0;
+  for (let i = 1; i < coords.length; i++) {
+    const dx = coords[i][0] - coords[i - 1][0];
+    const dy = coords[i][1] - coords[i - 1][1];
+    if (Math.sqrt(dx * dx + dy * dy) > 0.01) jumpCount++;
+  }
+  if (jumpCount < 5) return coords; // Route is fine
+
+  console.log(`    Cleaning tangled route (${jumpCount} jumps)...`);
+
+  // Nearest-neighbor greedy path from the first point
+  const used = new Set();
+  const ordered = [coords[0]];
+  used.add(0);
+
+  for (let step = 1; step < coords.length; step++) {
+    const last = ordered[ordered.length - 1];
+    let bestIdx = -1;
+    let bestDist = Infinity;
+
+    for (let j = 0; j < coords.length; j++) {
+      if (used.has(j)) continue;
+      const dx = coords[j][0] - last[0];
+      const dy = coords[j][1] - last[1];
+      const d = dx * dx + dy * dy;
+      if (d < bestDist) {
+        bestDist = d;
+        bestIdx = j;
+      }
+    }
+
+    if (bestIdx === -1) break;
+    used.add(bestIdx);
+    ordered.push(coords[bestIdx]);
+  }
+
+  // Verify improvement
+  let newJumps = 0;
+  for (let i = 1; i < ordered.length; i++) {
+    const dx = ordered[i][0] - ordered[i - 1][0];
+    const dy = ordered[i][1] - ordered[i - 1][1];
+    if (Math.sqrt(dx * dx + dy * dy) > 0.01) newJumps++;
+  }
+  console.log(`    Cleaned: ${jumpCount} jumps -> ${newJumps} jumps`);
+
+  return ordered;
+}
+
+// Auto-generate trail entries from discovered routes
+function buildDiscoveredTrails() {
+  const discovered = [];
+  let idx = 100; // Start IDs from 100 to avoid collision with existing
+
+  for (const route of discoveredRoutesData.found) {
+    const id = `a0000000-0000-0000-0000-${idx.toString().padStart(12, '0')}`;
+    const coords = route.coords;
+    const distanceKm = haversineDistance(coords);
+
+    // Parse distance from OSM tags if available
+    let parsedDistance = distanceKm;
+    if (route.distance_tag) {
+      const match = route.distance_tag.match(/([\d.]+)/);
+      if (match) parsedDistance = parseFloat(match[1]);
+    }
+
+    const elevationGain = route.ascent_tag
+      ? parseInt(route.ascent_tag.replace(/\D/g, '')) || estimateElevation(parsedDistance, coords.length)
+      : estimateElevation(parsedDistance, coords.length);
+
+    const difficulty = guessDifficulty(parsedDistance, elevationGain);
+    const region = guessRegion(coords[0][1], coords[0][0]);
+
+    const nameEn = route.name_en || `Trail ${idx}`;
+    const nameKa = route.name_ka || '';
+
+    // Register in route map
+    routeMap.set(id, {
+      id,
+      coordinates: coords,
+      start: route.start,
+      end: route.end,
+    });
+
+    discovered.push({
+      id,
+      name_en: nameEn,
+      name_ka: nameKa,
+      desc_en: route.description || `Hiking trail in the ${region} region of Georgia.`,
+      desc_ka: nameKa ? `სალაშქრო ბილიკი ${region}-ში.` : '',
+      difficulty,
+      region,
+      distance_km: Math.round(parsedDistance * 10) / 10,
+      elevation_gain_m: elevationGain,
+      estimated_hours: estimateHours(parsedDistance, difficulty),
+      cover: unsplashCovers[idx % unsplashCovers.length],
+      checkpoints: [
+        { name: nameEn.split(' - ')[0].split(' to ')[0].split(' => ')[0].substring(0, 40) + ' Start', type: 'landmark', idx: 0 },
+        { name: nameEn.split(' - ').pop().split(' to ').pop().split(' => ').pop().substring(0, 40) + ' End', type: 'landmark', idx: 0.95 },
+      ],
+    });
+
+    idx++;
+  }
+
+  return discovered;
+}
 
 // ============ ORIGINAL 12 TRAILS ============
 const ORIGINAL_TRAILS = [
@@ -305,7 +496,9 @@ const NEW_TRAILS = [
   { id: 'a0000000-0000-0000-0000-000000000099', name_en: 'Mukhuri to Khaishi', name_ka: 'მუხურიდან ხაიშამდე', desc_en: 'Epic long-distance trail from Mukhuri to Khaishi through Samegrelo wilderness. 78km.', desc_ka: 'გრძელი ბილიკი მუხურიდან ხაიშამდე.', difficulty: 'ultra', region: 'Samegrelo', distance_km: 78, elevation_gain_m: 4000, estimated_hours: 40, cover: 'https://images.unsplash.com/photo-1519681393784-d120267933ba?w=800', checkpoints: [{ name: 'Mukhuri', type: 'landmark', idx: 0 }, { name: 'Midpoint Camp', type: 'campsite', idx: 0.5 }, { name: 'Khaishi', type: 'landmark', idx: 0.95 }] },
 ];
 
-const ALL_TRAILS = [...ORIGINAL_TRAILS, ...NEW_TRAILS];
+const DISCOVERED_TRAILS = buildDiscoveredTrails();
+const ALL_TRAILS = [...ORIGINAL_TRAILS, ...NEW_TRAILS, ...DISCOVERED_TRAILS];
+console.log(`Total trails: ${ORIGINAL_TRAILS.length} original + ${NEW_TRAILS.length} new + ${DISCOVERED_TRAILS.length} discovered = ${ALL_TRAILS.length}`);
 
 function esc(s) { return s.replace(/'/g, "''"); }
 
@@ -329,7 +522,7 @@ function buildSQL() {
       continue;
     }
 
-    const coords = route.coordinates;
+    const coords = cleanRoute(route.coordinates);
     const startCoord = coords[0];
     const endCoord = coords[coords.length - 1];
     const pointsSQL = coords.map(([lon, lat]) => `    ST_MakePoint(${lon}, ${lat})`).join(',\n');
@@ -386,7 +579,7 @@ function buildSQL() {
     if (!insertedIds.includes(trail.id)) continue;
     const route = routeMap.get(trail.id);
     if (!route) continue;
-    const coords = route.coordinates;
+    const coords = cleanRoute(route.coordinates);
 
     for (let i = 0; i < trail.checkpoints.length; i++) {
       const cp = trail.checkpoints[i];

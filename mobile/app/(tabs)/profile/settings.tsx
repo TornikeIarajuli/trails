@@ -18,7 +18,16 @@ export default function SettingsScreen() {
 
   return (
     <>
-      <Stack.Screen options={{ headerShown: true, title: 'Settings' }} />
+      <Stack.Screen
+        options={{
+          headerShown: true,
+          title: 'Settings',
+          headerStyle: { backgroundColor: Colors.background },
+          headerTintColor: Colors.text,
+          headerTitleStyle: { color: Colors.text },
+          headerShadowVisible: false,
+        }}
+      />
       <View style={styles.container}>
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Appearance</Text>

@@ -7,11 +7,12 @@ import {
   Alert,
   Image,
   FlatList,
+  Platform,
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import MapView, { Marker, Polyline } from 'react-native-maps';
+import MapView, { Marker, Polyline, Callout, PROVIDER_GOOGLE } from 'react-native-maps';
 import * as ImagePicker from 'expo-image-picker';
 import { useColors, ColorPalette } from '../../../constants/colors';
 import { useTrail } from '../../../hooks/useTrails';
@@ -183,7 +184,12 @@ export default function HikeScreen() {
 
   return (
     <View style={styles.container}>
-      <MapView style={styles.map} region={mapRegion} showsUserLocation>
+      <MapView
+        style={styles.map}
+        provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
+        region={mapRegion}
+        showsUserLocation
+      >
         {/* Trail route polyline */}
         {routeCoords.length > 1 && (
           <Polyline
@@ -196,14 +202,37 @@ export default function HikeScreen() {
         {/* Checkpoint markers */}
         {parsedCheckpoints.map((cp) => {
           const visited = visitedCheckpointIds.includes(cp.id);
+          const cpPhotos = cp.photos ?? [];
           return (
             <Marker
               key={cp.id}
               coordinate={cp.coord}
-              title={cp.name_en}
-              description={cp.type}
               pinColor={visited ? '#4CAF50' : Colors.accent}
-            />
+            >
+              <Callout tooltip style={styles.calloutContainer}>
+                <View style={styles.callout}>
+                  <Text style={styles.calloutTitle}>{cp.name_en}</Text>
+                  <Text style={styles.calloutType}>{cp.type}</Text>
+                  {cpPhotos.length > 0 ? (
+                    <FlatList
+                      data={cpPhotos}
+                      horizontal
+                      keyExtractor={(_, i) => i.toString()}
+                      showsHorizontalScrollIndicator={false}
+                      style={styles.calloutPhotoStrip}
+                      renderItem={({ item }) => (
+                        <Image source={{ uri: item }} style={styles.calloutPhoto} />
+                      )}
+                    />
+                  ) : (
+                    <View style={styles.noPhotosContainer}>
+                      <Ionicons name="image-outline" size={20} color={Colors.textSecondary} />
+                      <Text style={styles.noPhotosText}>No photos yet</Text>
+                    </View>
+                  )}
+                </View>
+              </Callout>
+            </Marker>
           );
         })}
       </MapView>
@@ -220,8 +249,9 @@ export default function HikeScreen() {
         </View>
 
         <View style={styles.checkpointCount}>
+          <Ionicons name="camera" size={16} color={Colors.textOnPrimary} style={{ marginRight: 4 }} />
           <Text style={styles.checkpointCountText}>
-            {visitedCheckpointIds.length}/{trail?.checkpoints?.filter((c) => c.is_checkable).length ?? 0}
+            {hikePhotos.length}/{parsedCheckpoints.length}
           </Text>
         </View>
       </View>
@@ -280,6 +310,7 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    gap: 8,
   },
   iconButton: {
     width: 40,
@@ -315,6 +346,8 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     fontVariant: ['tabular-nums'],
   },
   checkpointCount: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: Colors.primary + 'E0',
     paddingHorizontal: 14,
     paddingVertical: 8,
@@ -329,6 +362,51 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: Colors.textOnPrimary,
+  },
+  calloutContainer: {
+    width: 200,
+  },
+  callout: {
+    backgroundColor: Colors.surface,
+    borderRadius: 12,
+    padding: 12,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+  },
+  calloutTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: Colors.text,
+    marginBottom: 2,
+  },
+  calloutType: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    marginBottom: 8,
+    textTransform: 'capitalize',
+  },
+  calloutPhotoStrip: {
+    marginTop: 4,
+  },
+  calloutPhoto: {
+    width: 48,
+    height: 48,
+    borderRadius: 6,
+    marginRight: 6,
+  },
+  noPhotosContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 4,
+  },
+  noPhotosText: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+    fontStyle: 'italic',
   },
   photoButton: {
     position: 'absolute',
