@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo } from 'react';
+import * as Sentry from '@sentry/react-native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -7,6 +8,12 @@ import { useAuthStore } from '../store/authStore';
 import { useSettingsStore } from '../store/settingsStore';
 import { useColors, ColorPalette } from '../constants/colors';
 import { useNotificationSetup } from '../hooks/useNotifications';
+
+Sentry.init({
+  dsn: process.env.EXPO_PUBLIC_SENTRY_DSN,
+  tracesSampleRate: 0.2,
+  enabled: !__DEV__,
+});
 
 SplashScreen.preventAutoHideAsync();
 
@@ -19,7 +26,7 @@ const queryClient = new QueryClient({
   },
 });
 
-export default function RootLayout() {
+function RootLayout() {
   const restoreSession = useAuthStore((s) => s.restoreSession);
   const isLoading = useAuthStore((s) => s.isLoading);
   const isDarkMode = useSettingsStore((s) => s.isDarkMode);
@@ -61,3 +68,5 @@ export default function RootLayout() {
 }
 
 const createStyles = (Colors: ColorPalette) => ({});
+
+export default Sentry.wrap(RootLayout);
