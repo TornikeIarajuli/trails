@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { createAdminClient } from "@/lib/supabase";
+import { getCompletions, deleteCompletion } from "@/lib/actions";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -25,23 +25,12 @@ export function CompletionsList() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function fetch() {
-      const supabase = createAdminClient();
-      const { data: rows } = await supabase
-        .from("trail_completions")
-        .select("id, user_id, trail_id, status, elapsed_seconds, completed_at, profiles(username), trails(name_en)")
-        .order("completed_at", { ascending: false })
-        .limit(200);
-      setData((rows ?? []) as unknown as Completion[]);
-      setLoading(false);
-    }
-    fetch();
+    getCompletions().then((d) => setData(d as unknown as Completion[])).finally(() => setLoading(false));
   }, []);
 
   async function remove(id: string) {
     if (!confirm("Delete this completion?")) return;
-    const supabase = createAdminClient();
-    await supabase.from("trail_completions").delete().eq("id", id);
+    await deleteCompletion(id);
     setData((prev) => prev.filter((c) => c.id !== id));
   }
 

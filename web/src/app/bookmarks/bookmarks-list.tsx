@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { createAdminClient } from "@/lib/supabase";
+import { getBookmarks, deleteBookmark } from "@/lib/actions";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -20,23 +20,12 @@ export function BookmarksList() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function fetch() {
-      const supabase = createAdminClient();
-      const { data: rows } = await supabase
-        .from("trail_bookmarks")
-        .select("id, created_at, profiles(username), trails(name_en)")
-        .order("created_at", { ascending: false })
-        .limit(200);
-      setData((rows ?? []) as unknown as BookmarkRow[]);
-      setLoading(false);
-    }
-    fetch();
+    getBookmarks().then((d) => setData(d as unknown as BookmarkRow[])).finally(() => setLoading(false));
   }, []);
 
   async function remove(id: string) {
     if (!confirm("Delete this bookmark?")) return;
-    const supabase = createAdminClient();
-    await supabase.from("trail_bookmarks").delete().eq("id", id);
+    await deleteBookmark(id);
     setData((prev) => prev.filter((b) => b.id !== id));
   }
 

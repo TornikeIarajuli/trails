@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, use } from "react";
-import { createAdminClient } from "@/lib/supabase";
+import { getUserDetail, saveProfile } from "@/lib/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -46,41 +46,24 @@ export function UserDetail({ paramsPromise }: { paramsPromise: Promise<{ id: str
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    async function load() {
-      const supabase = createAdminClient();
-      const { data: p } = await supabase.from("profiles").select("*").eq("id", id).single();
-      setProfile(p);
-
-      const { data: c } = await supabase
-        .from("trail_completions")
-        .select("id, trail_id, status, elapsed_seconds, completed_at, trails(name_en, difficulty)")
-        .eq("user_id", id)
-        .order("completed_at", { ascending: false });
-      setCompletions((c ?? []) as unknown as Completion[]);
-
-      const { data: b } = await supabase
-        .from("user_badges")
-        .select("id, earned_at, badges(name_en, icon, category)")
-        .eq("user_id", id);
-      setBadges((b ?? []) as unknown as UserBadge[]);
-
-      setLoading(false);
-    }
-    load();
+    getUserDetail(id).then(({ profile: p, completions: c, badges: b }) => {
+      setProfile(p as Profile | null);
+      setCompletions(c as unknown as Completion[]);
+      setBadges(b as unknown as UserBadge[]);
+    }).finally(() => setLoading(false));
   }, [id]);
 
   async function handleSave() {
     if (!profile) return;
     setSaving(true);
-    const supabase = createAdminClient();
-    const { error } = await supabase.from("profiles").update({
+    const { error } = await saveProfile(id, {
       username: profile.username,
       full_name: profile.full_name || null,
       bio: profile.bio || null,
       avatar_url: profile.avatar_url || null,
-    }).eq("id", id);
+    });
 
-    if (error) alert(`Error: ${error.message}`);
+    if (error) alert(`Error: ${error}`);
     else alert("Profile saved!");
     setSaving(false);
   }

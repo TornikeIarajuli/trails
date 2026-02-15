@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { createAdminClient } from "@/lib/supabase";
+import { getUsers, deleteUser as deleteUserAction } from "@/lib/actions";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -27,23 +27,12 @@ export function UsersList() {
   const [search, setSearch] = useState("");
 
   useEffect(() => {
-    async function fetch() {
-      const supabase = createAdminClient();
-      const { data } = await supabase
-        .from("profiles")
-        .select("*")
-        .order("created_at", { ascending: false });
-      setUsers(data ?? []);
-      setLoading(false);
-    }
-    fetch();
+    getUsers().then((d) => setUsers(d as Profile[])).finally(() => setLoading(false));
   }, []);
 
-  async function deleteUser(id: string, username: string) {
+  async function handleDelete(id: string, username: string) {
     if (!confirm(`Delete user "${username}"? This will delete all their data.`)) return;
-    const supabase = createAdminClient();
-    // Delete from auth.users cascades to profiles and all related data
-    await supabase.auth.admin.deleteUser(id);
+    await deleteUserAction(id);
     setUsers((prev) => prev.filter((u) => u.id !== id));
   }
 
@@ -117,7 +106,7 @@ export function UsersList() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => deleteUser(user.id, user.username)}
+                        onClick={() => handleDelete(user.id, user.username)}
                       >
                         <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>

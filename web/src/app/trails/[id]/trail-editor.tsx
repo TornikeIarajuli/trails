@@ -2,7 +2,7 @@
 
 import { useEffect, useState, use } from "react";
 import { useRouter } from "next/navigation";
-import { createAdminClient } from "@/lib/supabase";
+import { getTrailDetail, saveTrail, uploadTrailPhoto, deleteTrailMedia } from "@/lib/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -74,32 +74,11 @@ export function TrailEditor({ paramsPromise }: { paramsPromise: Promise<{ id: st
 
   useEffect(() => {
     if (isNew) return;
-    async function load() {
-      const supabase = createAdminClient();
-      const { data } = await supabase
-        .from("trails")
-        .select("*")
-        .eq("id", id)
-        .single();
-      if (data) setTrail(data);
-
-      const { data: cps } = await supabase
-        .from("trail_checkpoints")
-        .select("*")
-        .eq("trail_id", id)
-        .order("sort_order");
-      setCheckpoints(cps ?? []);
-
-      const { data: med } = await supabase
-        .from("trail_media")
-        .select("*")
-        .eq("trail_id", id)
-        .order("sort_order");
-      setMedia(med ?? []);
-
-      setLoading(false);
-    }
-    load();
+    getTrailDetail(id).then(({ trail: t, checkpoints: cps, media: med }) => {
+      if (t) setTrail(t as Trail);
+      setCheckpoints(cps as Checkpoint[]);
+      setMedia(med as TrailMedia[]);
+    }).finally(() => setLoading(false));
   }, [id, isNew]);
 
   function update<K extends keyof Trail>(key: K, value: Trail[K]) {
@@ -108,7 +87,6 @@ export function TrailEditor({ paramsPromise }: { paramsPromise: Promise<{ id: st
 
   async function handleSave() {
     setSaving(true);
-    const supabase = createAdminClient();
     const payload = {
       name_en: trail.name_en,
       name_ka: trail.name_ka || null,
@@ -123,20 +101,13 @@ export function TrailEditor({ paramsPromise }: { paramsPromise: Promise<{ id: st
       is_published: trail.is_published,
     };
 
-    if (isNew) {
-      const { data, error } = await supabase.from("trails").insert(payload).select().single();
-      if (error) {
-        alert(`Error: ${error.message}`);
-      } else {
-        router.push(`/trails/${data.id}`);
-      }
+    const { data, error } = await saveTrail(isNew ? null : id, payload);
+    if (error) {
+      alert(`Error: ${error}`);
+    } else if (isNew && data) {
+      router.push(`/trails/${(data as { id: string }).id}`);
     } else {
-      const { error } = await supabase.from("trails").update(payload).eq("id", id);
-      if (error) {
-        alert(`Error: ${error.message}`);
-      } else {
-        alert("Trail saved!");
-      }
+      alert("Trail saved!");
     }
     setSaving(false);
   }
@@ -144,41 +115,14 @@ export function TrailEditor({ paramsPromise }: { paramsPromise: Promise<{ id: st
   async function handleUploadPhoto(file: File) {
     setUploading(true);
     try {
-      const supabase = createAdminClient();
-      const ext = file.name.split(".").pop() ?? "jpg";
-      const fileName = `${crypto.randomUUID()}.${ext}`;
-      const path = `trails/${id}/${fileName}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from("trail-media")
-        .upload(path, file, { contentType: file.type });
-
-      if (uploadError) {
-        alert(`Upload failed: ${uploadError.message}`);
+      const formData = new FormData();
+      formData.append("file", file);
+      const { error, record } = await uploadTrailPhoto(id, formData);
+      if (error) {
+        alert(`Upload failed: ${error}`);
         return;
       }
-
-      const { data: urlData } = supabase.storage
-        .from("trail-media")
-        .getPublicUrl(path);
-
-      const { data: record, error: dbError } = await supabase
-        .from("trail_media")
-        .insert({
-          trail_id: id,
-          url: urlData.publicUrl,
-          type: "photo",
-          sort_order: media.length,
-        })
-        .select()
-        .single();
-
-      if (dbError) {
-        alert(`DB error: ${dbError.message}`);
-        return;
-      }
-
-      setMedia((prev) => [...prev, record as TrailMedia]);
+      if (record) setMedia((prev) => [...prev, record as TrailMedia]);
     } finally {
       setUploading(false);
     }
@@ -186,8 +130,7 @@ export function TrailEditor({ paramsPromise }: { paramsPromise: Promise<{ id: st
 
   async function deleteMedia(mediaId: string) {
     if (!confirm("Delete this photo?")) return;
-    const supabase = createAdminClient();
-    await supabase.from("trail_media").delete().eq("id", mediaId);
+    await deleteTrailMedia(mediaId);
     setMedia((prev) => prev.filter((m) => m.id !== mediaId));
   }
 

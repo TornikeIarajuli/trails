@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { createAdminClient } from "@/lib/supabase";
+import { getTrails, deleteTrail as deleteTrailAction } from "@/lib/actions";
 import {
   Table,
   TableBody,
@@ -40,23 +40,12 @@ export function TrailsList() {
   const [search, setSearch] = useState("");
 
   useEffect(() => {
-    fetchTrails();
+    getTrails().then((d) => setTrails(d as Trail[])).finally(() => setLoading(false));
   }, []);
 
-  async function fetchTrails() {
-    const supabase = createAdminClient();
-    const { data } = await supabase
-      .from("trails")
-      .select("id, name_en, name_ka, region, difficulty, distance_km, elevation_gain_m, is_published")
-      .order("name_en");
-    setTrails(data ?? []);
-    setLoading(false);
-  }
-
-  async function deleteTrail(id: string, name: string) {
+  async function handleDelete(id: string, name: string) {
     if (!confirm(`Delete "${name}"? This cannot be undone.`)) return;
-    const supabase = createAdminClient();
-    await supabase.from("trails").delete().eq("id", id);
+    await deleteTrailAction(id);
     setTrails((prev) => prev.filter((t) => t.id !== id));
   }
 
@@ -140,7 +129,7 @@ export function TrailsList() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => deleteTrail(trail.id, trail.name_en)}
+                        onClick={() => handleDelete(trail.id, trail.name_en)}
                       >
                         <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>

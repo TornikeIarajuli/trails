@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { createAdminClient } from "@/lib/supabase";
+import { getReviews, deleteReview } from "@/lib/actions";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -22,23 +22,12 @@ export function ReviewsList() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function fetch() {
-      const supabase = createAdminClient();
-      const { data: rows } = await supabase
-        .from("trail_reviews")
-        .select("id, rating, comment, created_at, profiles(username), trails(name_en)")
-        .order("created_at", { ascending: false })
-        .limit(200);
-      setData((rows ?? []) as unknown as Review[]);
-      setLoading(false);
-    }
-    fetch();
+    getReviews().then((d) => setData(d as unknown as Review[])).finally(() => setLoading(false));
   }, []);
 
   async function remove(id: string) {
     if (!confirm("Delete this review?")) return;
-    const supabase = createAdminClient();
-    await supabase.from("trail_reviews").delete().eq("id", id);
+    await deleteReview(id);
     setData((prev) => prev.filter((r) => r.id !== id));
   }
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { createAdminClient } from "@/lib/supabase";
+import { getConditions, deleteCondition, toggleConditionActive } from "@/lib/actions";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -31,29 +31,17 @@ export function ConditionsList() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function fetch() {
-      const supabase = createAdminClient();
-      const { data: rows } = await supabase
-        .from("trail_conditions")
-        .select("id, condition_type, severity, description, is_active, reported_at, profiles(username), trails(name_en)")
-        .order("reported_at", { ascending: false })
-        .limit(200);
-      setData((rows ?? []) as unknown as Condition[]);
-      setLoading(false);
-    }
-    fetch();
+    getConditions().then((d) => setData(d as unknown as Condition[])).finally(() => setLoading(false));
   }, []);
 
   async function remove(id: string) {
     if (!confirm("Delete this condition report?")) return;
-    const supabase = createAdminClient();
-    await supabase.from("trail_conditions").delete().eq("id", id);
+    await deleteCondition(id);
     setData((prev) => prev.filter((c) => c.id !== id));
   }
 
   async function toggleActive(id: string, current: boolean) {
-    const supabase = createAdminClient();
-    await supabase.from("trail_conditions").update({ is_active: !current }).eq("id", id);
+    await toggleConditionActive(id, current);
     setData((prev) => prev.map((c) => c.id === id ? { ...c, is_active: !current } : c));
   }
 

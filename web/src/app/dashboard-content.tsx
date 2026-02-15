@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Mountain, Users, Trophy, Star } from "lucide-react";
-import { createAdminClient } from "@/lib/supabase";
+import { getStats } from "@/lib/actions";
 
 interface Stats {
   trails: number;
@@ -17,23 +17,7 @@ export function DashboardContent() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function fetchStats() {
-      const supabase = createAdminClient();
-      const [trails, users, completions, reviews] = await Promise.all([
-        supabase.from("trails").select("*", { count: "exact", head: true }),
-        supabase.from("profiles").select("*", { count: "exact", head: true }),
-        supabase.from("trail_completions").select("*", { count: "exact", head: true }),
-        supabase.from("trail_reviews").select("*", { count: "exact", head: true }),
-      ]);
-      setStats({
-        trails: trails.count ?? 0,
-        users: users.count ?? 0,
-        completions: completions.count ?? 0,
-        reviews: reviews.count ?? 0,
-      });
-      setLoading(false);
-    }
-    fetchStats();
+    getStats().then(setStats).finally(() => setLoading(false));
   }, []);
 
   const cards = [
