@@ -58,19 +58,22 @@ export const useAuthStore = create<AuthState>((set) => ({
   setLoading: (isLoading) => set({ isLoading }),
 
   restoreSession: async () => {
-    const accessToken = await storage.getAccessToken();
-    const refreshToken = await storage.getRefreshToken();
+    try {
+      const accessToken = await storage.getAccessToken();
+      const refreshToken = await storage.getRefreshToken();
 
-    if (accessToken && refreshToken) {
-      // We have tokens, mark as authenticated
-      // The actual user data will be fetched by the profile query
-      set({
-        accessToken,
-        refreshToken,
-        isAuthenticated: true,
-        isLoading: false,
-      });
-    } else {
+      if (accessToken && refreshToken) {
+        set({
+          accessToken,
+          refreshToken,
+          isAuthenticated: true,
+          isLoading: false,
+        });
+      } else {
+        set({ isLoading: false });
+      }
+    } catch {
+      // SecureStore can fail on some devices after restart
       set({ isLoading: false });
     }
   },
