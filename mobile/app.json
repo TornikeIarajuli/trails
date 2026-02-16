@@ -20,7 +20,8 @@
         "NSLocationWhenInUseUsageDescription": "We need your location to track your hike and verify checkpoint check-ins.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "We need your location to track your hike progress in the background.",
         "NSCameraUsageDescription": "We need camera access to take proof photos at checkpoints.",
-        "NSPhotoLibraryUsageDescription": "We need photo library access to select proof photos."
+        "NSPhotoLibraryUsageDescription": "We need photo library access to select proof photos.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -47,7 +48,6 @@
       "bundler": "metro"
     },
     "plugins": [
-      "@sentry/react-native/expo",
       "expo-router",
       "expo-secure-store",
       "expo-font",
