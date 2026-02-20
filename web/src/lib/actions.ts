@@ -195,3 +195,35 @@ export async function deleteBookmark(id: string) {
   const supabase = createAdminClient();
   await supabase.from("trail_bookmarks").delete().eq("id", id);
 }
+
+// ── Shop Products ──
+export async function getProducts() {
+  const supabase = createAdminClient();
+  const { data } = await supabase
+    .from("products")
+    .select("id, name, description, image_url, price, shop_name, external_url, is_published, sort_order")
+    .order("sort_order")
+    .order("created_at", { ascending: false });
+  return data ?? [];
+}
+
+export async function getProductDetail(id: string) {
+  const supabase = createAdminClient();
+  const { data } = await supabase.from("products").select("*").eq("id", id).single();
+  return data;
+}
+
+export async function saveProduct(id: string | null, payload: Record<string, unknown>) {
+  const supabase = createAdminClient();
+  if (!id) {
+    const { data, error } = await supabase.from("products").insert(payload).select().single();
+    return { data, error: error?.message ?? null };
+  }
+  const { error } = await supabase.from("products").update(payload).eq("id", id);
+  return { data: null, error: error?.message ?? null };
+}
+
+export async function deleteProduct(id: string) {
+  const supabase = createAdminClient();
+  await supabase.from("products").delete().eq("id", id);
+}

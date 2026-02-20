@@ -10,6 +10,7 @@ type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
 const TAB_CONFIG: { name: string; route: string; icon: IoniconsName; activeIcon: IoniconsName }[] = [
   { name: 'home', route: '/(tabs)/home', icon: 'compass-outline', activeIcon: 'compass' },
   { name: 'feed', route: '/(tabs)/feed', icon: 'newspaper-outline', activeIcon: 'newspaper' },
+  { name: 'shop', route: '/(tabs)/shop', icon: 'bag-outline', activeIcon: 'bag' },
   { name: 'leaderboard', route: '/(tabs)/leaderboard', icon: 'trophy-outline', activeIcon: 'trophy' },
   { name: 'profile', route: '/(tabs)/profile', icon: 'person-outline', activeIcon: 'person' },
 ];
@@ -64,6 +65,7 @@ export default function TabsLayout() {
       >
         <Tabs.Screen name="home" />
         <Tabs.Screen name="feed" />
+        <Tabs.Screen name="shop" />
         <Tabs.Screen name="leaderboard" />
         <Tabs.Screen name="profile" />
       </Tabs>
@@ -97,9 +99,9 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     gap: 4,
   },
   navIcon: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
+    width: 36,
+    height: 36,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
   },

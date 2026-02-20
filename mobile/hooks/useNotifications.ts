@@ -1,6 +1,5 @@
 import { useEffect, useRef } from 'react';
 import { Platform } from 'react-native';
-import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import Constants from 'expo-constants';
 import { router } from 'expo-router';
@@ -10,8 +9,11 @@ import { useAuthStore } from '../store/authStore';
 // expo-notifications remote push is not available in Expo Go (SDK 53+)
 const isExpoGo = Constants.appOwnership === 'expo';
 
+// Lazy-load expo-notifications to avoid module-level crashes on re-open
+let Notifications: typeof import('expo-notifications') | null = null;
 try {
-  if (!isExpoGo) {
+  Notifications = require('expo-notifications');
+  if (!isExpoGo && Notifications?.setNotificationHandler) {
     Notifications.setNotificationHandler({
       handleNotification: async () => ({
         shouldShowAlert: true,
@@ -23,7 +25,7 @@ try {
 } catch {}
 
 async function registerForPushNotifications(): Promise<string | null> {
-  if (isExpoGo || !Device.isDevice) {
+  if (isExpoGo || !Device.isDevice || !Notifications) {
     return null;
   }
 
@@ -60,10 +62,10 @@ async function registerForPushNotifications(): Promise<string | null> {
 
 export function useNotificationSetup() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
-  const responseListener = useRef<Notifications.Subscription>();
+  const responseListener = useRef<any>();
 
   useEffect(() => {
-    if (!isAuthenticated || isExpoGo) return;
+    if (!isAuthenticated || isExpoGo || !Notifications) return;
 
     // Register push token with backend
     registerForPushNotifications().then((token) => {
@@ -73,21 +75,25 @@ export function useNotificationSetup() {
     });
 
     // Handle notification taps
-    responseListener.current = Notifications.addNotificationResponseReceivedListener(
-      (response) => {
-        const data = response.notification.request.content.data;
-        if (data?.type === 'new_follower' && data.followerId) {
-          router.push(`/trail/user/${data.followerId}`);
-        } else if (data?.type === 'badge_earned') {
-          router.push('/(tabs)/profile/badges');
-        }
-      },
-    );
+    try {
+      responseListener.current = Notifications.addNotificationResponseReceivedListener(
+        (response) => {
+          const data = response.notification.request.content.data;
+          if (data?.type === 'new_follower' && data.followerId) {
+            router.push(`/trail/user/${data.followerId}`);
+          } else if (data?.type === 'badge_earned') {
+            router.push('/(tabs)/profile/badges');
+          }
+        },
+      );
+    } catch {}
 
     return () => {
-      if (responseListener.current) {
-        Notifications.removeNotificationSubscription(responseListener.current);
-      }
+      try {
+        if (responseListener.current && Notifications) {
+          Notifications.removeNotificationSubscription(responseListener.current);
+        }
+      } catch {}
     };
   }, [isAuthenticated]);
 }

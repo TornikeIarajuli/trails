@@ -10,6 +10,7 @@ import {
   Star,
   AlertTriangle,
   Bookmark,
+  ShoppingBag,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -21,6 +22,7 @@ const navItems = [
   { href: "/reviews", label: "Reviews", icon: Star },
   { href: "/conditions", label: "Conditions", icon: AlertTriangle },
   { href: "/bookmarks", label: "Bookmarks", icon: Bookmark },
+  { href: "/shop", label: "Shop", icon: ShoppingBag },
 ];
 
 export function AdminSidebar() {
