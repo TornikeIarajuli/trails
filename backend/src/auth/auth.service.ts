@@ -72,6 +72,7 @@ export class AuthService {
     }
 
     return {
+      user: data.user,
       session: data.session,
     };
   }
