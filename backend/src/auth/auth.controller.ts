@@ -17,6 +17,11 @@ export class AuthController {
     return this.authService.login(dto);
   }
 
+  @Post('forgot-password')
+  forgotPassword(@Body('email') email: string) {
+    return this.authService.forgotPassword(email);
+  }
+
   @Post('refresh')
   refresh(@Body('refresh_token') refreshToken: string) {
     return this.authService.refreshToken(refreshToken);

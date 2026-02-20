@@ -7,9 +7,9 @@ import {
   Platform,
   ScrollView,
   TouchableOpacity,
-  Alert,
 } from 'react-native';
 import { router } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { useColors, ColorPalette } from '../../constants/colors';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
@@ -21,18 +21,20 @@ export default function LoginScreen() {
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [errorMsg, setErrorMsg] = useState('');
   const login = useLogin();
 
   const handleLogin = () => {
+    setErrorMsg('');
     if (!email || !password) {
-      Alert.alert('Error', 'Please fill in all fields');
+      setErrorMsg('Please fill in all fields');
       return;
     }
     login.mutate({ email, password }, {
       onError: (error: any) => {
         const raw = error.response?.data?.message;
-        const msg = Array.isArray(raw) ? raw.join(', ') : raw || 'Invalid credentials';
-        Alert.alert('Login Failed', msg);
+        const msg = Array.isArray(raw) ? raw.join(', ') : raw || 'Invalid email or password';
+        setErrorMsg(msg);
       },
     });
   };
@@ -52,21 +54,38 @@ export default function LoginScreen() {
         </View>
 
         <View style={styles.form}>
+          {errorMsg ? (
+            <View style={styles.errorBanner}>
+              <Ionicons name="alert-circle" size={18} color={Colors.error} />
+              <Text style={styles.errorBannerText}>{errorMsg}</Text>
+            </View>
+          ) : null}
+
           <Input
             label="Email"
             placeholder="your@email.com"
             value={email}
-            onChangeText={setEmail}
+            onChangeText={(t) => { setEmail(t); setErrorMsg(''); }}
             keyboardType="email-address"
             autoCapitalize="none"
           />
-          <Input
-            label="Password"
-            placeholder="Enter your password"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-          />
+
+          <View>
+            <Input
+              label="Password"
+              placeholder="Enter your password"
+              value={password}
+              onChangeText={(t) => { setPassword(t); setErrorMsg(''); }}
+              secureTextEntry
+            />
+            <TouchableOpacity
+              style={styles.forgotLink}
+              onPress={() => router.push('/(auth)/forgot-password')}
+            >
+              <Text style={styles.forgotText}>Forgot password?</Text>
+            </TouchableOpacity>
+          </View>
+
           <Button
             title="Log In"
             onPress={handleLogin}
@@ -114,6 +133,35 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   },
   form: {
     gap: 4,
+  },
+  errorBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: Colors.error + '12',
+    borderWidth: 1,
+    borderColor: Colors.error + '40',
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginBottom: 12,
+  },
+  errorBannerText: {
+    flex: 1,
+    fontSize: 14,
+    color: Colors.error,
+    fontWeight: '500',
+  },
+  forgotLink: {
+    alignSelf: 'flex-end',
+    marginTop: -8,
+    marginBottom: 8,
+    paddingVertical: 4,
+  },
+  forgotText: {
+    fontSize: 13,
+    color: Colors.primary,
+    fontWeight: '600',
   },
   signupLink: {
     alignItems: 'center',

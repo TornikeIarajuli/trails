@@ -60,6 +60,21 @@ export class AuthService {
     };
   }
 
+  async forgotPassword(email: string) {
+    const admin = this.supabaseService.getAdminClient();
+
+    const { error } = await admin.auth.resetPasswordForEmail(email, {
+      redirectTo: 'mikiri-trails://reset-password',
+    });
+
+    if (error) {
+      throw new BadRequestException(error.message);
+    }
+
+    // Always return success to avoid user enumeration
+    return { message: 'If that email exists, a reset link has been sent.' };
+  }
+
   async refreshToken(refreshToken: string) {
     const client = this.supabaseService.getClient();
 
