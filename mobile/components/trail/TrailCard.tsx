@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
-import { View, Text, Image, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useColors, ColorPalette } from '../../constants/colors';
@@ -28,6 +29,9 @@ export function TrailCard({ trail }: TrailCardProps) {
         source={{
           uri: trail.cover_image_url || 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&q=60',
         }}
+        placeholder={{ blurhash: 'L76F~B?bWD%M~qxuxEtS%MNFWqxt' }}
+        contentFit="cover"
+        transition={300}
         style={styles.image}
       />
       <View style={styles.content}>

@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
-import { View, Image, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
+import { Image } from 'expo-image';
 import { useColors, ColorPalette } from '../../constants/colors';
 
 interface AvatarProps {

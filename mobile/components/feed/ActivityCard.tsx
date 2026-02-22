@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
-import { View, Text, TouchableOpacity, Image, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors, ColorPalette } from '../../constants/colors';
@@ -105,7 +106,7 @@ export function ActivityCard({ item }: { item: FeedItem }) {
             activeOpacity={0.8}
             onPress={() => router.push(`/trail/${item.trail_id}`)}
           >
-            <Image source={{ uri: item.photo_url }} style={styles.photo} />
+            <Image source={{ uri: item.photo_url }} placeholder={{ blurhash: 'L76F~B?bWD%M~qxuxEtS%MNFWqxt' }} contentFit="cover" transition={300} style={styles.photo} />
           </TouchableOpacity>
         )}
 
@@ -115,7 +116,7 @@ export function ActivityCard({ item }: { item: FeedItem }) {
             activeOpacity={0.8}
             onPress={() => router.push(`/trail/${item.trail_id}`)}
           >
-            <Image source={{ uri: item.trail_cover_image_url }} style={styles.photo} />
+            <Image source={{ uri: item.trail_cover_image_url }} placeholder={{ blurhash: 'L76F~B?bWD%M~qxuxEtS%MNFWqxt' }} contentFit="cover" transition={300} style={styles.photo} />
           </TouchableOpacity>
         )}
       </View>

@@ -69,6 +69,15 @@ export default function HomeScreen() {
           renderItem={({ item }) => <TrailCard trail={item} />}
           contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}
+          removeClippedSubviews={true}
+          maxToRenderPerBatch={8}
+          windowSize={5}
+          initialNumToRender={8}
+          getItemLayout={(_data, index) => ({
+            length: 264,
+            offset: 264 * index,
+            index,
+          })}
           onEndReached={() => {
             if (hasNextPage && !isFetchingNextPage) fetchNextPage();
           }}

@@ -58,7 +58,10 @@ export class TrailsService {
 
     let query = admin
       .from('trails')
-      .select('*', { count: 'exact' })
+      .select(
+        'id, name_en, name_ka, difficulty, region, cover_image_url, distance_km, elevation_gain_m, estimated_hours, created_at',
+        { count: 'exact' },
+      )
       .eq('is_published', true)
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);

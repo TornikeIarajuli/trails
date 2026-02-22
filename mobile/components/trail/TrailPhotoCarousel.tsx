@@ -1,12 +1,12 @@
 import React, { useMemo } from 'react';
 import {
   View,
-  Image,
   ScrollView,
   StyleSheet,
   Dimensions,
   Text,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { useColors, ColorPalette } from '../../constants/colors';
 import { TrailMedia } from '../../types/trail';
 
@@ -46,7 +46,7 @@ export function TrailPhotoCarousel({ coverUrl, media }: TrailPhotoCarouselProps)
           key={img.id}
           source={{ uri: img.url }}
           style={[styles.image, { width: SCREEN_WIDTH }]}
-          resizeMode="cover"
+          contentFit="cover"
         />
       ))}
     </ScrollView>

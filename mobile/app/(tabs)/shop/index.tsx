@@ -3,11 +3,11 @@ import {
   View,
   FlatList,
   Text,
-  Image,
   TouchableOpacity,
   StyleSheet,
   RefreshControl,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { useColors, ColorPalette } from '../../../constants/colors';
 import { useProducts } from '../../../hooks/useShop';

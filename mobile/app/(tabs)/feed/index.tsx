@@ -40,6 +40,10 @@ export default function FeedScreen() {
         renderItem={({ item }) => <ActivityCard item={item} />}
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
+        removeClippedSubviews={true}
+        maxToRenderPerBatch={8}
+        windowSize={5}
+        initialNumToRender={8}
         refreshControl={
           <RefreshControl
             refreshing={isRefetching}
