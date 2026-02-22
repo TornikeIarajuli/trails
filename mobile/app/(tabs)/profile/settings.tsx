@@ -4,7 +4,7 @@ import { Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors, ColorPalette } from '../../../constants/colors';
 import { useSettingsStore } from '../../../store/settingsStore';
-import { useLogout } from '../../../hooks/useAuth';
+import { logout } from '../../../hooks/useAuth';
 
 export default function SettingsScreen() {
   const Colors = useColors();
@@ -14,8 +14,6 @@ export default function SettingsScreen() {
   const setLanguage = useSettingsStore((s) => s.setLanguage);
   const isDarkMode = useSettingsStore((s) => s.isDarkMode);
   const toggleDarkMode = useSettingsStore((s) => s.toggleDarkMode);
-  const logout = useLogout();
-
   return (
     <>
       <Stack.Screen

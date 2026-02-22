@@ -4,6 +4,7 @@ import { View, TouchableOpacity, Text, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors, ColorPalette } from '../../constants/colors';
+import { useIsOnline } from '../../hooks/useIsOnline';
 
 type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -20,9 +21,11 @@ function Header() {
   const pathname = usePathname();
   const Colors = useColors();
   const styles = useMemo(() => createStyles(Colors), [Colors]);
+  const isOnline = useIsOnline();
 
   return (
-    <View style={[styles.header, { paddingTop: insets.top + 6 }]}>
+    <View>
+      <View style={[styles.header, { paddingTop: insets.top + 6 }]}>
       <Text style={styles.appTitle}>Mikiri Trails</Text>
       <View style={styles.navIcons}>
         <TouchableOpacity
@@ -48,6 +51,13 @@ function Header() {
           );
         })}
       </View>
+    </View>
+    {!isOnline && (
+      <View style={styles.offlineBanner}>
+        <Ionicons name="cloud-offline-outline" size={14} color="#fff" />
+        <Text style={styles.offlineText}>You're offline — showing cached data</Text>
+      </View>
+    )}
     </View>
   );
 }
@@ -107,5 +117,18 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   },
   navIconActive: {
     backgroundColor: Colors.primary + '15',
+  },
+  offlineBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: Colors.warning,
+    paddingVertical: 6,
+  },
+  offlineText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#fff',
   },
 });

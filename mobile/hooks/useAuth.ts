@@ -44,11 +44,7 @@ export function useForgotPassword() {
   });
 }
 
-export function useLogout() {
-  const clearSession = useAuthStore((s) => s.clearSession);
-
-  return () => {
-    clearSession();
-    router.replace('/(auth)/login');
-  };
+export function logout() {
+  useAuthStore.getState().clearSession();
+  router.replace('/(auth)/login');
 }

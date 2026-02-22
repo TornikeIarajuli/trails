@@ -4,10 +4,12 @@ import {
   useQueryClient,
 } from '@tanstack/react-query';
 import { followsService } from '../services/follows';
+import { showError } from '../utils/showError';
+import { queryKeys } from '../utils/queryKeys';
 
 export function useIsFollowing(userId: string) {
   return useQuery({
-    queryKey: ['follows', 'check', userId],
+    queryKey: queryKeys.follows.check(userId),
     queryFn: () => followsService.isFollowing(userId),
     enabled: !!userId,
   });
@@ -19,16 +21,17 @@ export function useToggleFollow() {
   return useMutation({
     mutationFn: (userId: string) => followsService.toggle(userId),
     onSuccess: (_data, userId) => {
-      queryClient.invalidateQueries({ queryKey: ['follows'] });
-      queryClient.invalidateQueries({ queryKey: ['publicProfile', userId] });
-      queryClient.invalidateQueries({ queryKey: ['feed'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.follows.root() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.follows.publicProfile(userId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.feed() });
     },
+    onError: (err) => showError(err),
   });
 }
 
 export function useFollowers(userId: string, page = 1) {
   return useQuery({
-    queryKey: ['follows', 'followers', userId, page],
+    queryKey: queryKeys.follows.followers(userId, page),
     queryFn: () => followsService.getFollowers(userId, page),
     enabled: !!userId,
   });
@@ -36,7 +39,7 @@ export function useFollowers(userId: string, page = 1) {
 
 export function useFollowing(userId: string, page = 1) {
   return useQuery({
-    queryKey: ['follows', 'following', userId, page],
+    queryKey: queryKeys.follows.following(userId, page),
     queryFn: () => followsService.getFollowing(userId, page),
     enabled: !!userId,
   });
@@ -44,7 +47,7 @@ export function useFollowing(userId: string, page = 1) {
 
 export function useFollowCounts(userId: string) {
   return useQuery({
-    queryKey: ['follows', 'counts', userId],
+    queryKey: queryKeys.follows.counts(userId),
     queryFn: () => followsService.getCounts(userId),
     enabled: !!userId,
   });

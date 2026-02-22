@@ -1,16 +1,18 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { completionsService } from '../services/completions';
+import { showError } from '../utils/showError';
+import { queryKeys } from '../utils/queryKeys';
 
 export function useMyCompletions() {
   return useQuery({
-    queryKey: ['completions', 'me'],
+    queryKey: queryKeys.completions.mine(),
     queryFn: () => completionsService.getMyCompletions(),
   });
 }
 
 export function useTrailCompletions(trailId: string) {
   return useQuery({
-    queryKey: ['completions', 'trail', trailId],
+    queryKey: queryKeys.completions.trail(trailId),
     queryFn: () => completionsService.getTrailCompletions(trailId),
     enabled: !!trailId,
   });
@@ -27,9 +29,10 @@ export function useSubmitCompletion() {
       photo_lng: number;
     }) => completionsService.submit(data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['completions'] });
-      queryClient.invalidateQueries({ queryKey: ['profile'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.completions.root() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.profile.root() });
     },
+    onError: (err) => showError(err),
   });
 }
 
@@ -40,9 +43,10 @@ export function useRecordHike() {
     mutationFn: (data: { trailId: string; elapsedSeconds?: number }) =>
       completionsService.recordHike(data.trailId, data.elapsedSeconds),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['completions'] });
-      queryClient.invalidateQueries({ queryKey: ['profile'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.completions.root() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.profile.root() });
     },
+    onError: (err) => showError(err),
   });
 }
 
@@ -52,8 +56,9 @@ export function useDeleteCompletion() {
   return useMutation({
     mutationFn: (id: string) => completionsService.deleteCompletion(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['completions'] });
-      queryClient.invalidateQueries({ queryKey: ['profile'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.completions.root() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.profile.root() });
     },
+    onError: (err) => showError(err),
   });
 }

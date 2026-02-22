@@ -1,9 +1,10 @@
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { feedService } from '../services/feed';
+import { queryKeys } from '../utils/queryKeys';
 
 export function useFeed() {
   return useInfiniteQuery({
-    queryKey: ['feed'],
+    queryKey: queryKeys.feed(),
     queryFn: ({ pageParam = 1 }) => feedService.getFeed(pageParam),
     getNextPageParam: (lastPage) => {
       const { page, totalPages } = lastPage.pagination;

@@ -1,9 +1,10 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { checkpointsService } from '../services/checkpoints';
+import { queryKeys } from '../utils/queryKeys';
 
 export function useTrailCheckpoints(trailId: string) {
   return useQuery({
-    queryKey: ['checkpoints', trailId],
+    queryKey: queryKeys.checkpoints.trail(trailId),
     queryFn: () => checkpointsService.getByTrail(trailId),
     enabled: !!trailId,
   });
@@ -11,7 +12,7 @@ export function useTrailCheckpoints(trailId: string) {
 
 export function useMyCheckpointCompletions(trailId?: string) {
   return useQuery({
-    queryKey: ['checkpointCompletions', 'me', trailId],
+    queryKey: queryKeys.checkpoints.completions.mine(trailId ?? ''),
     queryFn: () =>
       trailId
         ? checkpointsService.getMyTrailCompletions(trailId)
@@ -30,7 +31,7 @@ export function useSubmitCheckpointCompletion() {
       photo_lng: number;
     }) => checkpointsService.submitCompletion(data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['checkpointCompletions'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.checkpoints.completions.root() });
     },
   });
 }

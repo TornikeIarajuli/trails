@@ -1,10 +1,4 @@
-import { Config } from '../constants/config';
-import { useAuthStore } from '../store/authStore';
-
-function getAuthHeaders(): Record<string, string> {
-  const token = useAuthStore.getState().accessToken;
-  return token ? { Authorization: `Bearer ${token}` } : {};
-}
+import api from './api';
 
 async function uploadFile(
   endpoint: string,
@@ -16,22 +10,16 @@ async function uploadFile(
   const fileResponse = await fetch(fileUri);
   const blob = await fileResponse.blob();
 
-  const response = await fetch(`${Config.API_BASE_URL}${endpoint}`, {
-    method: 'POST',
+  const { data } = await api.post(endpoint, blob, {
     headers: {
       'Content-Type': mimeType,
       'x-file-name': fileName,
-      ...getAuthHeaders(),
       ...extraHeaders,
     },
-    body: blob,
+    transformRequest: (d) => d,
   });
 
-  if (!response.ok) {
-    throw new Error(`Upload failed: ${response.status}`);
-  }
-
-  return response.json();
+  return data;
 }
 
 export const mediaService = {

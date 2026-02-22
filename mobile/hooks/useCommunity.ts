@@ -6,10 +6,12 @@ import {
 } from '@tanstack/react-query';
 import { communityService } from '../services/community';
 import { ConditionType, SeverityLevel } from '../types/community';
+import { showError } from '../utils/showError';
+import { queryKeys } from '../utils/queryKeys';
 
 export function useTrailConditions(trailId: string) {
   return useQuery({
-    queryKey: ['conditions', trailId],
+    queryKey: queryKeys.conditions.trail(trailId),
     queryFn: () => communityService.getTrailConditions(trailId),
     enabled: !!trailId,
   });
@@ -27,15 +29,16 @@ export function useReportCondition() {
       photo_url?: string;
     }) => communityService.reportCondition(data),
     onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['conditions', variables.trail_id] });
-      queryClient.invalidateQueries({ queryKey: ['trail'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.conditions.trail(variables.trail_id) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.trail.root() });
     },
+    onError: (err) => showError(err),
   });
 }
 
 export function useTrailPhotos(trailId: string) {
   return useInfiniteQuery({
-    queryKey: ['photos', trailId],
+    queryKey: queryKeys.photos.trail(trailId),
     queryFn: ({ pageParam = 1 }) =>
       communityService.getTrailPhotos(trailId, pageParam),
     getNextPageParam: (lastPage) => {
@@ -57,9 +60,10 @@ export function useUploadPhoto() {
       caption?: string;
     }) => communityService.uploadPhoto(data),
     onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['photos', variables.trail_id] });
-      queryClient.invalidateQueries({ queryKey: ['trail'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.photos.trail(variables.trail_id) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.trail.root() });
     },
+    onError: (err) => showError(err),
   });
 }
 
@@ -69,7 +73,8 @@ export function useTogglePhotoLike() {
   return useMutation({
     mutationFn: (photoId: string) => communityService.toggleLike(photoId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['photos'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.photos.root() });
     },
+    onError: (err) => showError(err),
   });
 }
