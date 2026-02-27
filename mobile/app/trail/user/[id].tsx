@@ -45,7 +45,7 @@ function CompletionCard({ completion, Colors, styles }: { completion: TrailCompl
       onPress={() => router.push(`/trail/${trail.id}`)}
     >
       {trail.cover_image_url ? (
-        <Image source={{ uri: trail.cover_image_url }} style={styles.trailImage} />
+        <Image source={{ uri: trail.cover_image_url }} style={styles.trailImage} cachePolicy="memory-disk" />
       ) : (
         <View style={[styles.trailImage, styles.trailImagePlaceholder]}>
           <Ionicons name="image-outline" size={24} color={Colors.textLight} />
@@ -81,7 +81,7 @@ function ProofPhotosGrid({ completions, Colors, styles }: { completions: TrailCo
       <View style={styles.photoGrid}>
         {photosWithTrail.map((c) => (
           <View key={c.id} style={styles.photoContainer}>
-            <Image source={{ uri: c.proof_photo_url! }} style={styles.proofPhoto} />
+            <Image source={{ uri: c.proof_photo_url! }} style={styles.proofPhoto} cachePolicy="memory-disk" />
             <Text style={styles.photoCaption} numberOfLines={1}>
               {c.trails?.name_en}
             </Text>

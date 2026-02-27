@@ -17,6 +17,7 @@ export interface Trail {
   cover_image_url: string | null;
   is_published: boolean;
   created_at: string;
+  start_point?: unknown;
 }
 
 export interface TrailMedia {

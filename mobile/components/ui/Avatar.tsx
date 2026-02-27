@@ -25,6 +25,7 @@ export function Avatar({ uri, name, size = 40 }: AvatarProps) {
     return (
       <Image
         source={{ uri }}
+        cachePolicy="memory-disk"
         style={[styles.image, { width: size, height: size, borderRadius: size / 2 }]}
       />
     );

@@ -22,6 +22,7 @@ import { Config } from '../../../constants/config';
 import { parseGeoPoint, parseGeoLineString } from '../../../utils/geo';
 import { mediaService } from '../../../services/media';
 import { useRecordHike } from '../../../hooks/useCompletions';
+import { startBackgroundTracking, stopBackgroundTracking } from '../../../utils/locationTask';
 
 // Isolated timer component — only this re-renders every second
 function HikeTimer({ styles }: { styles: ReturnType<typeof createStyles> }) {
@@ -79,11 +80,15 @@ export default function HikeScreen() {
     })
     .filter(Boolean) as any[];
 
-  // Start hike on mount
+  // Start hike on mount + begin background GPS
   useEffect(() => {
     if (!isActive && id) {
       startHike(id);
     }
+    startBackgroundTracking();
+    return () => {
+      // Do NOT stop on unmount — only stop explicitly when the user ends the hike
+    };
   }, [id]);
 
   // Track GPS points & center map on first fix
@@ -109,6 +114,7 @@ export default function HikeScreen() {
         text: 'End Hike',
         style: 'destructive',
         onPress: () => {
+          stopBackgroundTracking();
           const elapsed = useHikeStore.getState().elapsedSeconds;
           if (id) {
             recordHike.mutate(
@@ -233,7 +239,7 @@ export default function HikeScreen() {
                       showsHorizontalScrollIndicator={false}
                       style={styles.calloutPhotoStrip}
                       renderItem={({ item }) => (
-                        <Image source={{ uri: item }} style={styles.calloutPhoto} />
+                        <Image source={{ uri: item }} style={styles.calloutPhoto} cachePolicy="memory-disk" />
                       )}
                     />
                   ) : (
@@ -292,7 +298,7 @@ export default function HikeScreen() {
             showsHorizontalScrollIndicator={false}
             style={styles.photoStrip}
             renderItem={({ item }) => (
-              <Image source={{ uri: item }} style={styles.photoThumb} />
+              <Image source={{ uri: item }} style={styles.photoThumb} cachePolicy="memory-disk" />
             )}
           />
         )}

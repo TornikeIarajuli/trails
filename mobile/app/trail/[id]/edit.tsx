@@ -79,7 +79,7 @@ function MediaGrid({
       <View style={styles.mediaGrid}>
         {media.map((m) => (
           <View key={m.id} style={styles.mediaItem}>
-            <Image source={{ uri: m.url }} style={styles.mediaImage} />
+            <Image source={{ uri: m.url }} style={styles.mediaImage} cachePolicy="memory-disk" />
             <TouchableOpacity
               style={styles.mediaDeleteBtn}
               onPress={() => {
@@ -324,7 +324,7 @@ export default function TrailEditScreen() {
         />
 
         {coverImageUrl ? (
-          <Image source={{ uri: coverImageUrl }} style={styles.coverPreview} />
+          <Image source={{ uri: coverImageUrl }} style={styles.coverPreview} cachePolicy="memory-disk" />
         ) : null}
 
         <MediaGrid

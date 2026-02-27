@@ -45,6 +45,9 @@ export default function ProfileScreen() {
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       <View style={styles.headerRow}>
+        <TouchableOpacity onPress={() => router.push('/(tabs)/profile/analytics' as any)}>
+          <Ionicons name="bar-chart-outline" size={24} color={Colors.textSecondary} />
+        </TouchableOpacity>
         <TouchableOpacity onPress={() => router.push('/(tabs)/profile/settings')}>
           <Ionicons name="settings-outline" size={24} color={Colors.textSecondary} />
         </TouchableOpacity>
@@ -76,6 +79,8 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   headerRow: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
+    alignItems: 'center',
+    gap: 8,
     paddingHorizontal: 16,
     paddingTop: 8,
     paddingBottom: 4,

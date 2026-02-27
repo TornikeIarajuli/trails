@@ -1,3 +1,4 @@
+import '../utils/locationTask'; // Register background GPS task before app mounts
 import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { Stack } from 'expo-router';

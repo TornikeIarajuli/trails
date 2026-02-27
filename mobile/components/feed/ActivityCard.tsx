@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
@@ -6,6 +6,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useColors, ColorPalette } from '../../constants/colors';
 import { Avatar } from '../ui/Avatar';
 import { FeedItem, ActivityType } from '../../types/feed';
+import { useComments } from '../../hooks/useComments';
+import { CommentsSheet } from './CommentsSheet';
 
 function getRelativeTime(dateStr: string): string {
   const now = Date.now();
@@ -39,6 +41,10 @@ function getConditionLabel(conditionType: string): string {
 export function ActivityCard({ item }: { item: FeedItem }) {
   const Colors = useColors();
   const styles = useMemo(() => createStyles(Colors), [Colors]);
+  const [showComments, setShowComments] = useState(false);
+
+  const { data: comments } = useComments(item.activity_id);
+  const commentCount = comments?.length ?? 0;
 
   const ACTION_CONFIG: Record<ActivityType, { verb: string; icon: string; color: string }> = {
     completion: { verb: 'completed', icon: 'checkmark-circle', color: Colors.success },
@@ -106,7 +112,14 @@ export function ActivityCard({ item }: { item: FeedItem }) {
             activeOpacity={0.8}
             onPress={() => router.push(`/trail/${item.trail_id}`)}
           >
-            <Image source={{ uri: item.photo_url }} placeholder={{ blurhash: 'L76F~B?bWD%M~qxuxEtS%MNFWqxt' }} contentFit="cover" transition={300} style={styles.photo} />
+            <Image
+              source={{ uri: item.photo_url }}
+              placeholder={{ blurhash: 'L76F~B?bWD%M~qxuxEtS%MNFWqxt' }}
+              contentFit="cover"
+              transition={300}
+              cachePolicy="memory-disk"
+              style={styles.photo}
+            />
           </TouchableOpacity>
         )}
 
@@ -116,10 +129,32 @@ export function ActivityCard({ item }: { item: FeedItem }) {
             activeOpacity={0.8}
             onPress={() => router.push(`/trail/${item.trail_id}`)}
           >
-            <Image source={{ uri: item.trail_cover_image_url }} placeholder={{ blurhash: 'L76F~B?bWD%M~qxuxEtS%MNFWqxt' }} contentFit="cover" transition={300} style={styles.photo} />
+            <Image
+              source={{ uri: item.trail_cover_image_url }}
+              placeholder={{ blurhash: 'L76F~B?bWD%M~qxuxEtS%MNFWqxt' }}
+              contentFit="cover"
+              transition={300}
+              cachePolicy="memory-disk"
+              style={styles.photo}
+            />
           </TouchableOpacity>
         )}
+
+        {/* Comment button */}
+        <TouchableOpacity style={styles.commentRow} onPress={() => setShowComments(true)}>
+          <Ionicons name="chatbubble-outline" size={15} color={Colors.textSecondary} />
+          <Text style={styles.commentCount}>
+            {commentCount > 0 ? `${commentCount} comment${commentCount !== 1 ? 's' : ''}` : 'Comment'}
+          </Text>
+        </TouchableOpacity>
       </View>
+
+      <CommentsSheet
+        activityId={item.activity_id}
+        activityType={item.activity_type}
+        visible={showComments}
+        onClose={() => setShowComments(false)}
+      />
     </View>
   );
 }
@@ -194,5 +229,15 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     borderRadius: 10,
     marginTop: 10,
     backgroundColor: Colors.borderLight,
+  },
+  commentRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginTop: 10,
+  },
+  commentCount: {
+    fontSize: 13,
+    color: Colors.textSecondary,
   },
 });

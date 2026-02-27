@@ -25,7 +25,7 @@ export default function ShopScreen() {
       activeOpacity={0.7}
     >
       {item.image_url ? (
-        <Image source={{ uri: item.image_url }} style={styles.image} />
+        <Image source={{ uri: item.image_url }} style={styles.image} cachePolicy="memory-disk" />
       ) : (
         <View style={[styles.image, styles.placeholder]}>
           <Text style={styles.placeholderText}>No Image</Text>

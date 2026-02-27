@@ -69,6 +69,7 @@ function ReviewItem({ review, trailId }: { review: Review; trailId: string }) {
             <Image
               source={{ uri: review.profiles.avatar_url }}
               style={styles.avatar}
+              cachePolicy="memory-disk"
             />
           ) : (
             <View style={styles.avatarPlaceholder}>

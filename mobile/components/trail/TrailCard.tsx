@@ -32,6 +32,7 @@ export function TrailCard({ trail }: TrailCardProps) {
         placeholder={{ blurhash: 'L76F~B?bWD%M~qxuxEtS%MNFWqxt' }}
         contentFit="cover"
         transition={300}
+        cachePolicy="memory-disk"
         style={styles.image}
       />
       <View style={styles.content}>

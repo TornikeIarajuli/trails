@@ -90,4 +90,9 @@ export const queryKeys = {
       root: () => ['checkpointCompletions'] as const,  // wildcard
     },
   },
+
+  // Activity comments
+  comments: {
+    activity: (activityId: string) => ['comments', activityId] as const,
+  },
 };

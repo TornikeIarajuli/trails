@@ -47,6 +47,7 @@ export function TrailPhotoCarousel({ coverUrl, media }: TrailPhotoCarouselProps)
           source={{ uri: img.url }}
           style={[styles.image, { width: SCREEN_WIDTH }]}
           contentFit="cover"
+          cachePolicy="memory-disk"
         />
       ))}
     </ScrollView>

@@ -68,7 +68,7 @@ export default function PhotoGalleryScreen() {
 
   const renderPhoto = ({ item }: { item: TrailPhoto }) => (
     <View style={styles.photoCard}>
-      <Image source={{ uri: item.url }} style={styles.photo} />
+      <Image source={{ uri: item.url }} style={styles.photo} cachePolicy="memory-disk" />
       <View style={styles.photoFooter}>
         <View style={styles.userRow}>
           <Avatar

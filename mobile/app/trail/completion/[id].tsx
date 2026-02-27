@@ -62,7 +62,7 @@ export default function CompletionDetailScreen() {
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Cover Image */}
         {trail?.cover_image_url ? (
-          <Image source={{ uri: trail.cover_image_url }} style={styles.coverImage} />
+          <Image source={{ uri: trail.cover_image_url }} style={styles.coverImage} cachePolicy="memory-disk" />
         ) : (
           <View style={[styles.coverImage, styles.coverPlaceholder]}>
             <Ionicons name="trail-sign-outline" size={48} color={Colors.textLight} />
