@@ -8,7 +8,7 @@ import {
   TouchableOpacity,
   Platform,
 } from 'react-native';
-import MapView, { Marker, Callout, PROVIDER_GOOGLE } from 'react-native-maps';
+import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors, ColorPalette } from '../../../constants/colors';
@@ -144,28 +144,10 @@ return (
                 key={trail.id}
                 coordinate={coord}
                 pinColor={Colors.difficulty[trail.difficulty]}
-                onCalloutPress={() => router.push(`/trail/${trail.id}` as any)}
-              >
-                <Callout>
-                  <View style={styles.callout}>
-                    <Text style={styles.calloutName} numberOfLines={2}>
-                      {trail.name_en}
-                    </Text>
-                    <Text
-                      style={[
-                        styles.calloutDifficulty,
-                        { color: Colors.difficulty[trail.difficulty] },
-                      ]}
-                    >
-                      {trail.difficulty}
-                    </Text>
-                    {trail.distance_km != null && (
-                      <Text style={styles.calloutDetail}>{trail.distance_km} km</Text>
-                    )}
-                    <Text style={styles.calloutTap}>Tap to open →</Text>
-                  </View>
-                </Callout>
-              </Marker>
+                title={trail.name_en}
+                description={[trail.difficulty, trail.distance_km != null ? `${trail.distance_km} km` : null].filter(Boolean).join(' · ')}
+                onPress={() => router.push(`/trail/${trail.id}` as any)}
+              />
             );
           })}
         </MapView>
@@ -213,30 +195,5 @@ const createStyles = (Colors: ColorPalette) =>
     },
     map: {
       flex: 1,
-    },
-    callout: {
-      width: 160,
-      padding: 10,
-    },
-    calloutName: {
-      fontSize: 14,
-      fontWeight: '700',
-      color: '#1a1a1a',
-      marginBottom: 2,
-    },
-    calloutDifficulty: {
-      fontSize: 12,
-      fontWeight: '600',
-      textTransform: 'capitalize',
-      marginBottom: 2,
-    },
-    calloutDetail: {
-      fontSize: 12,
-      color: '#555',
-    },
-    calloutTap: {
-      fontSize: 11,
-      color: '#888',
-      marginTop: 4,
     },
   });
