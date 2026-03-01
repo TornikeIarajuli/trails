@@ -1,12 +1,7 @@
-import { MMKV } from 'react-native-mmkv';
-import { createSyncStoragePersister } from '@tanstack/react-query-persist-client';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister';
 
-const mmkv = new MMKV({ id: 'query-cache' });
-
-export const queryPersister = createSyncStoragePersister({
-  storage: {
-    setItem: (key, value) => mmkv.set(key, value),
-    getItem: (key) => mmkv.getString(key) ?? null,
-    removeItem: (key) => mmkv.delete(key),
-  },
+export const queryPersister = createAsyncStoragePersister({
+  storage: AsyncStorage,
+  key: 'REACT_QUERY_OFFLINE_CACHE',
 });

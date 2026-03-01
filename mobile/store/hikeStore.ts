@@ -1,15 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { MMKV } from 'react-native-mmkv';
-import type { StateStorage } from 'zustand/middleware';
-
-const mmkv = new MMKV({ id: 'hike-store' });
-
-const mmkvStorage: StateStorage = {
-  getItem: (name) => mmkv.getString(name) ?? null,
-  setItem: (name, value) => mmkv.set(name, value),
-  removeItem: (name) => mmkv.delete(name),
-};
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface GpsPoint {
   lat: number;
@@ -85,7 +76,7 @@ export const useHikeStore = create<HikeState>()(
     }),
     {
       name: 'hike-store',
-      storage: createJSONStorage(() => mmkvStorage),
+      storage: createJSONStorage(() => AsyncStorage),
       partialize: (state) => ({
         isActive: state.isActive,
         trailId: state.trailId,
