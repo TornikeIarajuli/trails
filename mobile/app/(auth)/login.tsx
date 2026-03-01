@@ -8,6 +8,7 @@ import {
   ScrollView,
   TouchableOpacity,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors, ColorPalette } from '../../constants/colors';
@@ -49,7 +50,12 @@ export default function LoginScreen() {
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.header}>
-          <Text style={styles.logo}>Mikiri Trails</Text>
+          <Image
+            source={require('../../assets/logo.png')}
+            style={styles.logo}
+            contentFit="contain"
+          />
+          <Text style={styles.appName}>GZA</Text>
           <Text style={styles.subtitle}>Discover. Hike. Conquer.</Text>
         </View>
 
@@ -122,14 +128,21 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     marginBottom: 48,
   },
   logo: {
-    fontSize: 32,
+    width: 120,
+    height: 120,
+    marginBottom: 8,
+  },
+  appName: {
+    fontSize: 28,
     fontWeight: '800',
     color: Colors.primary,
+    letterSpacing: 3,
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: 15,
     color: Colors.textSecondary,
-    marginTop: 8,
+    marginTop: 6,
+    letterSpacing: 0.5,
   },
   form: {
     gap: 4,

@@ -1,12 +1,12 @@
 {
   "expo": {
-    "name": "Mikiri Trails",
-    "slug": "mikiri-trails",
+    "name": "GZA",
+    "slug": "gza-trails",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "scheme": "mikiri-trails",
+    "scheme": "gza-trails",
     "newArchEnabled": true,
     "splash": {
       "image": "./assets/splash-icon.png",
@@ -15,7 +15,7 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.mikiritrails.app",
+      "bundleIdentifier": "com.gzatrails.app",
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "We need your location to track your hike and verify checkpoint check-ins.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "We need your location to track your hike progress in the background.",
@@ -30,7 +30,7 @@
         "backgroundColor": "#A0522D"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.mikiritrails.app",
+      "package": "com.gzatrails.app",
       "permissions": [
         "android.permission.ACCESS_FINE_LOCATION",
         "android.permission.ACCESS_COARSE_LOCATION",
@@ -55,14 +55,14 @@
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "Allow Mikiri Trails to track your hike progress.",
+          "locationAlwaysAndWhenInUsePermission": "Allow GZA to track your hike progress.",
           "isBackgroundLocationEnabled": true
         }
       ],
       [
         "expo-image-picker",
         {
-          "photosPermission": "Allow Mikiri Trails to access your photos for proof submissions."
+          "photosPermission": "Allow GZA to access your photos for proof submissions."
         }
       ],
       [

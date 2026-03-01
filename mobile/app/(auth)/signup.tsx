@@ -9,6 +9,7 @@ import {
   TouchableOpacity,
   Alert,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { useColors, ColorPalette } from '../../constants/colors';
 import { Input } from '../../components/ui/Input';
@@ -61,6 +62,11 @@ export default function SignupScreen() {
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.header}>
+          <Image
+            source={require('../../assets/logo.png')}
+            style={styles.logo}
+            contentFit="contain"
+          />
           <Text style={styles.title}>Create Account</Text>
           <Text style={styles.subtitle}>Join the trail community</Text>
         </View>
@@ -128,6 +134,11 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   header: {
     alignItems: 'center',
     marginBottom: 36,
+  },
+  logo: {
+    width: 80,
+    height: 80,
+    marginBottom: 12,
   },
   title: {
     fontSize: 28,

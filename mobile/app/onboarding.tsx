@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   ViewToken,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -100,6 +101,16 @@ export default function OnboardingScreen() {
         <Text style={styles.skipText}>Skip</Text>
       </TouchableOpacity>
 
+      {/* Logo header */}
+      <View style={styles.logoHeader}>
+        <Image
+          source={require('../assets/logo.png')}
+          style={styles.logo}
+          contentFit="contain"
+        />
+        <Text style={styles.logoName}>GZA</Text>
+      </View>
+
       <FlatList
         ref={flatListRef}
         data={PAGES}
@@ -159,6 +170,22 @@ const createStyles = (Colors: ColorPalette) =>
       fontSize: 16,
       fontWeight: '600',
       color: Colors.textSecondary,
+    },
+    logoHeader: {
+      alignItems: 'center',
+      paddingTop: 16,
+      paddingBottom: 8,
+    },
+    logo: {
+      width: 72,
+      height: 72,
+    },
+    logoName: {
+      fontSize: 18,
+      fontWeight: '800',
+      color: Colors.primary,
+      letterSpacing: 3,
+      marginTop: 4,
     },
     page: {
       flex: 1,
