@@ -95,4 +95,9 @@ export const queryKeys = {
   comments: {
     activity: (activityId: string) => ['comments', activityId] as const,
   },
+
+  // Activity likes
+  likes: {
+    activity: (activityId: string) => ['likes', activityId] as const,
+  },
 };

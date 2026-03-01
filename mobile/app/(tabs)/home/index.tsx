@@ -38,6 +38,7 @@ export default function HomeScreen() {
   const [nearbyMode, setNearbyMode] = useState(false);
   const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const [radius, setRadius] = useState<Radius>(15);
+  const [nearbyVersion, setNearbyVersion] = useState(0);
   const debouncedSearch = useDebounce(search, 300);
 
   const { data: regions } = useRegions();
@@ -59,6 +60,7 @@ export default function HomeScreen() {
     nearbyMode ? userLocation?.latitude : undefined,
     nearbyMode ? userLocation?.longitude : undefined,
     nearbyMode ? radius : undefined,
+    nearbyMode ? nearbyVersion : undefined,
   );
 
   const trails = useMemo(() => {
@@ -83,11 +85,20 @@ export default function HomeScreen() {
       return;
     }
     try {
+      // Reuse cached location if available for instant re-enable;
+      // always fetch fresh to get updated position
       const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
       setUserLocation({ latitude: pos.coords.latitude, longitude: pos.coords.longitude });
+      setNearbyVersion((v) => v + 1); // force React Query to treat this as a new request
       setNearbyMode(true);
     } catch {
-      Alert.alert('Location error', 'Could not get your location. Please try again.');
+      // If fresh fetch fails but we have a cached location, reuse it
+      if (userLocation) {
+        setNearbyVersion((v) => v + 1);
+        setNearbyMode(true);
+      } else {
+        Alert.alert('Location error', 'Could not get your location. Please try again.');
+      }
     }
   };
 

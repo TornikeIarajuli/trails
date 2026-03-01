@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors, ColorPalette } from '../../constants/colors';
-import { Badge } from '../../types/badge';
+import { Badge, BadgeCategory } from '../../types/badge';
 
 interface BadgeCardProps {
   badge: Badge;
@@ -27,15 +27,31 @@ const ICON_MAP: Record<string, string> = {
   bookmark: 'bookmark',
 };
 
+const CATEGORY_COLOR: Record<BadgeCategory, string> = {
+  completions: '#F59E0B', // amber/gold
+  difficulty:  '#EF4444', // red
+  region:      '#3B82F6', // blue
+  streak:      '#8B5CF6', // purple
+  special:     '#10B981', // emerald
+};
+
 export function BadgeCard({ badge, earned, compact, progress }: BadgeCardProps) {
   const Colors = useColors();
   const styles = useMemo(() => createStyles(Colors), [Colors]);
   const iconName = ICON_MAP[badge.icon] ?? 'ribbon';
+  const categoryColor = CATEGORY_COLOR[badge.category] ?? Colors.primary;
 
   if (compact) {
     return (
       <View style={[styles.compact, !earned && styles.locked]}>
-        <View style={[styles.compactIcon, earned && styles.compactIconEarned]}>
+        <View
+          style={[
+            styles.compactIcon,
+            earned
+              ? { backgroundColor: categoryColor }
+              : { backgroundColor: Colors.borderLight },
+          ]}
+        >
           <Ionicons
             name={iconName as any}
             size={20}
@@ -50,8 +66,21 @@ export function BadgeCard({ badge, earned, compact, progress }: BadgeCardProps) 
   }
 
   return (
-    <View style={[styles.card, !earned && styles.locked]}>
-      <View style={[styles.iconContainer, earned && styles.iconEarned]}>
+    <View
+      style={[
+        styles.card,
+        !earned && styles.locked,
+        earned && { borderColor: categoryColor + '40' },
+      ]}
+    >
+      <View
+        style={[
+          styles.iconContainer,
+          earned
+            ? { backgroundColor: categoryColor }
+            : { backgroundColor: Colors.borderLight },
+        ]}
+      >
         <Ionicons
           name={iconName as any}
           size={28}
@@ -73,7 +102,10 @@ export function BadgeCard({ badge, earned, compact, progress }: BadgeCardProps) 
             <View
               style={[
                 styles.progressFill,
-                { width: `${(progress.current / progress.target) * 100}%` },
+                {
+                  width: `${Math.min((progress.current / progress.target) * 100, 100)}%`,
+                  backgroundColor: categoryColor,
+                },
               ]}
             />
           </View>
@@ -107,9 +139,6 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 8,
-  },
-  iconEarned: {
-    backgroundColor: Colors.primary,
   },
   lockOverlay: {
     position: 'absolute',
@@ -169,9 +198,6 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 4,
-  },
-  compactIconEarned: {
-    backgroundColor: Colors.primary,
   },
   compactName: {
     fontSize: 11,

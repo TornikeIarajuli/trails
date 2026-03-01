@@ -24,4 +24,21 @@ export class CommentsController {
   deleteComment(@CurrentUser('id') userId: string, @Param('id') id: string) {
     return this.commentsService.deleteComment(userId, id);
   }
+
+  // ── Likes ──────────────────────────────────────────────────────────────────
+
+  @Get('likes/:activityId')
+  getLikes(@Param('activityId') activityId: string) {
+    return this.commentsService.getLikes(activityId);
+  }
+
+  @Post('likes/toggle')
+  @UseGuards(AuthGuard)
+  toggleLike(
+    @CurrentUser('id') userId: string,
+    @Body('activity_id') activityId: string,
+    @Body('activity_type') activityType: string,
+  ) {
+    return this.commentsService.toggleLike(userId, activityId, activityType);
+  }
 }

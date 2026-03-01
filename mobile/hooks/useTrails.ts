@@ -38,10 +38,11 @@ export function useRegions() {
   });
 }
 
-export function useNearbyTrails(lat?: number, lng?: number, radiusKm?: number) {
+export function useNearbyTrails(lat?: number, lng?: number, radiusKm?: number, version?: number) {
   return useQuery({
-    queryKey: queryKeys.nearbyTrails(lat, lng, radiusKm),
+    queryKey: [...queryKeys.nearbyTrails(lat, lng, radiusKm), version],
     queryFn: () => trailsService.getNearby(lat!, lng!, radiusKm),
     enabled: lat !== undefined && lng !== undefined,
+    staleTime: 0, // always re-fetch on new version
   });
 }

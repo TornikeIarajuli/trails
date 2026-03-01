@@ -1,12 +1,12 @@
 {
   "expo": {
     "name": "GZA",
-    "slug": "gza-trails",
+    "slug": "mikiri-trails",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "scheme": "gza-trails",
+    "scheme": "mikiri-trails",
     "newArchEnabled": true,
     "splash": {
       "image": "./assets/splash-icon.png",

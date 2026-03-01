@@ -7,6 +7,7 @@ import { useColors, ColorPalette } from '../../constants/colors';
 import { Avatar } from '../ui/Avatar';
 import { FeedItem, ActivityType } from '../../types/feed';
 import { useComments } from '../../hooks/useComments';
+import { useLikes, useToggleLike } from '../../hooks/useLikes';
 import { CommentsSheet } from './CommentsSheet';
 
 function getRelativeTime(dateStr: string): string {
@@ -45,6 +46,9 @@ export function ActivityCard({ item }: { item: FeedItem }) {
 
   const { data: comments } = useComments(item.activity_id);
   const commentCount = comments?.length ?? 0;
+
+  const { liked, count: likeCount } = useLikes(item.activity_id);
+  const toggleLike = useToggleLike();
 
   const ACTION_CONFIG: Record<ActivityType, { verb: string; icon: string; color: string }> = {
     completion: { verb: 'completed', icon: 'checkmark-circle', color: Colors.success },
@@ -140,13 +144,35 @@ export function ActivityCard({ item }: { item: FeedItem }) {
           </TouchableOpacity>
         )}
 
-        {/* Comment button */}
-        <TouchableOpacity style={styles.commentRow} onPress={() => setShowComments(true)}>
-          <Ionicons name="chatbubble-outline" size={15} color={Colors.textSecondary} />
-          <Text style={styles.commentCount}>
-            {commentCount > 0 ? `${commentCount} comment${commentCount !== 1 ? 's' : ''}` : 'Comment'}
-          </Text>
-        </TouchableOpacity>
+        {/* Actions row: like + comment */}
+        <View style={styles.actionsRow}>
+          <TouchableOpacity
+            style={styles.actionBtn}
+            onPress={() =>
+              toggleLike.mutate({
+                activity_id: item.activity_id,
+                activity_type: item.activity_type,
+              })
+            }
+            disabled={toggleLike.isPending}
+          >
+            <Ionicons
+              name={liked ? 'heart' : 'heart-outline'}
+              size={16}
+              color={liked ? '#E53935' : Colors.textSecondary}
+            />
+            {likeCount > 0 && (
+              <Text style={[styles.actionCount, liked && styles.likedCount]}>{likeCount}</Text>
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.actionBtn} onPress={() => setShowComments(true)}>
+            <Ionicons name="chatbubble-outline" size={15} color={Colors.textSecondary} />
+            {commentCount > 0 && (
+              <Text style={styles.actionCount}>{commentCount}</Text>
+            )}
+          </TouchableOpacity>
+        </View>
       </View>
 
       <CommentsSheet
@@ -230,14 +256,22 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     marginTop: 10,
     backgroundColor: Colors.borderLight,
   },
-  commentRow: {
+  actionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    marginTop: 10,
+  },
+  actionBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    marginTop: 10,
   },
-  commentCount: {
+  actionCount: {
     fontSize: 13,
     color: Colors.textSecondary,
+  },
+  likedCount: {
+    color: '#E53935',
   },
 });

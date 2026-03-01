@@ -42,10 +42,35 @@ export class CommentsService {
       .single();
 
     if (!existing) throw new NotFoundException('Comment not found');
-    if (existing.user_id !== userId) throw new ForbiddenException('Cannot delete another user\'s comment');
+    if (existing.user_id !== userId) throw new ForbiddenException("Cannot delete another user's comment");
 
     const { error } = await admin.from('activity_comments').delete().eq('id', commentId);
     if (error) throw error;
     return { message: 'Deleted' };
+  }
+
+  // ── Likes ──────────────────────────────────────────────────────────────────
+
+  async getLikes(activityId: string) {
+    const admin = this.supabaseService.getAdminClient();
+    const { data, error } = await admin
+      .from('activity_likes')
+      .select('id, user_id, created_at')
+      .eq('activity_id', activityId);
+
+    if (error) throw error;
+    return data ?? [];
+  }
+
+  async toggleLike(userId: string, activityId: string, activityType: string) {
+    const admin = this.supabaseService.getAdminClient();
+    const { data, error } = await admin.rpc('toggle_activity_like_full', {
+      p_activity_id: activityId,
+      p_activity_type: activityType,
+      p_user_id: userId,
+    });
+
+    if (error) throw error;
+    return data; // { liked: boolean, count: number }
   }
 }
