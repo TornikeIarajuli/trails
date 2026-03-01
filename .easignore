@@ -1,0 +1,6 @@
+backend/
+scripts/
+web/
+node_modules/
+nul
+*.svg
