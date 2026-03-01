@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { haversineDistance } from '../utils/geo';
 
 export interface GpsPoint {
   lat: number;
@@ -19,6 +20,7 @@ interface HikeState {
   visitedCheckpointIds: string[];
   gpsPoints: GpsPoint[];
   lastHikeGpsPoints: GpsPoint[];
+  distanceCoveredMeters: number;
   startHike: (trailId: string) => void;
   endHike: () => void;
   pauseHike: () => void;
@@ -42,6 +44,7 @@ export const useHikeStore = create<HikeState>()(
       visitedCheckpointIds: [],
       gpsPoints: [],
       lastHikeGpsPoints: [],
+      distanceCoveredMeters: 0,
 
       startHike: (trailId) =>
         set({
@@ -54,6 +57,7 @@ export const useHikeStore = create<HikeState>()(
           baseElapsedSeconds: 0,
           visitedCheckpointIds: [],
           gpsPoints: [],
+          distanceCoveredMeters: 0,
         }),
 
       pauseHike: () => {
@@ -109,7 +113,15 @@ export const useHikeStore = create<HikeState>()(
           const points = state.gpsPoints.length >= 500
             ? [...state.gpsPoints.slice(-499), point]
             : [...state.gpsPoints, point];
-          return { gpsPoints: points };
+          // Accumulate distance from last point
+          const lastPoint = state.gpsPoints[state.gpsPoints.length - 1];
+          const addedMeters = lastPoint
+            ? haversineDistance(lastPoint.lat, lastPoint.lng, lat, lng)
+            : 0;
+          return {
+            gpsPoints: points,
+            distanceCoveredMeters: state.distanceCoveredMeters + addedMeters,
+          };
         });
       },
 
@@ -129,6 +141,7 @@ export const useHikeStore = create<HikeState>()(
         visitedCheckpointIds: state.visitedCheckpointIds,
         gpsPoints: state.gpsPoints,
         lastHikeGpsPoints: state.lastHikeGpsPoints,
+        distanceCoveredMeters: state.distanceCoveredMeters,
       }),
     },
   ),

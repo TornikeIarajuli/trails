@@ -163,23 +163,25 @@ export class CompletionsService {
     await this.incrementUserCompletionCount(admin, userId);
     const badgeResult = await admin.rpc('check_and_award_badges', { p_user_id: userId });
 
+    const newBadgeIds: string[] = badgeResult.data ?? [];
+
     // Notify user about new badges
-    if (badgeResult.data && badgeResult.data.length > 0) {
+    if (newBadgeIds.length > 0) {
       const { data: newBadges } = await admin
         .from('badges')
         .select('name_en')
-        .in('id', badgeResult.data);
+        .in('id', newBadgeIds);
 
       const names = newBadges?.map((b) => b.name_en).join(', ') ?? 'a new badge';
       this.notificationsService
         .sendToUser(userId, 'Badge Earned!', `You earned: ${names}`, {
           type: 'badge_earned',
-          badgeIds: badgeResult.data,
+          badgeIds: newBadgeIds,
         })
         .catch(() => {});
     }
 
-    return data;
+    return { ...data, new_badge_ids: newBadgeIds };
   }
 
   async deleteCompletion(userId: string, completionId: string) {

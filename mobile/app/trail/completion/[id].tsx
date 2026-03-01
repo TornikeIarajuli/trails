@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -27,6 +27,10 @@ import {
 } from '../../../utils/formatters';
 import { LoadingSpinner } from '../../../components/ui/LoadingSpinner';
 import { buildGpxString } from '../../../utils/gpxExport';
+import { Confetti } from '../../../components/ui/Confetti';
+import { BadgeUnlockModal } from '../../../components/badges/BadgeUnlockModal';
+import { useAllBadges } from '../../../hooks/useBadges';
+import { Badge } from '../../../types/badge';
 
 function formatElapsedTime(seconds: number): string {
   const h = Math.floor(seconds / 3600);
@@ -40,11 +44,40 @@ export default function CompletionDetailScreen() {
   const Colors = useColors();
   const styles = useMemo(() => createStyles(Colors), [Colors]);
 
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, newBadgeIds: rawBadgeIds } = useLocalSearchParams<{ id: string; newBadgeIds?: string }>();
   const insets = useSafeAreaInsets();
   const { data: completions, isLoading } = useMyCompletions();
   const lastHikeGpsPoints = useHikeStore((s) => s.lastHikeGpsPoints);
   const clearLastHikeGps = useHikeStore((s) => s.clearLastHikeGps);
+  const { data: allBadges } = useAllBadges();
+
+  const [showConfetti, setShowConfetti] = useState(true);
+  const [showBadgeModal, setShowBadgeModal] = useState(false);
+  const [newBadges, setNewBadges] = useState<Badge[]>([]);
+
+  // Parse new badge IDs from URL and match to badge objects
+  useEffect(() => {
+    if (!rawBadgeIds || !allBadges) return;
+    try {
+      const ids: string[] = JSON.parse(decodeURIComponent(rawBadgeIds));
+      const matched = ids.map((bid) => allBadges.find((b) => b.id === bid)).filter(Boolean) as Badge[];
+      if (matched.length > 0) {
+        setNewBadges(matched);
+        // Show badge modal after confetti plays (1.5s delay)
+        const t = setTimeout(() => setShowBadgeModal(true), 1500);
+        return () => clearTimeout(t);
+      }
+    } catch {
+      // ignore malformed param
+    }
+  }, [rawBadgeIds, allBadges]);
+
+  // Auto-hide confetti after 3.5s
+  useEffect(() => {
+    if (!showConfetti) return;
+    const t = setTimeout(() => setShowConfetti(false), 3500);
+    return () => clearTimeout(t);
+  }, []);
 
   const completion = completions?.find((c) => c.id === id);
 
@@ -104,6 +137,12 @@ export default function CompletionDetailScreen() {
 
   return (
     <View style={styles.container}>
+      <Confetti visible={showConfetti} />
+      <BadgeUnlockModal
+        badges={newBadges}
+        visible={showBadgeModal}
+        onClose={() => setShowBadgeModal(false)}
+      />
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Cover Image */}
         {trail?.cover_image_url ? (

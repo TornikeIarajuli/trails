@@ -20,10 +20,11 @@ import { useTrail } from '../../../hooks/useTrails';
 import { useHikeStore } from '../../../store/hikeStore';
 import { useLocationTracking } from '../../../hooks/useLocation';
 import { Config } from '../../../constants/config';
-import { parseGeoPoint, parseGeoLineString } from '../../../utils/geo';
+import { parseGeoPoint, parseGeoLineString, haversineDistance } from '../../../utils/geo';
 import { mediaService } from '../../../services/media';
 import { useRecordHike } from '../../../hooks/useCompletions';
 import { startBackgroundTracking, stopBackgroundTracking } from '../../../utils/locationTask';
+import * as Haptics from 'expo-haptics';
 
 // Isolated timer component — only this re-renders every second
 function HikeTimer({ styles }: { styles: ReturnType<typeof createStyles> }) {
@@ -86,11 +87,17 @@ export default function HikeScreen() {
   const isActive = useHikeStore((s) => s.isActive);
   const isPaused = useHikeStore((s) => s.isPaused);
   const visitedCheckpointIds = useHikeStore((s) => s.visitedCheckpointIds);
+  const distanceCoveredMeters = useHikeStore((s) => s.distanceCoveredMeters);
   const startHike = useHikeStore((s) => s.startHike);
   const endHike = useHikeStore((s) => s.endHike);
   const pauseHike = useHikeStore((s) => s.pauseHike);
   const resumeHike = useHikeStore((s) => s.resumeHike);
   const addGpsPoint = useHikeStore((s) => s.addGpsPoint);
+  const markCheckpointVisited = useHikeStore((s) => s.markCheckpointVisited);
+
+  // Haptic tracking refs
+  const nearbyAlertedRef = useRef<Set<string>>(new Set());
+  const milestonesFiredRef = useRef<Set<number>>(new Set());
 
   const location = useLocationTracking(isActive);
   const recordHike = useRecordHike();
@@ -115,7 +122,7 @@ export default function HikeScreen() {
     };
   }, [id]);
 
-  // Track GPS points & center map on first fix
+  // Track GPS points, center map on first fix, and detect nearby checkpoints
   useEffect(() => {
     if (location && isActive) {
       addGpsPoint(location.latitude, location.longitude);
@@ -128,8 +135,37 @@ export default function HikeScreen() {
           longitudeDelta: 0.01,
         }, 1000);
       }
+
+      // Checkpoint proximity haptics
+      parsedCheckpoints.forEach((cp) => {
+        if (visitedCheckpointIds.includes(cp.id)) return;
+        const dist = haversineDistance(location.latitude, location.longitude, cp.coord.latitude, cp.coord.longitude);
+
+        if (dist < 150 && !nearbyAlertedRef.current.has(cp.id)) {
+          nearbyAlertedRef.current.add(cp.id);
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        }
+
+        if (dist < 30 && !visitedCheckpointIds.includes(cp.id)) {
+          markCheckpointVisited(cp.id);
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        }
+      });
     }
   }, [location]);
+
+  // Milestone haptics at 25 / 50 / 75 / 100% of trail distance
+  useEffect(() => {
+    if (!isActive || !trail?.distance_km) return;
+    const totalMeters = trail.distance_km * 1000;
+    const pct = (distanceCoveredMeters / totalMeters) * 100;
+    for (const threshold of [25, 50, 75, 100]) {
+      if (pct >= threshold && !milestonesFiredRef.current.has(threshold)) {
+        milestonesFiredRef.current.add(threshold);
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
+    }
+  }, [distanceCoveredMeters]);
 
   const handleEndHike = () => {
     Alert.alert('End Hike', 'Are you sure you want to end this hike?', [
@@ -144,7 +180,15 @@ export default function HikeScreen() {
             recordHike.mutate(
               { trailId: id, elapsedSeconds: elapsed },
               {
-                onSettled: () => {
+                onSuccess: (data: any) => {
+                  const newBadgeIds: string[] = data?.new_badge_ids ?? [];
+                  endHike();
+                  const params = newBadgeIds.length > 0
+                    ? `?newBadgeIds=${encodeURIComponent(JSON.stringify(newBadgeIds))}`
+                    : '';
+                  router.replace(`/trail/completion/${data?.id ?? id}${params}` as any);
+                },
+                onError: () => {
                   endHike();
                   router.back();
                 },

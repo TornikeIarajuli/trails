@@ -16,6 +16,7 @@ import { usersService } from '../../services/users';
 import { mediaService } from '../../services/media';
 import { UserProfile } from '../../types/user';
 import { queryKeys } from '../../utils/queryKeys';
+import { getUserTitle } from '../../utils/userTitle';
 
 interface ProfileCardProps {
   profile: UserProfile;
@@ -87,6 +88,8 @@ export function ProfileCard({ profile }: ProfileCardProps) {
     });
   };
 
+  const title = getUserTitle(profile.stats?.total ?? 0);
+
   return (
     <View style={styles.profileCard}>
       <TouchableOpacity onPress={pickAvatar} disabled={avatarMutation.isPending}>
@@ -105,6 +108,9 @@ export function ProfileCard({ profile }: ProfileCardProps) {
       </TouchableOpacity>
 
       <Text style={styles.username}>{profile.username}</Text>
+      <View style={styles.titlePill}>
+        <Text style={styles.titleText}>{title.emoji} {title.label}</Text>
+      </View>
       {!editing && profile.full_name && (
         <Text style={styles.fullName}>{profile.full_name}</Text>
       )}
@@ -183,6 +189,18 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     fontWeight: '700',
     color: Colors.text,
     marginTop: 12,
+  },
+  titlePill: {
+    backgroundColor: Colors.accent + '20',
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 5,
+    marginTop: 6,
+  },
+  titleText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: Colors.accent,
   },
   fullName: {
     fontSize: 15,
