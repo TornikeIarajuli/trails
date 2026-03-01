@@ -5,13 +5,18 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  Share,
+  Alert,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
 import { useColors, ColorPalette } from '../../../constants/colors';
 import { useMyCompletions } from '../../../hooks/useCompletions';
+import { useHikeStore } from '../../../store/hikeStore';
 import { DifficultyBadge } from '../../../components/trail/DifficultyBadge';
 import { TrailDifficulty } from '../../../types/trail';
 import {
@@ -21,6 +26,7 @@ import {
   formatDuration,
 } from '../../../utils/formatters';
 import { LoadingSpinner } from '../../../components/ui/LoadingSpinner';
+import { buildGpxString } from '../../../utils/gpxExport';
 
 function formatElapsedTime(seconds: number): string {
   const h = Math.floor(seconds / 3600);
@@ -37,6 +43,8 @@ export default function CompletionDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
   const { data: completions, isLoading } = useMyCompletions();
+  const lastHikeGpsPoints = useHikeStore((s) => s.lastHikeGpsPoints);
+  const clearLastHikeGps = useHikeStore((s) => s.clearLastHikeGps);
 
   const completion = completions?.find((c) => c.id === id);
 
@@ -57,6 +65,43 @@ export default function CompletionDetailScreen() {
   const hasActualTime = completion.elapsed_seconds != null;
   const hasEstimate = trail?.estimated_hours != null;
 
+  const handleShare = async () => {
+    const lines: string[] = [`🏔️ I completed ${trail?.name_en ?? 'a trail'}!`];
+    if (hasActualTime) lines.push(`⏱️ Time: ${formatElapsedTime(completion.elapsed_seconds!)}`);
+    if (trail?.distance_km != null) lines.push(`📏 Distance: ${formatDistance(trail.distance_km)}`);
+    if (trail?.elevation_gain_m != null) lines.push(`⬆️ Elevation: ${formatElevation(trail.elevation_gain_m)}`);
+    if (hasActualTime && hasEstimate) {
+      const actualHours = completion.elapsed_seconds! / 3600;
+      const diff = ((actualHours - trail!.estimated_hours!) / trail!.estimated_hours!) * 100;
+      if (diff < 0) lines.push(`🔥 ${Math.abs(Math.round(diff))}% faster than estimated!`);
+    }
+    lines.push('#GeorgiaTrails');
+    await Share.share({ message: lines.join('\n') });
+  };
+
+  const handleExportGpx = async () => {
+    if (lastHikeGpsPoints.length === 0) {
+      Alert.alert('No GPS data', 'No GPS track is available for this hike.');
+      return;
+    }
+    try {
+      const trailName = trail?.name_en ?? 'hike';
+      const filename = `${trailName.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.gpx`;
+      const gpx = buildGpxString(trailName, lastHikeGpsPoints);
+      const fileUri = `${FileSystem.cacheDirectory}${filename}`;
+      await FileSystem.writeAsStringAsync(fileUri, gpx, { encoding: FileSystem.EncodingType.UTF8 });
+      const canShare = await Sharing.isAvailableAsync();
+      if (canShare) {
+        await Sharing.shareAsync(fileUri, { mimeType: 'application/gpx+xml', dialogTitle: 'Export GPX Track' });
+        clearLastHikeGps();
+      } else {
+        Alert.alert('Sharing not available', 'Your device does not support file sharing.');
+      }
+    } catch {
+      Alert.alert('Export failed', 'Could not export the GPX file. Please try again.');
+    }
+  };
+
   return (
     <View style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false}>
@@ -75,6 +120,14 @@ export default function CompletionDetailScreen() {
           onPress={() => router.back()}
         >
           <Ionicons name="arrow-back" size={24} color={Colors.text} />
+        </TouchableOpacity>
+
+        {/* Share button overlay */}
+        <TouchableOpacity
+          style={[styles.shareIcon, { top: insets.top + 8 }]}
+          onPress={handleShare}
+        >
+          <Ionicons name="share-outline" size={22} color={Colors.text} />
         </TouchableOpacity>
 
         <View style={styles.content}>
@@ -177,15 +230,23 @@ export default function CompletionDetailScreen() {
             </View>
           )}
 
-          {/* View Trail Button */}
-          <TouchableOpacity
-            style={styles.viewTrailButton}
-            onPress={() => router.push(`/trail/${completion.trail_id}`)}
-          >
-            <Ionicons name="trail-sign-outline" size={20} color={Colors.primary} />
-            <Text style={styles.viewTrailText}>View Trail Details</Text>
-            <Ionicons name="chevron-forward" size={20} color={Colors.primary} />
-          </TouchableOpacity>
+          {/* Action Buttons */}
+          <View style={styles.actionRow}>
+            <TouchableOpacity
+              style={styles.viewTrailButton}
+              onPress={() => router.push(`/trail/${completion.trail_id}`)}
+            >
+              <Ionicons name="trail-sign-outline" size={20} color={Colors.primary} />
+              <Text style={styles.viewTrailText}>View Trail</Text>
+            </TouchableOpacity>
+
+            {lastHikeGpsPoints.length > 0 && (
+              <TouchableOpacity style={styles.gpxButton} onPress={handleExportGpx}>
+                <Ionicons name="download-outline" size={20} color={Colors.accent} />
+                <Text style={styles.gpxButtonText}>Export GPX</Text>
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
       </ScrollView>
     </View>
@@ -228,6 +289,21 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   backIcon: {
     position: 'absolute',
     left: 16,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: Colors.surface + 'E0',
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+  },
+  shareIcon: {
+    position: 'absolute',
+    right: 16,
     width: 40,
     height: 40,
     borderRadius: 20,
@@ -350,7 +426,13 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
+  actionRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 32,
+  },
   viewTrailButton: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -358,11 +440,25 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     backgroundColor: Colors.primary + '15',
     paddingVertical: 14,
     borderRadius: 12,
-    marginBottom: 32,
   },
   viewTrailText: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
     color: Colors.primary,
+  },
+  gpxButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: Colors.accent + '15',
+    paddingVertical: 14,
+    borderRadius: 12,
+  },
+  gpxButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: Colors.accent,
   },
 });

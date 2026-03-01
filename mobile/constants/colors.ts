@@ -1,8 +1,8 @@
 import { useSettingsStore } from '../store/settingsStore';
 
 const shared = {
-  accent: '#D4A017',
-  accentLight: '#E6B422',
+  accent: '#66BB6A',       // nature green — CTAs, badges, success highlights
+  accentLight: '#81C784',
 
   textOnPrimary: '#FFFFFF',
 
@@ -36,38 +36,38 @@ const shared = {
 
 export const LightColors = {
   ...shared,
-  primary: '#A0522D',
-  primaryLight: '#C4825A',
-  primaryDark: '#6B3A1F',
+  primary: '#37474F',        // slate charcoal
+  primaryLight: '#546E7A',   // blue-grey
+  primaryDark: '#263238',    // deep slate
 
-  background: '#FAF6F1',
+  background: '#F5F7F8',     // cool off-white
   surface: '#FFFFFF',
   card: '#FFFFFF',
 
-  text: '#2C1A0E',
-  textSecondary: '#7A6555',
-  textLight: '#A89585',
+  text: '#1C2B33',
+  textSecondary: '#5C7A8A',
+  textLight: '#90A4AE',
 
-  border: '#E6DDD4',
-  borderLight: '#F2EDE8',
+  border: '#D8E4EA',
+  borderLight: '#EBF2F5',
 } as const;
 
 export const DarkColors = {
   ...shared,
-  primary: '#C4825A',
-  primaryLight: '#D9A882',
-  primaryDark: '#A0522D',
+  primary: '#78909C',
+  primaryLight: '#90A4AE',
+  primaryDark: '#546E7A',
 
-  background: '#1A1410',
-  surface: '#252018',
-  card: '#302920',
+  background: '#0F1719',
+  surface: '#192428',
+  card: '#1E2F35',
 
-  text: '#E8DDD0',
-  textSecondary: '#B0A090',
-  textLight: '#807060',
+  text: '#E8F0F3',
+  textSecondary: '#78909C',
+  textLight: '#546E7A',
 
-  border: '#3D3428',
-  borderLight: '#332C22',
+  border: '#2A3D45',
+  borderLight: '#1E2F35',
 } as const;
 
 export type ColorPalette = typeof LightColors;

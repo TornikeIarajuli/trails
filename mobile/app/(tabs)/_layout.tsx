@@ -1,8 +1,9 @@
 import React, { useMemo } from 'react';
 import { Tabs, usePathname, router } from 'expo-router';
-import { View, TouchableOpacity, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
 import { useColors, ColorPalette } from '../../constants/colors';
 import { useIsOnline } from '../../hooks/useIsOnline';
 
@@ -16,6 +17,31 @@ const TAB_CONFIG: { name: string; route: string; icon: IoniconsName; activeIcon:
   { name: 'profile', route: '/(tabs)/profile', icon: 'person-outline', activeIcon: 'person' },
 ];
 
+function AnimatedIconButton({
+  onPress,
+  style,
+  children,
+}: {
+  onPress: () => void;
+  style?: object;
+  children: React.ReactNode;
+}) {
+  const scale = useSharedValue(1);
+  const animStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+
+  return (
+    <Pressable
+      onPressIn={() => { scale.value = withSpring(0.82, { damping: 12, stiffness: 300 }); }}
+      onPressOut={() => { scale.value = withSpring(1, { damping: 12, stiffness: 300 }); }}
+      onPress={onPress}
+    >
+      <Animated.View style={[style, animStyle]}>
+        {children}
+      </Animated.View>
+    </Pressable>
+  );
+}
+
 function Header() {
   const insets = useSafeAreaInsets();
   const pathname = usePathname();
@@ -26,38 +52,38 @@ function Header() {
   return (
     <View>
       <View style={[styles.header, { paddingTop: insets.top + 6 }]}>
-      <Text style={styles.appTitle}>Mikiri Trails</Text>
-      <View style={styles.navIcons}>
-        <TouchableOpacity
-          style={styles.navIcon}
-          onPress={() => router.push('/search')}
-        >
-          <Ionicons name="search-outline" size={22} color={Colors.textSecondary} />
-        </TouchableOpacity>
-        {TAB_CONFIG.map((tab) => {
-          const isActive = pathname.includes(`/${tab.name}`);
-          return (
-            <TouchableOpacity
-              key={tab.name}
-              onPress={() => router.navigate(tab.route as any)}
-              style={[styles.navIcon, isActive && styles.navIconActive]}
-            >
-              <Ionicons
-                name={isActive ? tab.activeIcon : tab.icon}
-                size={22}
-                color={isActive ? Colors.primary : Colors.textSecondary}
-              />
-            </TouchableOpacity>
-          );
-        })}
+        <Text style={styles.appTitle}>Mikiri Trails</Text>
+        <View style={styles.navIcons}>
+          <AnimatedIconButton
+            style={styles.navIcon}
+            onPress={() => router.push('/search')}
+          >
+            <Ionicons name="search-outline" size={22} color={Colors.textSecondary} />
+          </AnimatedIconButton>
+          {TAB_CONFIG.map((tab) => {
+            const isActive = pathname.includes(`/${tab.name}`);
+            return (
+              <AnimatedIconButton
+                key={tab.name}
+                onPress={() => router.navigate(tab.route as any)}
+                style={[styles.navIcon, isActive && styles.navIconActive]}
+              >
+                <Ionicons
+                  name={isActive ? tab.activeIcon : tab.icon}
+                  size={22}
+                  color={isActive ? Colors.primary : Colors.textSecondary}
+                />
+              </AnimatedIconButton>
+            );
+          })}
+        </View>
       </View>
-    </View>
-    {!isOnline && (
-      <View style={styles.offlineBanner}>
-        <Ionicons name="cloud-offline-outline" size={14} color="#fff" />
-        <Text style={styles.offlineText}>You're offline — showing cached data</Text>
-      </View>
-    )}
+      {!isOnline && (
+        <View style={styles.offlineBanner}>
+          <Ionicons name="cloud-offline-outline" size={14} color="#fff" />
+          <Text style={styles.offlineText}>You're offline — showing cached data</Text>
+        </View>
+      )}
     </View>
   );
 }

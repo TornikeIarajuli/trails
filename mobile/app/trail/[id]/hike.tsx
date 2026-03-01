@@ -7,6 +7,7 @@ import {
   Alert,
   FlatList,
   Platform,
+  Animated,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, router } from 'expo-router';
@@ -27,9 +28,11 @@ import { startBackgroundTracking, stopBackgroundTracking } from '../../../utils/
 // Isolated timer component — only this re-renders every second
 function HikeTimer({ styles }: { styles: ReturnType<typeof createStyles> }) {
   const isActive = useHikeStore((s) => s.isActive);
+  const isPaused = useHikeStore((s) => s.isPaused);
   const tick = useHikeStore((s) => s.tick);
   const elapsedSeconds = useHikeStore((s) => s.elapsedSeconds);
   const Colors = useColors();
+  const pulseAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
     if (!isActive) return;
@@ -37,15 +40,33 @@ function HikeTimer({ styles }: { styles: ReturnType<typeof createStyles> }) {
     return () => clearInterval(interval);
   }, [isActive, tick]);
 
+  // Pulse animation when paused
+  useEffect(() => {
+    if (isPaused) {
+      const pulse = Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnim, { toValue: 0.35, duration: 600, useNativeDriver: true }),
+          Animated.timing(pulseAnim, { toValue: 1, duration: 600, useNativeDriver: true }),
+        ]),
+      );
+      pulse.start();
+      return () => pulse.stop();
+    } else {
+      pulseAnim.setValue(1);
+    }
+  }, [isPaused]);
+
   const h = Math.floor(elapsedSeconds / 3600);
   const m = Math.floor((elapsedSeconds % 3600) / 60);
   const s = elapsedSeconds % 60;
   const formatted = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
 
   return (
-    <View style={styles.timerContainer}>
-      <Ionicons name="time-outline" size={18} color={Colors.primary} />
-      <Text style={styles.timer}>{formatted}</Text>
+    <View style={[styles.timerContainer, isPaused && styles.timerContainerPaused]}>
+      <Ionicons name={isPaused ? 'pause-circle-outline' : 'time-outline'} size={18} color={isPaused ? Colors.warning : Colors.primary} />
+      <Animated.Text style={[styles.timer, isPaused && styles.timerPaused, { opacity: pulseAnim }]}>
+        {formatted}
+      </Animated.Text>
     </View>
   );
 }
@@ -63,9 +84,12 @@ export default function HikeScreen() {
   const hasInitialLocation = useRef(false);
 
   const isActive = useHikeStore((s) => s.isActive);
+  const isPaused = useHikeStore((s) => s.isPaused);
   const visitedCheckpointIds = useHikeStore((s) => s.visitedCheckpointIds);
   const startHike = useHikeStore((s) => s.startHike);
   const endHike = useHikeStore((s) => s.endHike);
+  const pauseHike = useHikeStore((s) => s.pauseHike);
+  const resumeHike = useHikeStore((s) => s.resumeHike);
   const addGpsPoint = useHikeStore((s) => s.addGpsPoint);
 
   const location = useLocationTracking(isActive);
@@ -303,9 +327,25 @@ export default function HikeScreen() {
           />
         )}
 
-        <TouchableOpacity style={styles.endButton} onPress={handleEndHike}>
-          <Text style={styles.endButtonText}>End Hike</Text>
-        </TouchableOpacity>
+        <View style={styles.hikeActions}>
+          <TouchableOpacity
+            style={[styles.pauseButton, isPaused && styles.pauseButtonResume]}
+            onPress={isPaused ? resumeHike : pauseHike}
+          >
+            <Ionicons
+              name={isPaused ? 'play' : 'pause'}
+              size={18}
+              color={isPaused ? Colors.success : Colors.textSecondary}
+            />
+            <Text style={[styles.pauseButtonText, isPaused && styles.pauseButtonTextResume]}>
+              {isPaused ? 'Resume' : 'Pause'}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.endButton} onPress={handleEndHike}>
+            <Text style={styles.endButtonText}>End Hike</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     </View>
   );
@@ -474,9 +514,40 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     borderRadius: 8,
     marginRight: 8,
   },
+  timerContainerPaused: {
+    backgroundColor: Colors.warning + '20',
+  },
+  timerPaused: {
+    color: Colors.warning,
+  },
+  hikeActions: {
+    flexDirection: 'row',
+    gap: 12,
+    alignItems: 'center',
+  },
+  pauseButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: Colors.border,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  pauseButtonResume: {
+    backgroundColor: Colors.success + '20',
+  },
+  pauseButtonText: {
+    color: Colors.textSecondary,
+    fontWeight: '600',
+    fontSize: 15,
+  },
+  pauseButtonTextResume: {
+    color: Colors.success,
+  },
   endButton: {
     backgroundColor: Colors.error + '15',
-    paddingHorizontal: 32,
+    paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 12,
   },

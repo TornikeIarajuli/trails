@@ -7,12 +7,14 @@ import {
   RefreshControl,
   TouchableOpacity,
   Platform,
+  Alert,
 } from 'react-native';
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import * as Location from 'expo-location';
 import { useColors, ColorPalette } from '../../../constants/colors';
-import { useTrails, useRegions } from '../../../hooks/useTrails';
+import { useTrails, useRegions, useNearbyTrails } from '../../../hooks/useTrails';
 import { useDebounce } from '../../../hooks/useDebounce';
 import { TrailCard } from '../../../components/trail/TrailCard';
 import { TrailFilters } from '../../../components/trail/TrailFilters';
@@ -22,6 +24,9 @@ import { TrailDifficulty, Trail } from '../../../types/trail';
 import { parseGeoPoint } from '../../../utils/geo';
 import { Config } from '../../../constants/config';
 
+const RADIUS_OPTIONS = [5, 15, 25] as const;
+type Radius = (typeof RADIUS_OPTIONS)[number];
+
 export default function HomeScreen() {
   const Colors = useColors();
   const styles = useMemo(() => createStyles(Colors), [Colors]);
@@ -30,6 +35,9 @@ export default function HomeScreen() {
   const [difficulty, setDifficulty] = useState<TrailDifficulty | null>(null);
   const [region, setRegion] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
+  const [nearbyMode, setNearbyMode] = useState(false);
+  const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [radius, setRadius] = useState<Radius>(15);
   const debouncedSearch = useDebounce(search, 300);
 
   const { data: regions } = useRegions();
@@ -47,7 +55,14 @@ export default function HomeScreen() {
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading, refetch, isRefetching } =
     useTrails(params);
 
+  const { data: nearbyData, isLoading: nearbyLoading } = useNearbyTrails(
+    nearbyMode ? userLocation?.latitude : undefined,
+    nearbyMode ? userLocation?.longitude : undefined,
+    nearbyMode ? radius : undefined,
+  );
+
   const trails = useMemo(() => {
+    if (nearbyMode) return nearbyData ?? [];
     const all = data?.pages.flatMap((page) => page.data) ?? [];
     const seen = new Set<string>();
     return all.filter((t) => {
@@ -55,9 +70,30 @@ export default function HomeScreen() {
       seen.add(t.id);
       return true;
     });
-  }, [data]);
+  }, [data, nearbyData, nearbyMode]);
 
-return (
+  const handleNearbyToggle = async () => {
+    if (nearbyMode) {
+      setNearbyMode(false);
+      return;
+    }
+    const { status } = await Location.requestForegroundPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Location needed', 'Please allow location access to find trails near you.');
+      return;
+    }
+    try {
+      const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      setUserLocation({ latitude: pos.coords.latitude, longitude: pos.coords.longitude });
+      setNearbyMode(true);
+    } catch {
+      Alert.alert('Location error', 'Could not get your location. Please try again.');
+    }
+  };
+
+  const loading = nearbyMode ? nearbyLoading : isLoading;
+
+  return (
     <View style={styles.container}>
       <ActiveHikeBanner />
 
@@ -66,42 +102,74 @@ return (
         onSearchChange={setSearch}
         difficulty={difficulty}
         onDifficultyChange={setDifficulty}
-        region={region}
-        onRegionChange={setRegion}
-        regions={regions ?? []}
+        region={nearbyMode ? null : region}
+        onRegionChange={nearbyMode ? () => {} : setRegion}
+        regions={nearbyMode ? [] : (regions ?? [])}
       />
 
-      {/* List / Map toggle */}
-      <View style={styles.viewToggle}>
-        <TouchableOpacity
-          style={[styles.toggleButton, viewMode === 'list' && styles.toggleButtonActive]}
-          onPress={() => setViewMode('list')}
-        >
-          <Ionicons
-            name="list-outline"
-            size={18}
-            color={viewMode === 'list' ? Colors.primary : Colors.textSecondary}
-          />
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.toggleButton, viewMode === 'map' && styles.toggleButtonActive]}
-          onPress={() => setViewMode('map')}
-        >
-          <Ionicons
-            name="map-outline"
-            size={18}
-            color={viewMode === 'map' ? Colors.primary : Colors.textSecondary}
-          />
-        </TouchableOpacity>
+      {/* Toolbar: radius chips (nearby) or spacer + view toggles */}
+      <View style={styles.toolbar}>
+        {nearbyMode ? (
+          <View style={styles.radiusChips}>
+            {RADIUS_OPTIONS.map((r) => (
+              <TouchableOpacity
+                key={r}
+                style={[styles.radiusChip, radius === r && styles.radiusChipActive]}
+                onPress={() => setRadius(r)}
+              >
+                <Text style={[styles.radiusChipText, radius === r && styles.radiusChipTextActive]}>
+                  {r} km
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        ) : (
+          <View style={{ flex: 1 }} />
+        )}
+
+        <View style={styles.viewToggle}>
+          {/* Near Me button */}
+          <TouchableOpacity
+            style={[styles.toggleButton, nearbyMode && styles.toggleButtonActive]}
+            onPress={handleNearbyToggle}
+          >
+            <Ionicons
+              name={nearbyMode ? 'navigate' : 'navigate-outline'}
+              size={18}
+              color={nearbyMode ? Colors.accent : Colors.textSecondary}
+            />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.toggleButton, viewMode === 'list' && styles.toggleButtonActive]}
+            onPress={() => setViewMode('list')}
+          >
+            <Ionicons
+              name="list-outline"
+              size={18}
+              color={viewMode === 'list' ? Colors.primary : Colors.textSecondary}
+            />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.toggleButton, viewMode === 'map' && styles.toggleButtonActive]}
+            onPress={() => setViewMode('map')}
+          >
+            <Ionicons
+              name="map-outline"
+              size={18}
+              color={viewMode === 'map' ? Colors.primary : Colors.textSecondary}
+            />
+          </TouchableOpacity>
+        </View>
       </View>
 
-      {isLoading ? (
+      {loading ? (
         <LoadingSpinner />
       ) : viewMode === 'list' ? (
         <FlatList
-          data={trails}
+          data={trails as Trail[]}
           keyExtractor={(item: Trail) => item.id}
-          renderItem={({ item }) => <TrailCard trail={item} />}
+          renderItem={({ item, index }) => <TrailCard trail={item} index={index} />}
           contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}
           removeClippedSubviews={true}
@@ -114,7 +182,7 @@ return (
             index,
           })}
           onEndReached={() => {
-            if (hasNextPage && !isFetchingNextPage) fetchNextPage();
+            if (!nearbyMode && hasNextPage && !isFetchingNextPage) fetchNextPage();
           }}
           onEndReachedThreshold={0.5}
           refreshControl={
@@ -126,7 +194,9 @@ return (
           }
           ListEmptyComponent={
             <View style={styles.empty}>
-              <Text style={styles.emptyText}>No trails found</Text>
+              <Text style={styles.emptyText}>
+                {nearbyMode ? `No trails within ${radius} km` : 'No trails found'}
+              </Text>
             </View>
           }
         />
@@ -134,9 +204,13 @@ return (
         <MapView
           style={styles.map}
           provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
-          initialRegion={Config.DEFAULT_MAP_REGION}
+          initialRegion={
+            nearbyMode && userLocation
+              ? { ...userLocation, latitudeDelta: 0.3, longitudeDelta: 0.3 }
+              : Config.DEFAULT_MAP_REGION
+          }
         >
-          {trails.map((trail) => {
+          {(trails as Trail[]).map((trail) => {
             const coord = trail.start_point ? parseGeoPoint(trail.start_point) : null;
             if (!coord) return null;
             return (
@@ -176,11 +250,37 @@ const createStyles = (Colors: ColorPalette) =>
       fontSize: 16,
       color: Colors.textLight,
     },
-    viewToggle: {
+    toolbar: {
       flexDirection: 'row',
-      justifyContent: 'flex-end',
+      alignItems: 'center',
       paddingHorizontal: 16,
       paddingVertical: 6,
+    },
+    radiusChips: {
+      flexDirection: 'row',
+      gap: 6,
+      flex: 1,
+    },
+    radiusChip: {
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: 20,
+      backgroundColor: Colors.borderLight,
+    },
+    radiusChipActive: {
+      backgroundColor: Colors.accent + '25',
+    },
+    radiusChipText: {
+      fontSize: 13,
+      color: Colors.textSecondary,
+      fontWeight: '500',
+    },
+    radiusChipTextActive: {
+      color: Colors.accent,
+      fontWeight: '700',
+    },
+    viewToggle: {
+      flexDirection: 'row',
       gap: 4,
     },
     toggleButton: {

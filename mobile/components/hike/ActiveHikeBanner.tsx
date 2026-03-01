@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import Animated, { SlideInDown } from 'react-native-reanimated';
 import { useColors, ColorPalette } from '../../constants/colors';
 import { useHikeStore } from '../../store/hikeStore';
 import { useTrail } from '../../hooks/useTrails';
@@ -21,23 +22,25 @@ export function ActiveHikeBanner() {
   const trailName = trail?.name_en ?? 'Unknown Trail';
 
   return (
-    <View style={styles.banner}>
-      <Ionicons name="footsteps-outline" size={18} color={Colors.textOnPrimary} />
-      <Text style={styles.text} numberOfLines={1}>
-        Active hike: <Text style={styles.trailName}>{trailName}</Text>
-      </Text>
-      <View style={styles.actions}>
-        <TouchableOpacity
-          style={styles.resumeButton}
-          onPress={() => router.push(`/trail/${trailId}/hike` as any)}
-        >
-          <Text style={styles.resumeText}>Resume</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.discardButton} onPress={endHike}>
-          <Ionicons name="close" size={18} color={Colors.textOnPrimary} />
-        </TouchableOpacity>
+    <Animated.View entering={SlideInDown.duration(300)}>
+      <View style={styles.banner}>
+        <Ionicons name="footsteps-outline" size={18} color={Colors.textOnPrimary} />
+        <Text style={styles.text} numberOfLines={1}>
+          Active hike: <Text style={styles.trailName}>{trailName}</Text>
+        </Text>
+        <View style={styles.actions}>
+          <TouchableOpacity
+            style={styles.resumeButton}
+            onPress={() => router.push(`/trail/${trailId}/hike` as any)}
+          >
+            <Text style={styles.resumeText}>Resume</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.discardButton} onPress={endHike}>
+            <Ionicons name="close" size={18} color={Colors.textOnPrimary} />
+          </TouchableOpacity>
+        </View>
       </View>
-    </View>
+    </Animated.View>
   );
 }
 
@@ -46,7 +49,7 @@ const createStyles = (Colors: ColorPalette) =>
     banner: {
       flexDirection: 'row',
       alignItems: 'center',
-      backgroundColor: Colors.primary,
+      backgroundColor: Colors.accent,
       paddingHorizontal: 14,
       paddingVertical: 10,
       gap: 8,

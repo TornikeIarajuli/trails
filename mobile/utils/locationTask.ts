@@ -8,8 +8,8 @@ export const BACKGROUND_LOCATION_TASK = 'background-location';
 TaskManager.defineTask(BACKGROUND_LOCATION_TASK, ({ data, error }: any) => {
   if (error || !data) return;
   const { locations } = data as { locations: Location.LocationObject[] };
-  const { addGpsPoint, isActive } = useHikeStore.getState();
-  if (!isActive) return;
+  const { addGpsPoint, isActive, isPaused } = useHikeStore.getState();
+  if (!isActive || isPaused) return;
   locations.forEach((loc) => addGpsPoint(loc.coords.latitude, loc.coords.longitude));
 });
 
