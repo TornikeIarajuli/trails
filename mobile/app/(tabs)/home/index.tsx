@@ -57,7 +57,7 @@ export default function HomeScreen() {
     });
   }, [data]);
 
-  return (
+return (
     <View style={styles.container}>
       <ActiveHikeBanner />
 
