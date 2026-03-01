@@ -144,8 +144,9 @@ return (
                 key={trail.id}
                 coordinate={coord}
                 pinColor={Colors.difficulty[trail.difficulty]}
+                onCalloutPress={() => router.push(`/trail/${trail.id}` as any)}
               >
-                <Callout onPress={() => router.push(`/trail/${trail.id}` as any)}>
+                <Callout>
                   <View style={styles.callout}>
                     <Text style={styles.calloutName} numberOfLines={2}>
                       {trail.name_en}
