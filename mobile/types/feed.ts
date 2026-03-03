@@ -8,6 +8,7 @@ export interface FeedItem {
   created_at: string;
   extra_text: string | null;
   photo_url: string | null;
+  photo_urls: string[] | null;
   user_username: string;
   user_full_name: string | null;
   user_avatar_url: string | null;

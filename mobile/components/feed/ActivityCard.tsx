@@ -1,5 +1,5 @@
-import React, { useMemo, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import React, { useMemo, useRef, useState } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, NativeSyntheticEvent, NativeScrollEvent, useWindowDimensions } from 'react-native';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -37,6 +37,70 @@ function getConditionLabel(conditionType: string): string {
     closed: 'Closed',
   };
   return labels[conditionType] || conditionType;
+}
+
+function PhotoCarousel({ urls, trailId, styles, Colors }: {
+  urls: string[];
+  trailId: string;
+  styles: ReturnType<typeof createStyles>;
+  Colors: ColorPalette;
+}) {
+  const [page, setPage] = useState(0);
+  const { width } = useWindowDimensions();
+  // Card padding: 14 outer + 12 gap + 44 avatar = 70; body width = width - 70 - 28 (screen padding approx)
+  const photoWidth = width - 100;
+
+  const onScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const newPage = Math.round(e.nativeEvent.contentOffset.x / photoWidth);
+    setPage(newPage);
+  };
+
+  if (urls.length === 1) {
+    return (
+      <TouchableOpacity activeOpacity={0.8} onPress={() => {}}>
+        <Image
+          source={{ uri: urls[0] }}
+          placeholder={{ blurhash: 'L76F~B?bWD%M~qxuxEtS%MNFWqxt' }}
+          contentFit="cover"
+          transition={300}
+          cachePolicy="memory-disk"
+          style={styles.photo}
+        />
+      </TouchableOpacity>
+    );
+  }
+
+  return (
+    <View style={styles.carouselWrapper}>
+      <ScrollView
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        onMomentumScrollEnd={onScroll}
+        style={{ width: photoWidth }}
+      >
+        {urls.map((url, i) => (
+          <Image
+            key={i}
+            source={{ uri: url }}
+            placeholder={{ blurhash: 'L76F~B?bWD%M~qxuxEtS%MNFWqxt' }}
+            contentFit="cover"
+            transition={300}
+            cachePolicy="memory-disk"
+            style={[styles.photo, { width: photoWidth }]}
+          />
+        ))}
+      </ScrollView>
+      <View style={styles.dotsRow}>
+        {urls.map((_, i) => (
+          <View
+            key={i}
+            style={[styles.dot, i === page ? { backgroundColor: Colors.primary, width: 14 } : { backgroundColor: Colors.border }]}
+          />
+        ))}
+      </View>
+    </View>
+  );
 }
 
 export function ActivityCard({ item }: { item: FeedItem }) {
@@ -110,8 +174,12 @@ export function ActivityCard({ item }: { item: FeedItem }) {
           </View>
         )}
 
-        {/* Photo thumbnail */}
-        {item.photo_url && (
+        {/* Photos — carousel if multiple, single if one */}
+        {item.activity_type === 'completion' && item.photo_urls && item.photo_urls.length > 0 ? (
+          <View style={styles.carouselContainer}>
+            <PhotoCarousel urls={item.photo_urls} trailId={item.trail_id} styles={styles} Colors={Colors} />
+          </View>
+        ) : item.photo_url ? (
           <TouchableOpacity
             activeOpacity={0.8}
             onPress={() => router.push(`/trail/${item.trail_id}`)}
@@ -125,10 +193,7 @@ export function ActivityCard({ item }: { item: FeedItem }) {
               style={styles.photo}
             />
           </TouchableOpacity>
-        )}
-
-        {/* Trail cover as fallback for completions/reviews without photo */}
-        {!item.photo_url && item.trail_cover_image_url && item.activity_type === 'completion' && (
+        ) : item.trail_cover_image_url && item.activity_type === 'completion' ? (
           <TouchableOpacity
             activeOpacity={0.8}
             onPress={() => router.push(`/trail/${item.trail_id}`)}
@@ -142,7 +207,7 @@ export function ActivityCard({ item }: { item: FeedItem }) {
               style={styles.photo}
             />
           </TouchableOpacity>
-        )}
+        ) : null}
 
         {/* Actions row: like + comment */}
         <View style={styles.actionsRow}>
@@ -255,6 +320,25 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     borderRadius: 10,
     marginTop: 10,
     backgroundColor: Colors.borderLight,
+  },
+  carouselContainer: {
+    marginTop: 10,
+  },
+  carouselWrapper: {
+    overflow: 'hidden',
+    borderRadius: 10,
+  },
+  dotsRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 5,
+    marginTop: 6,
+  },
+  dot: {
+    height: 5,
+    width: 5,
+    borderRadius: 3,
   },
   actionsRow: {
     flexDirection: 'row',
