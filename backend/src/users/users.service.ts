@@ -99,6 +99,14 @@ export class UsersService {
     if (error) throw error;
   }
 
+  async heartbeat(userId: string) {
+    const admin = this.supabaseService.getAdminClient();
+    await admin
+      .from('profiles')
+      .update({ last_seen_at: new Date().toISOString() })
+      .eq('id', userId);
+  }
+
   async setEmergencyContact(userId: string, contactUserId: string | null) {
     const admin = this.supabaseService.getAdminClient();
     const { error } = await admin
@@ -175,7 +183,7 @@ export class UsersService {
     const { data: profile, error } = await admin
       .from('profiles')
       .select(
-        'id, username, full_name, avatar_url, bio, total_trails_completed, created_at',
+        'id, username, full_name, avatar_url, bio, total_trails_completed, created_at, last_seen_at',
       )
       .eq('id', userId)
       .single();

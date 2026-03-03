@@ -12,6 +12,7 @@ import { useSettingsStore } from '../store/settingsStore';
 import { useColors } from '../constants/colors';
 import { useNotificationSetup } from '../hooks/useNotifications';
 import { useNetworkSync } from '../hooks/useNetworkSync';
+import { useHeartbeat } from '../hooks/useHeartbeat';
 
 try {
   SplashScreen.preventAutoHideAsync();
@@ -37,6 +38,7 @@ function RootLayoutInner() {
 
   useNotificationSetup();
   useNetworkSync();
+  useHeartbeat();
 
   useEffect(() => {
     Promise.all([restoreSession(), hydrateSettings()]).finally(() => {

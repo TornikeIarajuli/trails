@@ -63,6 +63,13 @@ export class UsersController {
     return this.usersService.setEmergencyContact(userId, contactUserId);
   }
 
+  @Patch('me/heartbeat')
+  @UseGuards(AuthGuard)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  heartbeat(@CurrentUser('id') userId: string) {
+    return this.usersService.heartbeat(userId);
+  }
+
   @Post('me/sos')
   @UseGuards(AuthGuard)
   triggerSos(

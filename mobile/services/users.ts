@@ -33,6 +33,10 @@ export const usersService = {
     return response.data;
   },
 
+  async heartbeat(): Promise<void> {
+    await api.patch('/users/me/heartbeat');
+  },
+
   async setEmergencyContact(contactUserId: string | null): Promise<void> {
     await api.patch('/users/me/emergency-contact', { contact_user_id: contactUserId });
   },

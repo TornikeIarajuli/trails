@@ -26,6 +26,21 @@ function formatDate(dateStr: string) {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
+const ONLINE_THRESHOLD_MS = 3 * 60 * 1000; // 3 minutes
+
+function getOnlineStatus(lastSeenAt: string | null): { online: boolean; label: string } {
+  if (!lastSeenAt) return { online: false, label: 'Offline' };
+  const diff = Date.now() - new Date(lastSeenAt).getTime();
+  if (diff < ONLINE_THRESHOLD_MS) return { online: true, label: 'Online' };
+  const m = Math.floor(diff / 60000);
+  if (m < 60) return { online: false, label: `Last seen ${m}m ago` };
+  const h = Math.floor(m / 60);
+  if (h < 24) return { online: false, label: `Last seen ${h}h ago` };
+  const d = Math.floor(h / 24);
+  if (d < 7) return { online: false, label: `Last seen ${d}d ago` };
+  return { online: false, label: `Last seen ${formatDate(lastSeenAt)}` };
+}
+
 function DifficultyBadgeLocal({ difficulty, Colors, styles }: { difficulty: string; Colors: ColorPalette; styles: any }) {
   const color = Colors.difficulty[difficulty as keyof typeof Colors.difficulty] || Colors.textSecondary;
   return (
@@ -258,6 +273,15 @@ export default function PublicProfileScreen() {
             size={80}
           />
           <Text style={styles.username}>{profile.username}</Text>
+          {(() => {
+            const { online, label } = getOnlineStatus(profile.last_seen_at ?? null);
+            return (
+              <View style={styles.onlineRow}>
+                <View style={[styles.onlineDot, online ? styles.onlineDotActive : styles.onlineDotInactive]} />
+                <Text style={[styles.onlineLabel, online && styles.onlineLabelActive]}>{label}</Text>
+              </View>
+            );
+          })()}
           {profile.full_name && (
             <Text style={styles.fullName}>{profile.full_name}</Text>
           )}
@@ -325,6 +349,31 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     fontWeight: '700',
     color: Colors.text,
     marginTop: 12,
+  },
+  onlineRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 5,
+  },
+  onlineDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  onlineDotActive: {
+    backgroundColor: Colors.success,
+  },
+  onlineDotInactive: {
+    backgroundColor: Colors.textLight,
+  },
+  onlineLabel: {
+    fontSize: 12,
+    color: Colors.textLight,
+  },
+  onlineLabelActive: {
+    color: Colors.success,
+    fontWeight: '600',
   },
   fullName: {
     fontSize: 15,
