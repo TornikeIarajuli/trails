@@ -54,7 +54,7 @@ export class UsersService {
 
   async updateProfile(
     userId: string,
-    data: { full_name?: string; bio?: string; avatar_url?: string },
+    data: { full_name?: string; bio?: string },
   ) {
     const admin = this.supabaseService.getAdminClient();
 

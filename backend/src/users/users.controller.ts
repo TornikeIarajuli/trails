@@ -26,7 +26,7 @@ export class UsersController {
   @UseGuards(AuthGuard)
   updateMyProfile(
     @CurrentUser('id') userId: string,
-    @Body() data: { full_name?: string; bio?: string; avatar_url?: string },
+    @Body() data: { full_name?: string; bio?: string },
   ) {
     return this.usersService.updateProfile(userId, data);
   }

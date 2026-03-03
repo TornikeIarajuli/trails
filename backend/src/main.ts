@@ -9,6 +9,11 @@ async function bootstrap() {
     bodyParser: true,
   });
 
+  // Cap request body at 15 MB (covers largest photo uploads; rejects abuse)
+  app.use(require('express').json({ limit: '15mb' }));
+  app.use(require('express').urlencoded({ limit: '15mb', extended: true }));
+  app.use(require('express').raw({ limit: '15mb' }));
+
   app.setGlobalPrefix('api');
   app.enableCors({
     origin: [
