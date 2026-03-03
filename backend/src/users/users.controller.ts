@@ -32,13 +32,15 @@ export class UsersController {
   }
 
   @Get('search')
+  @UseGuards(AuthGuard)
   searchUsers(@Query('q') q: string) {
     return this.usersService.searchUsers(q || '');
   }
 
   @Get('leaderboard')
   getLeaderboard(@Query('limit') limit?: string) {
-    return this.usersService.getLeaderboard(limit ? parseInt(limit, 10) : 20);
+    const parsed = limit ? parseInt(limit, 10) : 20;
+    return this.usersService.getLeaderboard(Math.min(parsed || 20, 100));
   }
 
   @Get(':id')

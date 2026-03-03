@@ -12,6 +12,7 @@ import {
 import { CompletionsService } from './completions.service';
 import { SubmitCompletionDto } from './dto/submit-completion.dto';
 import { AuthGuard } from '../common/guards/auth.guard';
+import { AdminGuard } from '../common/guards/admin.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 
 @Controller('completions')
@@ -46,7 +47,7 @@ export class CompletionsController {
   }
 
   @Patch(':id/review')
-  @UseGuards(AuthGuard)
+  @UseGuards(AdminGuard)
   reviewCompletion(
     @Param('id', ParseUUIDPipe) id: string,
     @Body('status') status: 'approved' | 'rejected',

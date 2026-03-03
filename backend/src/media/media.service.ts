@@ -4,6 +4,21 @@ import { randomUUID } from 'crypto';
 
 export type MediaType = 'photo' | 'video';
 
+const ALLOWED_IMAGE_EXTS = new Set(['jpg', 'jpeg', 'png', 'webp', 'heic', 'heif']);
+const ALLOWED_VIDEO_EXTS = new Set(['mp4', 'mov']);
+
+function validateAndGetExt(fileName: string, type: 'image' | 'video' | 'any'): string {
+  const ext = fileName.split('.').pop()?.toLowerCase() ?? '';
+  const allowed =
+    type === 'image' ? ALLOWED_IMAGE_EXTS
+    : type === 'video' ? ALLOWED_VIDEO_EXTS
+    : new Set([...ALLOWED_IMAGE_EXTS, ...ALLOWED_VIDEO_EXTS]);
+  if (!allowed.has(ext)) {
+    throw new BadRequestException(`File type .${ext} is not allowed`);
+  }
+  return ext;
+}
+
 @Injectable()
 export class MediaService {
   constructor(private supabaseService: SupabaseService) {}
@@ -30,7 +45,7 @@ export class MediaService {
     }
 
     // Upload to Supabase Storage
-    const ext = fileName.split('.').pop();
+    const ext = validateAndGetExt(fileName, type === 'photo' ? 'image' : 'video');
     const storagePath = `trails/${trailId}/${randomUUID()}.${ext}`;
 
     const { error: uploadError } = await admin.storage
@@ -80,7 +95,7 @@ export class MediaService {
   async uploadProofPhoto(file: Buffer, fileName: string, mimeType: string) {
     const admin = this.supabaseService.getAdminClient();
 
-    const ext = fileName.split('.').pop();
+    const ext = validateAndGetExt(fileName, 'image');
     const storagePath = `proofs/${randomUUID()}.${ext}`;
 
     const { error: uploadError } = await admin.storage
@@ -104,7 +119,7 @@ export class MediaService {
   async uploadAvatar(userId: string, file: Buffer, fileName: string, mimeType: string) {
     const admin = this.supabaseService.getAdminClient();
 
-    const ext = fileName.split('.').pop();
+    const ext = validateAndGetExt(fileName, 'image');
     const storagePath = `avatars/${userId}.${ext}`;
 
     const { error: uploadError } = await admin.storage
