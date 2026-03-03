@@ -76,7 +76,9 @@ SELECT
     NULL::JSONB AS photo_urls
 FROM trail_reviews tr;
 
--- Update the RPC to expose the new photo_urls column
+-- Drop and recreate because return type changed (added photo_urls column)
+DROP FUNCTION IF EXISTS get_activity_feed(uuid, integer, integer);
+
 CREATE OR REPLACE FUNCTION get_activity_feed(
     p_user_id UUID,
     p_limit INT DEFAULT 20,
