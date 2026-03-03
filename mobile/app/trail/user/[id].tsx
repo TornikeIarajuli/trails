@@ -6,10 +6,11 @@ import {
   StyleSheet,
   TouchableOpacity,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, Stack, router } from 'expo-router';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors, ColorPalette } from '../../../constants/colors';
 import { usersService } from '../../../services/users';
@@ -151,6 +152,73 @@ function FollowCounts({ userId, Colors, styles }: { userId: string; Colors: Colo
   );
 }
 
+function EmergencyContactButton({ userId, Colors, styles }: { userId: string; Colors: ColorPalette; styles: any }) {
+  const currentUserId = useAuthStore((s) => s.user?.id);
+  const queryClient = useQueryClient();
+
+  const { data: myContactId } = useQuery<string | null>({
+    queryKey: ['myEmergencyContact'],
+    queryFn: () => usersService.getMyEmergencyContactId(),
+    enabled: !!currentUserId,
+  });
+
+  const setContact = useMutation({
+    mutationFn: (contactId: string | null) => usersService.setEmergencyContact(contactId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['myEmergencyContact'] });
+    },
+  });
+
+  if (!currentUserId || currentUserId === userId) return null;
+
+  const isMyContact = myContactId === userId;
+
+  const handlePress = () => {
+    if (isMyContact) {
+      Alert.alert(
+        'Remove Emergency Contact',
+        'Remove this person as your emergency contact?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Remove', style: 'destructive', onPress: () => setContact.mutate(null) },
+        ],
+      );
+    } else {
+      Alert.alert(
+        'Set Emergency Contact',
+        'They will be notified now and if you trigger an SOS during a hike.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Set', onPress: () => setContact.mutate(userId) },
+        ],
+      );
+    }
+  };
+
+  return (
+    <TouchableOpacity
+      style={[styles.emergencyButton, isMyContact && styles.emergencyButtonActive]}
+      onPress={handlePress}
+      disabled={setContact.isPending}
+    >
+      {setContact.isPending ? (
+        <ActivityIndicator size="small" color={isMyContact ? Colors.error : '#fff'} />
+      ) : (
+        <>
+          <Ionicons
+            name={isMyContact ? 'shield-checkmark' : 'shield-outline'}
+            size={16}
+            color={isMyContact ? Colors.error : '#fff'}
+          />
+          <Text style={[styles.emergencyButtonText, isMyContact && styles.emergencyButtonTextActive]}>
+            {isMyContact ? 'Emergency Contact ✓' : 'Set as Emergency Contact'}
+          </Text>
+        </>
+      )}
+    </TouchableOpacity>
+  );
+}
+
 export default function PublicProfileScreen() {
   const Colors = useColors();
   const styles = useMemo(() => createStyles(Colors), [Colors]);
@@ -201,6 +269,7 @@ export default function PublicProfileScreen() {
 
           <FollowCounts userId={id} Colors={Colors} styles={styles} />
           <FollowButton userId={id} Colors={Colors} styles={styles} />
+          <EmergencyContactButton userId={id} Colors={Colors} styles={styles} />
 
           <Text style={styles.memberSince}>
             Member since {formatDate(profile.created_at)}
@@ -246,8 +315,10 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   },
   profileCard: {
     alignItems: 'center',
-    paddingVertical: 24,
+    paddingVertical: 28,
     paddingHorizontal: 24,
+    backgroundColor: Colors.surface,
+    marginBottom: 8,
   },
   username: {
     fontSize: 22,
@@ -432,5 +503,30 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   emptyText: {
     fontSize: 15,
     color: Colors.textLight,
+  },
+  emergencyButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: 10,
+    paddingHorizontal: 20,
+    paddingVertical: 9,
+    borderRadius: 24,
+    backgroundColor: Colors.error,
+    minWidth: 130,
+  },
+  emergencyButtonActive: {
+    backgroundColor: 'transparent',
+    borderWidth: 1.5,
+    borderColor: Colors.error,
+  },
+  emergencyButtonText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  emergencyButtonTextActive: {
+    color: Colors.error,
   },
 });

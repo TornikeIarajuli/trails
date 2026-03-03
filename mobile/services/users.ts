@@ -32,4 +32,13 @@ export const usersService = {
     const response = await api.get(`/users/${userId}`);
     return response.data;
   },
+
+  async setEmergencyContact(contactUserId: string | null): Promise<void> {
+    await api.patch('/users/me/emergency-contact', { contact_user_id: contactUserId });
+  },
+
+  async getMyEmergencyContactId(): Promise<string | null> {
+    const response = await api.get('/users/me');
+    return (response.data.emergency_contact_user_id as string | null) ?? null;
+  },
 };

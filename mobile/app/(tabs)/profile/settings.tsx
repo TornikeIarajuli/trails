@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Switch, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Switch, Alert, ScrollView } from 'react-native';
 import { Stack, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors, ColorPalette } from '../../../constants/colors';
@@ -28,7 +28,7 @@ export default function SettingsScreen() {
           onPress: () => {
             Alert.alert(
               'Are you sure?',
-              'Type DELETE to confirm — your hikes, badges, and profile will be gone forever.',
+              'Your hikes, badges, and profile will be gone forever.',
               [
                 { text: 'Cancel', style: 'cancel' },
                 {
@@ -50,6 +50,7 @@ export default function SettingsScreen() {
       ],
     );
   };
+
   return (
     <>
       <Stack.Screen
@@ -62,7 +63,11 @@ export default function SettingsScreen() {
           headerShadowVisible: false,
         }}
       />
-      <View style={styles.container}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.container}
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Appearance</Text>
           <View style={styles.row}>
@@ -100,6 +105,7 @@ export default function SettingsScreen() {
           <TouchableOpacity
             style={styles.linkRow}
             onPress={() => router.push('/(tabs)/profile/notifications')}
+            activeOpacity={0.7}
           >
             <View style={styles.rowLeft}>
               <Ionicons name="notifications-outline" size={20} color={Colors.text} />
@@ -111,6 +117,7 @@ export default function SettingsScreen() {
           <TouchableOpacity
             style={styles.linkRow}
             onPress={() => router.push('/(tabs)/profile/notification-preferences')}
+            activeOpacity={0.7}
           >
             <View style={styles.rowLeft}>
               <Ionicons name="options-outline" size={20} color={Colors.text} />
@@ -124,9 +131,10 @@ export default function SettingsScreen() {
           <Text style={styles.sectionTitle}>Safety</Text>
           <TouchableOpacity
             style={styles.linkRow}
+            activeOpacity={0.7}
             onPress={() => Alert.alert(
               'Emergency Contact',
-              'To set an emergency contact, search for a user from their profile page and select "Set as Emergency Contact".',
+              'To set an emergency contact, find a user on their profile page and select "Set as Emergency Contact".',
             )}
           >
             <View style={styles.rowLeft}>
@@ -139,29 +147,32 @@ export default function SettingsScreen() {
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Account</Text>
-          <TouchableOpacity style={styles.logoutRow} onPress={logout}>
+          <TouchableOpacity style={styles.actionRow} onPress={logout} activeOpacity={0.7}>
             <Ionicons name="log-out-outline" size={22} color={Colors.error} />
-            <Text style={styles.logoutText}>Log Out</Text>
+            <Text style={styles.actionText}>Log Out</Text>
           </TouchableOpacity>
           <View style={styles.divider} />
-          <TouchableOpacity style={styles.deleteRow} onPress={handleDeleteAccount}>
+          <TouchableOpacity style={styles.actionRow} onPress={handleDeleteAccount} activeOpacity={0.7}>
             <Ionicons name="trash-outline" size={22} color={Colors.error} />
-            <Text style={styles.deleteText}>Delete Account</Text>
+            <Text style={styles.actionText}>Delete Account</Text>
           </TouchableOpacity>
         </View>
 
-        <Text style={styles.version}>Mikiri Trails v1.0.0</Text>
-      </View>
+        <Text style={styles.version}>GZA Trails v1.0.0</Text>
+      </ScrollView>
     </>
   );
 }
 
 const createStyles = (Colors: ColorPalette) =>
   StyleSheet.create({
-    container: {
+    scroll: {
       flex: 1,
       backgroundColor: Colors.background,
+    },
+    container: {
       padding: 16,
+      paddingBottom: 40,
     },
     section: {
       backgroundColor: Colors.surface,
@@ -170,12 +181,12 @@ const createStyles = (Colors: ColorPalette) =>
       marginBottom: 16,
     },
     sectionTitle: {
-      fontSize: 13,
-      fontWeight: '600',
+      fontSize: 12,
+      fontWeight: '700',
       color: Colors.textSecondary,
       textTransform: 'uppercase',
-      letterSpacing: 0.5,
-      marginBottom: 12,
+      letterSpacing: 0.8,
+      marginBottom: 14,
     },
     row: {
       flexDirection: 'row',
@@ -186,17 +197,19 @@ const createStyles = (Colors: ColorPalette) =>
       flexDirection: 'row',
       alignItems: 'center',
       gap: 10,
+      flex: 1,
     },
     rowLabel: {
       fontSize: 16,
       color: Colors.text,
     },
-    logoutRow: {
+    actionRow: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 10,
+      paddingVertical: 2,
     },
-    logoutText: {
+    actionText: {
       fontSize: 16,
       color: Colors.error,
       fontWeight: '600',
@@ -206,26 +219,16 @@ const createStyles = (Colors: ColorPalette) =>
       backgroundColor: Colors.borderLight,
       marginVertical: 12,
     },
-    deleteRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 10,
-    },
-    deleteText: {
-      fontSize: 16,
-      color: Colors.error,
-      fontWeight: '600',
-    },
     linkRow: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
+      paddingVertical: 2,
     },
     version: {
       textAlign: 'center',
       color: Colors.textLight,
       fontSize: 13,
-      marginTop: 'auto',
-      paddingBottom: 20,
+      marginTop: 8,
     },
   });

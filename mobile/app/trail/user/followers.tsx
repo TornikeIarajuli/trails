@@ -11,28 +11,29 @@ import { useColors, ColorPalette } from '../../../constants/colors';
 import { Avatar } from '../../../components/ui/Avatar';
 import { LoadingSpinner } from '../../../components/ui/LoadingSpinner';
 import { useFollowers, useFollowing } from '../../../hooks/useFollows';
-import { FollowUser } from '../../../types/follow';
+import { FollowRow } from '../../../types/follow';
 
 type Tab = 'followers' | 'following';
 
-function UserRow({ user, styles }: { user: FollowUser; styles: any }) {
-  if (!user) return null;
+function UserRow({ user, styles }: { user: FollowRow; styles: any }) {
+  const profile = user.profiles;
+  if (!profile) return null;
 
   return (
     <TouchableOpacity
       style={styles.userRow}
       activeOpacity={0.7}
-      onPress={() => router.push(`/trail/user/${user.id}`)}
+      onPress={() => router.push(`/trail/user/${profile.id}`)}
     >
       <Avatar
-        uri={user.avatar_url}
-        name={user.full_name || user.username}
+        uri={profile.avatar_url}
+        name={profile.full_name || profile.username}
         size={48}
       />
       <View style={styles.userInfo}>
-        <Text style={styles.username}>{user.username}</Text>
-        {user.full_name && (
-          <Text style={styles.fullName}>{user.full_name}</Text>
+        <Text style={styles.username}>{profile.username}</Text>
+        {profile.full_name && (
+          <Text style={styles.fullName}>{profile.full_name}</Text>
         )}
       </View>
     </TouchableOpacity>

@@ -17,14 +17,26 @@ import {
 } from '../../../hooks/useNotifications';
 import { AppNotification } from '../../../services/notifications';
 
-const TYPE_ICON: Record<string, { name: string; color: string }> = {
-  badge_earned:        { name: 'medal',               color: '#F59E0B' },
-  completion_approved: { name: 'checkmark-circle',    color: '#16A34A' },
-  new_follower:        { name: 'person-add',           color: '#3B82F6' },
-  event_invite:        { name: 'calendar',             color: '#8B5CF6' },
-  trail_condition:     { name: 'warning',              color: '#D97706' },
-  general:             { name: 'notifications',        color: '#6B7280' },
+const TYPE_CONFIG: Record<string, { icon: string; color: string; bg: string }> = {
+  badge_earned:        { icon: 'medal',              color: '#F59E0B', bg: '#FEF3C7' },
+  completion_approved: { icon: 'checkmark-circle',   color: '#16A34A', bg: '#DCFCE7' },
+  new_follower:        { icon: 'person-add',          color: '#3B82F6', bg: '#DBEAFE' },
+  event_invite:        { icon: 'calendar',            color: '#8B5CF6', bg: '#EDE9FE' },
+  trail_condition:     { icon: 'warning',             color: '#D97706', bg: '#FEF3C7' },
+  general:             { icon: 'notifications',       color: '#6B7280', bg: '#F3F4F6' },
 };
+
+function timeAgo(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const m = Math.floor(diff / 60000);
+  if (m < 1) return 'just now';
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  const d = Math.floor(h / 24);
+  if (d < 7) return `${d}d ago`;
+  return new Date(dateStr).toLocaleDateString();
+}
 
 function NotificationRow({
   item,
@@ -37,28 +49,28 @@ function NotificationRow({
   styles: ReturnType<typeof createStyles>;
   Colors: ColorPalette;
 }) {
-  const icon = TYPE_ICON[item.type] ?? TYPE_ICON.general;
+  const cfg = TYPE_CONFIG[item.type] ?? TYPE_CONFIG.general;
   const isUnread = !item.read_at;
 
   return (
     <TouchableOpacity
-      style={[styles.row, isUnread && styles.rowUnread]}
+      style={[styles.row, isUnread && { backgroundColor: Colors.primary + '08' }]}
       onPress={onPress}
       activeOpacity={0.7}
     >
-      <View style={[styles.iconWrap, { backgroundColor: icon.color + '20' }]}>
-        <Ionicons name={icon.name as any} size={20} color={icon.color} />
+      {isUnread && <View style={styles.unreadBar} />}
+      <View style={[styles.iconWrap, { backgroundColor: cfg.bg }]}>
+        <Ionicons name={cfg.icon as any} size={20} color={cfg.color} />
       </View>
       <View style={styles.rowContent}>
-        <Text style={[styles.title, isUnread && styles.titleUnread]} numberOfLines={1}>
-          {item.title}
-        </Text>
+        <View style={styles.rowTop}>
+          <Text style={[styles.title, isUnread && styles.titleUnread]} numberOfLines={1}>
+            {item.title}
+          </Text>
+          <Text style={styles.time}>{timeAgo(item.created_at)}</Text>
+        </View>
         <Text style={styles.body} numberOfLines={2}>{item.body}</Text>
-        <Text style={styles.time}>
-          {new Date(item.created_at).toLocaleDateString()}
-        </Text>
       </View>
-      {isUnread && <View style={styles.dot} />}
     </TouchableOpacity>
   );
 }
@@ -89,8 +101,9 @@ export default function NotificationsScreen() {
               <TouchableOpacity
                 onPress={() => markAllRead.mutate()}
                 style={{ marginRight: 16 }}
+                activeOpacity={0.7}
               >
-                <Text style={{ color: Colors.primary, fontWeight: '600', fontSize: 14 }}>
+                <Text style={{ color: Colors.accent, fontWeight: '600', fontSize: 14 }}>
                   Mark all read
                 </Text>
               </TouchableOpacity>
@@ -99,36 +112,48 @@ export default function NotificationsScreen() {
       />
       <View style={styles.container}>
         {isLoading ? (
-          <ActivityIndicator style={{ marginTop: 40 }} color={Colors.primary} />
+          <ActivityIndicator style={{ marginTop: 60 }} color={Colors.primary} size="large" />
         ) : notifications.length === 0 ? (
           <View style={styles.empty}>
-            <Ionicons name="notifications-off-outline" size={48} color={Colors.textLight} />
-            <Text style={styles.emptyText}>No notifications yet</Text>
+            <View style={styles.emptyIcon}>
+              <Ionicons name="notifications-off-outline" size={40} color={Colors.textLight} />
+            </View>
+            <Text style={styles.emptyTitle}>All caught up</Text>
+            <Text style={styles.emptySubtitle}>No notifications yet</Text>
           </View>
         ) : (
-          <FlatList
-            data={notifications}
-            keyExtractor={(n) => n.id}
-            renderItem={({ item }) => (
-              <NotificationRow
-                item={item}
-                styles={styles}
-                Colors={Colors}
-                onPress={() => {
-                  if (!item.read_at) markRead.mutate(item.id);
-                }}
-              />
+          <>
+            {unreadCount > 0 && (
+              <View style={styles.unreadBadge}>
+                <Text style={styles.unreadBadgeText}>{unreadCount} unread</Text>
+              </View>
             )}
-            ItemSeparatorComponent={() => <View style={styles.separator} />}
-          />
+            <FlatList
+              data={notifications}
+              keyExtractor={(n) => n.id}
+              renderItem={({ item }) => (
+                <NotificationRow
+                  item={item}
+                  styles={styles}
+                  Colors={Colors}
+                  onPress={() => {
+                    if (!item.read_at) markRead.mutate(item.id);
+                  }}
+                />
+              )}
+              ItemSeparatorComponent={() => <View style={styles.separator} />}
+              showsVerticalScrollIndicator={false}
+            />
+          </>
         )}
 
         <TouchableOpacity
           style={styles.prefsLink}
           onPress={() => router.push('/(tabs)/profile/notification-preferences')}
+          activeOpacity={0.7}
         >
-          <Ionicons name="settings-outline" size={18} color={Colors.primary} />
-          <Text style={styles.prefsLinkText}>Notification Preferences</Text>
+          <Ionicons name="options-outline" size={18} color={Colors.primary} />
+          <Text style={styles.prefsLinkText}>Manage Preferences</Text>
           <Ionicons name="chevron-forward" size={16} color={Colors.textLight} />
         </TouchableOpacity>
       </View>
@@ -142,6 +167,21 @@ const createStyles = (Colors: ColorPalette) =>
       flex: 1,
       backgroundColor: Colors.background,
     },
+    unreadBadge: {
+      marginHorizontal: 16,
+      marginTop: 12,
+      marginBottom: 4,
+      alignSelf: 'flex-start',
+      backgroundColor: Colors.primary + '15',
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+      borderRadius: 20,
+    },
+    unreadBadgeText: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: Colors.primary,
+    },
     row: {
       flexDirection: 'row',
       alignItems: 'flex-start',
@@ -150,24 +190,38 @@ const createStyles = (Colors: ColorPalette) =>
       paddingVertical: 14,
       backgroundColor: Colors.surface,
     },
-    rowUnread: {
-      backgroundColor: Colors.card,
+    unreadBar: {
+      position: 'absolute',
+      left: 0,
+      top: 0,
+      bottom: 0,
+      width: 3,
+      backgroundColor: Colors.primary,
+      borderRadius: 2,
     },
     iconWrap: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
+      width: 44,
+      height: 44,
+      borderRadius: 22,
       alignItems: 'center',
       justifyContent: 'center',
+      flexShrink: 0,
     },
     rowContent: {
       flex: 1,
-      gap: 2,
+      gap: 4,
+    },
+    rowTop: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 8,
     },
     title: {
       fontSize: 14,
       color: Colors.text,
       fontWeight: '500',
+      flex: 1,
     },
     titleUnread: {
       fontWeight: '700',
@@ -180,36 +234,46 @@ const createStyles = (Colors: ColorPalette) =>
     time: {
       fontSize: 11,
       color: Colors.textLight,
-      marginTop: 2,
-    },
-    dot: {
-      width: 8,
-      height: 8,
-      borderRadius: 4,
-      backgroundColor: Colors.primary,
-      marginTop: 6,
+      flexShrink: 0,
     },
     separator: {
-      height: 1,
-      backgroundColor: Colors.borderLight,
+      height: StyleSheet.hairlineWidth,
+      backgroundColor: Colors.border,
+      marginLeft: 72,
     },
     empty: {
       flex: 1,
       alignItems: 'center',
       justifyContent: 'center',
-      gap: 12,
+      gap: 8,
+      paddingBottom: 60,
     },
-    emptyText: {
-      fontSize: 16,
-      color: Colors.textLight,
+    emptyIcon: {
+      width: 80,
+      height: 80,
+      borderRadius: 40,
+      backgroundColor: Colors.borderLight,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 8,
+    },
+    emptyTitle: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: Colors.text,
+    },
+    emptySubtitle: {
+      fontSize: 14,
+      color: Colors.textSecondary,
     },
     prefsLink: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 8,
+      gap: 10,
       padding: 16,
-      borderTopWidth: 1,
-      borderTopColor: Colors.borderLight,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: Colors.border,
+      backgroundColor: Colors.surface,
     },
     prefsLinkText: {
       flex: 1,

@@ -14,7 +14,6 @@ import { TrailsService } from './trails.service';
 import { CreateTrailDto } from './dto/create-trail.dto';
 import { UpdateTrailDetailsDto } from './dto/update-trail-details.dto';
 import { TrailFilterDto, NearbyQueryDto } from './dto/trail-filter.dto';
-import { AuthGuard } from '../common/guards/auth.guard';
 import { AdminGuard } from '../common/guards/admin.guard';
 
 @Controller('trails')

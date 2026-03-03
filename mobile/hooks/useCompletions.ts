@@ -46,6 +46,7 @@ export function useRecordHike() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.completions.root() });
       queryClient.invalidateQueries({ queryKey: queryKeys.profile.root() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.feed() });
     },
     onError: (err) => showError(err),
   });

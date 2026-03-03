@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Tabs, usePathname, router } from 'expo-router';
+import { Tabs, usePathname, useSegments, router } from 'expo-router';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -91,10 +91,13 @@ function Header() {
 export default function TabsLayout() {
   const Colors = useColors();
   const styles = useMemo(() => createStyles(Colors), [Colors]);
+  const segments = useSegments();
+  // Hide the tab header when inside a sub-screen (e.g. settings, notifications, trail detail)
+  const isSubScreen = segments.length > 2;
 
   return (
     <View style={styles.container}>
-      <Header />
+      {!isSubScreen && <Header />}
       <Tabs
         tabBar={() => null}
         screenOptions={{ headerShown: false }}

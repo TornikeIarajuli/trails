@@ -13,7 +13,9 @@ describe('Trails (e2e)', () => {
 
     app = moduleFixture.createNestApplication();
     app.setGlobalPrefix('api');
-    app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
+    app.useGlobalPipes(
+      new ValidationPipe({ whitelist: true, transform: true }),
+    );
     await app.init();
   });
 
@@ -23,7 +25,9 @@ describe('Trails (e2e)', () => {
 
   describe('GET /api/trails', () => {
     it('returns 200 with data + pagination', async () => {
-      const res = await request(app.getHttpServer()).get('/api/trails').expect(200);
+      const res = await request(app.getHttpServer())
+        .get('/api/trails')
+        .expect(200);
       expect(res.body).toHaveProperty('data');
       expect(res.body).toHaveProperty('pagination');
       expect(Array.isArray(res.body.data)).toBe(true);
@@ -57,9 +61,7 @@ describe('Trails (e2e)', () => {
 
   describe('GET /api/trails/:id', () => {
     it('returns 400 for invalid UUID', () =>
-      request(app.getHttpServer())
-        .get('/api/trails/not-a-uuid')
-        .expect(400));
+      request(app.getHttpServer()).get('/api/trails/not-a-uuid').expect(400));
 
     it('returns 404 for non-existent trail', () =>
       request(app.getHttpServer())

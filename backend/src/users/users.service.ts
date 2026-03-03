@@ -106,6 +106,27 @@ export class UsersService {
       .update({ emergency_contact_user_id: contactUserId })
       .eq('id', userId);
     if (error) throw error;
+
+    // Notify the contact that they've been chosen
+    if (contactUserId) {
+      const { data: setter } = await admin
+        .from('profiles')
+        .select('username')
+        .eq('id', userId)
+        .single();
+
+      if (setter) {
+        await this.notificationsService.sendToUser(
+          contactUserId,
+          'Emergency Contact',
+          setter.username +
+            ' has set you as their emergency contact. You will be notified if they trigger an SOS.',
+          { type: 'general', setterId: userId },
+          'general',
+        );
+      }
+    }
+
     return { ok: true };
   }
 
@@ -153,7 +174,9 @@ export class UsersService {
 
     const { data: profile, error } = await admin
       .from('profiles')
-      .select('id, username, full_name, avatar_url, bio, total_trails_completed, created_at')
+      .select(
+        'id, username, full_name, avatar_url, bio, total_trails_completed, created_at',
+      )
       .eq('id', userId)
       .single();
 

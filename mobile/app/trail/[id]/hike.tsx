@@ -383,7 +383,7 @@ export default function HikeScreen() {
       {/* SOS Button */}
       {isAuthenticated && (
         <TouchableOpacity
-          style={[styles.sosButton, { top: insets.top + 8 }]}
+          style={[styles.sosButton, { bottom: 200 + insets.bottom }]}
           onPress={handleSos}
         >
           <Text style={styles.sosText}>SOS</Text>
@@ -653,7 +653,7 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   },
   sosButton: {
     position: 'absolute',
-    right: 16,
+    left: 16,
     width: 52,
     height: 52,
     borderRadius: 26,

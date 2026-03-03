@@ -2,6 +2,7 @@ import './instrument';
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
+import express from 'express';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
@@ -10,9 +11,9 @@ async function bootstrap() {
   });
 
   // Cap request body at 15 MB (covers largest photo uploads; rejects abuse)
-  app.use(require('express').json({ limit: '15mb' }));
-  app.use(require('express').urlencoded({ limit: '15mb', extended: true }));
-  app.use(require('express').raw({ limit: '15mb' }));
+  app.use(express.json({ limit: '15mb' }));
+  app.use(express.urlencoded({ limit: '15mb', extended: true }));
+  app.use(express.raw({ limit: '15mb' }));
 
   app.setGlobalPrefix('api');
   app.enableCors({

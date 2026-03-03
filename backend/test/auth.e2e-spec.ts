@@ -22,7 +22,9 @@ describe('Auth (e2e)', () => {
 
     app = moduleFixture.createNestApplication();
     app.setGlobalPrefix('api');
-    app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
+    app.useGlobalPipes(
+      new ValidationPipe({ whitelist: true, transform: true }),
+    );
     await app.init();
   });
 
@@ -34,13 +36,21 @@ describe('Auth (e2e)', () => {
     it('rejects invalid email', () =>
       request(app.getHttpServer())
         .post('/api/auth/signup')
-        .send({ email: 'not-an-email', password: testPassword, username: testUsername })
+        .send({
+          email: 'not-an-email',
+          password: testPassword,
+          username: testUsername,
+        })
         .expect(400));
 
     it('rejects weak password (no uppercase)', () =>
       request(app.getHttpServer())
         .post('/api/auth/signup')
-        .send({ email: testEmail, password: 'alllowercase1', username: testUsername })
+        .send({
+          email: testEmail,
+          password: 'alllowercase1',
+          username: testUsername,
+        })
         .expect(400));
 
     it('rejects short username', () =>
@@ -54,7 +64,11 @@ describe('Auth (e2e)', () => {
       // The test verifies our DTO validation passes (400 = our validation; 5xx = Supabase).
       const res = await request(app.getHttpServer())
         .post('/api/auth/signup')
-        .send({ email: testEmail, password: testPassword, username: testUsername });
+        .send({
+          email: testEmail,
+          password: testPassword,
+          username: testUsername,
+        });
 
       // Either created (201) or a Supabase-level error — not a 400 validation error
       expect(res.status).not.toBe(400);

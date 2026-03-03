@@ -2,7 +2,6 @@ import 'reflect-metadata';
 import { validate } from 'class-validator';
 import { plainToInstance } from 'class-transformer';
 import { TrailFilterDto, NearbyQueryDto } from './trail-filter.dto';
-import { TrailDifficulty } from './create-trail.dto';
 
 // Helpers
 async function checkFilter(plain: object) {
@@ -43,7 +42,9 @@ describe('TrailFilterDto', () => {
       'accepts difficulty = "%s"',
       async (diff) => {
         const errors = await checkFilter({ difficulty: diff });
-        expect(errors.filter((e) => e.property === 'difficulty')).toHaveLength(0);
+        expect(errors.filter((e) => e.property === 'difficulty')).toHaveLength(
+          0,
+        );
       },
     );
 
@@ -83,12 +84,16 @@ describe('TrailFilterDto', () => {
   describe('min_distance', () => {
     it('accepts min_distance = 0 (boundary)', async () => {
       const errors = await checkFilter({ min_distance: 0 });
-      expect(errors.filter((e) => e.property === 'min_distance')).toHaveLength(0);
+      expect(errors.filter((e) => e.property === 'min_distance')).toHaveLength(
+        0,
+      );
     });
 
     it('accepts min_distance as a string — @Type converts it', async () => {
       const errors = await checkFilter({ min_distance: '5' });
-      expect(errors.filter((e) => e.property === 'min_distance')).toHaveLength(0);
+      expect(errors.filter((e) => e.property === 'min_distance')).toHaveLength(
+        0,
+      );
     });
 
     it('rejects min_distance below 0', async () => {
@@ -106,12 +111,16 @@ describe('TrailFilterDto', () => {
   describe('max_distance', () => {
     it('accepts any non-negative number', async () => {
       const errors = await checkFilter({ max_distance: 100 });
-      expect(errors.filter((e) => e.property === 'max_distance')).toHaveLength(0);
+      expect(errors.filter((e) => e.property === 'max_distance')).toHaveLength(
+        0,
+      );
     });
 
     it('accepts max_distance as a string — @Type converts it', async () => {
       const errors = await checkFilter({ max_distance: '50' });
-      expect(errors.filter((e) => e.property === 'max_distance')).toHaveLength(0);
+      expect(errors.filter((e) => e.property === 'max_distance')).toHaveLength(
+        0,
+      );
     });
 
     it('rejects non-numeric max_distance', async () => {
@@ -192,32 +201,56 @@ describe('NearbyQueryDto', () => {
   // radius_km
   describe('radius_km', () => {
     it('accepts radius_km = 1 (minimum)', async () => {
-      const errors = await checkNearby({ lat: 41.69, lng: 44.83, radius_km: 1 });
+      const errors = await checkNearby({
+        lat: 41.69,
+        lng: 44.83,
+        radius_km: 1,
+      });
       expect(errors.filter((e) => e.property === 'radius_km')).toHaveLength(0);
     });
 
     it('accepts radius_km = 50 (default)', async () => {
-      const errors = await checkNearby({ lat: 41.69, lng: 44.83, radius_km: 50 });
+      const errors = await checkNearby({
+        lat: 41.69,
+        lng: 44.83,
+        radius_km: 50,
+      });
       expect(errors.filter((e) => e.property === 'radius_km')).toHaveLength(0);
     });
 
     it('accepts radius_km as a string — @Type converts it', async () => {
-      const errors = await checkNearby({ lat: 41.69, lng: 44.83, radius_km: '15' });
+      const errors = await checkNearby({
+        lat: 41.69,
+        lng: 44.83,
+        radius_km: '15',
+      });
       expect(errors.filter((e) => e.property === 'radius_km')).toHaveLength(0);
     });
 
     it('rejects radius_km = 0 (below @Min(1))', async () => {
-      const errors = await checkNearby({ lat: 41.69, lng: 44.83, radius_km: 0 });
+      const errors = await checkNearby({
+        lat: 41.69,
+        lng: 44.83,
+        radius_km: 0,
+      });
       expect(errorProps(errors)).toContain('radius_km');
     });
 
     it('rejects negative radius_km', async () => {
-      const errors = await checkNearby({ lat: 41.69, lng: 44.83, radius_km: -5 });
+      const errors = await checkNearby({
+        lat: 41.69,
+        lng: 44.83,
+        radius_km: -5,
+      });
       expect(errorProps(errors)).toContain('radius_km');
     });
 
     it('rejects non-numeric radius_km', async () => {
-      const errors = await checkNearby({ lat: 41.69, lng: 44.83, radius_km: 'far' });
+      const errors = await checkNearby({
+        lat: 41.69,
+        lng: 44.83,
+        radius_km: 'far',
+      });
       expect(errorProps(errors)).toContain('radius_km');
     });
   });

@@ -1,5 +1,5 @@
 import api from './api';
-import { FollowUser, FollowCounts } from '../types/follow';
+import { FollowRow, FollowCounts } from '../types/follow';
 import { PaginatedResponse } from '../types/api';
 
 export const followsService = {
@@ -13,14 +13,14 @@ export const followsService = {
     return response.data;
   },
 
-  async getFollowers(userId: string, page = 1, limit = 20): Promise<PaginatedResponse<FollowUser>> {
+  async getFollowers(userId: string, page = 1, limit = 20): Promise<PaginatedResponse<FollowRow>> {
     const response = await api.get(`/follows/followers/${userId}`, {
       params: { page, limit },
     });
     return response.data;
   },
 
-  async getFollowing(userId: string, page = 1, limit = 20): Promise<PaginatedResponse<FollowUser>> {
+  async getFollowing(userId: string, page = 1, limit = 20): Promise<PaginatedResponse<FollowRow>> {
     const response = await api.get(`/follows/following/${userId}`, {
       params: { page, limit },
     });

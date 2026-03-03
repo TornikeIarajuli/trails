@@ -75,7 +75,9 @@ describe('AuthService', () => {
       );
 
       await expect(service.signup(dto)).rejects.toThrow(BadRequestException);
-      await expect(service.signup(dto)).rejects.toThrow('Username already taken');
+      await expect(service.signup(dto)).rejects.toThrow(
+        'Username already taken',
+      );
     });
 
     it('calls Supabase auth.signUp with email, password, and metadata', async () => {
@@ -130,7 +132,7 @@ describe('AuthService', () => {
         error: null,
       });
 
-      const { full_name: _removed, ...dtoWithoutName } = dto;
+      const { full_name: _fn, ...dtoWithoutName } = dto;
       await service.signup(dtoWithoutName as any);
 
       expect(mockAdminAuth.signUp).toHaveBeenCalledWith(
@@ -190,7 +192,9 @@ describe('AuthService', () => {
         error: { message: 'any' },
       });
 
-      await expect(service.login(dto)).rejects.toThrow('Invalid email or password');
+      await expect(service.login(dto)).rejects.toThrow(
+        'Invalid email or password',
+      );
     });
   });
 

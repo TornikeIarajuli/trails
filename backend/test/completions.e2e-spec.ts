@@ -13,7 +13,9 @@ describe('Completions (e2e)', () => {
 
     app = moduleFixture.createNestApplication();
     app.setGlobalPrefix('api');
-    app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
+    app.useGlobalPipes(
+      new ValidationPipe({ whitelist: true, transform: true }),
+    );
     await app.init();
   });
 
@@ -23,16 +25,19 @@ describe('Completions (e2e)', () => {
 
   describe('GET /api/completions/me (auth required)', () => {
     it('returns 401 without auth header', () =>
-      request(app.getHttpServer())
-        .get('/api/completions/me')
-        .expect(401));
+      request(app.getHttpServer()).get('/api/completions/me').expect(401));
   });
 
   describe('POST /api/completions (auth required)', () => {
     it('returns 401 without auth header', () =>
       request(app.getHttpServer())
         .post('/api/completions')
-        .send({ trail_id: '00000000-0000-0000-0000-000000000000', proof_photo_url: 'https://example.com/photo.jpg', photo_lat: 41.7, photo_lng: 44.8 })
+        .send({
+          trail_id: '00000000-0000-0000-0000-000000000000',
+          proof_photo_url: 'https://example.com/photo.jpg',
+          photo_lat: 41.7,
+          photo_lng: 44.8,
+        })
         .expect(401));
   });
 
@@ -61,7 +66,9 @@ describe('Completions (e2e)', () => {
   describe('GET /api/completions/active/:trailId/count (public)', () => {
     it('returns count object for valid UUID', async () => {
       const res = await request(app.getHttpServer())
-        .get('/api/completions/active/00000000-0000-0000-0000-000000000000/count')
+        .get(
+          '/api/completions/active/00000000-0000-0000-0000-000000000000/count',
+        )
         .expect(200);
       expect(res.body).toHaveProperty('count');
       expect(typeof res.body.count).toBe('number');
