@@ -1,18 +1,34 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+} from '@nestjs/common';
 import { SupabaseService } from '../config/supabase.config';
 import { randomUUID } from 'crypto';
 
 export type MediaType = 'photo' | 'video';
 
-const ALLOWED_IMAGE_EXTS = new Set(['jpg', 'jpeg', 'png', 'webp', 'heic', 'heif']);
+const ALLOWED_IMAGE_EXTS = new Set([
+  'jpg',
+  'jpeg',
+  'png',
+  'webp',
+  'heic',
+  'heif',
+]);
 const ALLOWED_VIDEO_EXTS = new Set(['mp4', 'mov']);
 
-function validateAndGetExt(fileName: string, type: 'image' | 'video' | 'any'): string {
+function validateAndGetExt(
+  fileName: string,
+  type: 'image' | 'video' | 'any',
+): string {
   const ext = fileName.split('.').pop()?.toLowerCase() ?? '';
   const allowed =
-    type === 'image' ? ALLOWED_IMAGE_EXTS
-    : type === 'video' ? ALLOWED_VIDEO_EXTS
-    : new Set([...ALLOWED_IMAGE_EXTS, ...ALLOWED_VIDEO_EXTS]);
+    type === 'image'
+      ? ALLOWED_IMAGE_EXTS
+      : type === 'video'
+        ? ALLOWED_VIDEO_EXTS
+        : new Set([...ALLOWED_IMAGE_EXTS, ...ALLOWED_VIDEO_EXTS]);
   if (!allowed.has(ext)) {
     throw new BadRequestException(`File type .${ext} is not allowed`);
   }
@@ -45,7 +61,10 @@ export class MediaService {
     }
 
     // Upload to Supabase Storage
-    const ext = validateAndGetExt(fileName, type === 'photo' ? 'image' : 'video');
+    const ext = validateAndGetExt(
+      fileName,
+      type === 'photo' ? 'image' : 'video',
+    );
     const storagePath = `trails/${trailId}/${randomUUID()}.${ext}`;
 
     const { error: uploadError } = await admin.storage
@@ -116,7 +135,12 @@ export class MediaService {
     return { url: publicUrl };
   }
 
-  async uploadAvatar(userId: string, file: Buffer, fileName: string, mimeType: string) {
+  async uploadAvatar(
+    userId: string,
+    file: Buffer,
+    fileName: string,
+    mimeType: string,
+  ) {
     const admin = this.supabaseService.getAdminClient();
 
     const ext = validateAndGetExt(fileName, 'image');
@@ -144,6 +168,48 @@ export class MediaService {
       .eq('id', userId);
 
     return { url: publicUrl };
+  }
+
+  async uploadHikePhoto(
+    userId: string,
+    trailId: string,
+    file: Buffer,
+    fileName: string,
+    mimeType: string,
+    caption?: string,
+  ) {
+    const admin = this.supabaseService.getAdminClient();
+
+    const ext = validateAndGetExt(fileName, 'image');
+    const storagePath = `hike-photos/${trailId}/${randomUUID()}.${ext}`;
+
+    const { error: uploadError } = await admin.storage
+      .from('trail-media')
+      .upload(storagePath, file, { contentType: mimeType, upsert: false });
+
+    if (uploadError) {
+      throw new BadRequestException(`Upload failed: ${uploadError.message}`);
+    }
+
+    const {
+      data: { publicUrl },
+    } = admin.storage.from('trail-media').getPublicUrl(storagePath);
+
+    const { data: photo, error: dbError } = await admin
+      .from('trail_photos')
+      .insert({
+        trail_id: trailId,
+        user_id: userId,
+        url: publicUrl,
+        caption: caption ?? null,
+        taken_at: new Date().toISOString(),
+      })
+      .select()
+      .single();
+
+    if (dbError) throw dbError;
+
+    return photo;
   }
 
   async deleteMedia(mediaId: string) {

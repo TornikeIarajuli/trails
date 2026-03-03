@@ -30,12 +30,10 @@ export class MediaController {
     }
     const fileBuffer = Buffer.concat(chunks);
 
-    const fileName =
-      (req.headers['x-file-name'] as string) || 'upload.jpg';
-    const mimeType =
-      (req.headers['content-type'] as string) || 'image/jpeg';
-    const mediaType =
-      ((req.headers['x-media-type'] as string) || 'photo') as MediaType;
+    const fileName = (req.headers['x-file-name'] as string) || 'upload.jpg';
+    const mimeType = (req.headers['content-type'] as string) || 'image/jpeg';
+    const mediaType = ((req.headers['x-media-type'] as string) ||
+      'photo') as MediaType;
     const caption = req.headers['x-caption'] as string | undefined;
 
     if (!fileBuffer.length) {
@@ -52,28 +50,9 @@ export class MediaController {
     );
   }
 
-  @Post('proof')
-  async uploadProofPhoto(@Req() req: Request) {
-    const chunks: Buffer[] = [];
-    for await (const chunk of req) {
-      chunks.push(chunk as Buffer);
-    }
-    const fileBuffer = Buffer.concat(chunks);
-
-    const fileName =
-      (req.headers['x-file-name'] as string) || 'proof.jpg';
-    const mimeType =
-      (req.headers['content-type'] as string) || 'image/jpeg';
-
-    if (!fileBuffer.length) {
-      throw new BadRequestException('No file provided');
-    }
-
-    return this.mediaService.uploadProofPhoto(fileBuffer, fileName, mimeType);
-  }
-
-  @Post('avatar')
-  async uploadAvatar(
+  @Post('hike-photo/:trailId')
+  async uploadHikePhoto(
+    @Param('trailId', ParseUUIDPipe) trailId: string,
     @CurrentUser('id') userId: string,
     @Req() req: Request,
   ) {
@@ -83,16 +62,63 @@ export class MediaController {
     }
     const fileBuffer = Buffer.concat(chunks);
 
-    const fileName =
-      (req.headers['x-file-name'] as string) || 'avatar.jpg';
-    const mimeType =
-      (req.headers['content-type'] as string) || 'image/jpeg';
+    const fileName = (req.headers['x-file-name'] as string) || 'hike_photo.jpg';
+    const mimeType = (req.headers['content-type'] as string) || 'image/jpeg';
+    const caption = req.headers['x-caption'] as string | undefined;
 
     if (!fileBuffer.length) {
       throw new BadRequestException('No file provided');
     }
 
-    return this.mediaService.uploadAvatar(userId, fileBuffer, fileName, mimeType);
+    return this.mediaService.uploadHikePhoto(
+      userId,
+      trailId,
+      fileBuffer,
+      fileName,
+      mimeType,
+      caption,
+    );
+  }
+
+  @Post('proof')
+  async uploadProofPhoto(@Req() req: Request) {
+    const chunks: Buffer[] = [];
+    for await (const chunk of req) {
+      chunks.push(chunk as Buffer);
+    }
+    const fileBuffer = Buffer.concat(chunks);
+
+    const fileName = (req.headers['x-file-name'] as string) || 'proof.jpg';
+    const mimeType = (req.headers['content-type'] as string) || 'image/jpeg';
+
+    if (!fileBuffer.length) {
+      throw new BadRequestException('No file provided');
+    }
+
+    return this.mediaService.uploadProofPhoto(fileBuffer, fileName, mimeType);
+  }
+
+  @Post('avatar')
+  async uploadAvatar(@CurrentUser('id') userId: string, @Req() req: Request) {
+    const chunks: Buffer[] = [];
+    for await (const chunk of req) {
+      chunks.push(chunk as Buffer);
+    }
+    const fileBuffer = Buffer.concat(chunks);
+
+    const fileName = (req.headers['x-file-name'] as string) || 'avatar.jpg';
+    const mimeType = (req.headers['content-type'] as string) || 'image/jpeg';
+
+    if (!fileBuffer.length) {
+      throw new BadRequestException('No file provided');
+    }
+
+    return this.mediaService.uploadAvatar(
+      userId,
+      fileBuffer,
+      fileName,
+      mimeType,
+    );
   }
 
   @Delete(':id')

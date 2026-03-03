@@ -48,6 +48,6 @@ export const mediaService = {
   ): Promise<any> {
     const extra: Record<string, string> = { 'x-media-type': 'photo' };
     if (caption) extra['x-caption'] = caption;
-    return uploadFile(`/media/trail/${trailId}`, fileUri, fileName, mimeType, extra);
+    return uploadFile(`/media/hike-photo/${trailId}`, fileUri, fileName, mimeType, extra);
   },
 };
