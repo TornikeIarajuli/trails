@@ -64,4 +64,27 @@ export class CompletionsController {
   ) {
     return this.completionsService.deleteCompletion(userId, id);
   }
+
+  @Post('active/:trailId')
+  @UseGuards(AuthGuard)
+  markActive(
+    @CurrentUser('id') userId: string,
+    @Param('trailId', ParseUUIDPipe) trailId: string,
+  ) {
+    return this.completionsService.markHikeActive(userId, trailId);
+  }
+
+  @Delete('active/:trailId')
+  @UseGuards(AuthGuard)
+  markInactive(
+    @CurrentUser('id') userId: string,
+    @Param('trailId', ParseUUIDPipe) trailId: string,
+  ) {
+    return this.completionsService.markHikeInactive(userId, trailId);
+  }
+
+  @Get('active/:trailId/count')
+  getActiveCount(@Param('trailId', ParseUUIDPipe) trailId: string) {
+    return this.completionsService.getActiveCount(trailId);
+  }
 }

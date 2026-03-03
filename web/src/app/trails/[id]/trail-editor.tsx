@@ -25,6 +25,8 @@ interface Trail {
   estimated_hours: number | null;
   cover_image_url: string | null;
   is_published: boolean;
+  status: string;
+  status_note: string | null;
 }
 
 interface Checkpoint {
@@ -46,6 +48,13 @@ interface TrailMedia {
 }
 
 const DIFFICULTIES = ["easy", "medium", "hard", "ultra"];
+const STATUSES = ["open", "closed", "seasonal", "maintenance"];
+const STATUS_COLORS: Record<string, string> = {
+  open: "bg-green-100 text-green-800 border-green-300",
+  closed: "bg-red-100 text-red-800 border-red-300",
+  seasonal: "bg-yellow-100 text-yellow-800 border-yellow-300",
+  maintenance: "bg-blue-100 text-blue-800 border-blue-300",
+};
 
 export function TrailEditor({ paramsPromise }: { paramsPromise: Promise<{ id: string }> }) {
   const { id } = use(paramsPromise);
@@ -65,6 +74,8 @@ export function TrailEditor({ paramsPromise }: { paramsPromise: Promise<{ id: st
     estimated_hours: null,
     cover_image_url: null,
     is_published: true,
+    status: "open",
+    status_note: null,
   });
   const [checkpoints, setCheckpoints] = useState<Checkpoint[]>([]);
   const [media, setMedia] = useState<TrailMedia[]>([]);
@@ -99,6 +110,8 @@ export function TrailEditor({ paramsPromise }: { paramsPromise: Promise<{ id: st
       estimated_hours: trail.estimated_hours,
       cover_image_url: trail.cover_image_url || null,
       is_published: trail.is_published,
+      status: trail.status,
+      status_note: trail.status_note || null,
     };
 
     const { data, error } = await saveTrail(isNew ? null : id, payload);
@@ -257,6 +270,42 @@ export function TrailEditor({ paramsPromise }: { paramsPromise: Promise<{ id: st
                 />
               </button>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Trail Status */}
+        <Card>
+          <CardHeader><CardTitle>Trail Status</CardTitle></CardHeader>
+          <CardContent className="grid gap-4">
+            <div>
+              <Label>Status</Label>
+              <div className="flex gap-2 mt-1 flex-wrap">
+                {STATUSES.map((s) => (
+                  <button
+                    key={s}
+                    onClick={() => update("status", s)}
+                    className={`px-3 py-1.5 rounded text-sm font-medium border transition-colors ${
+                      trail.status === s
+                        ? STATUS_COLORS[s]
+                        : "bg-muted border-border hover:bg-muted/80"
+                    }`}
+                  >
+                    {s.charAt(0).toUpperCase() + s.slice(1)}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {trail.status !== "open" && (
+              <div>
+                <Label>Status Note (shown to hikers)</Label>
+                <Textarea
+                  rows={2}
+                  value={trail.status_note ?? ""}
+                  onChange={(e) => update("status_note", e.target.value || null)}
+                  placeholder="e.g. Trail closed due to storm damage, reopening June 2025"
+                />
+              </div>
+            )}
           </CardContent>
         </Card>
 

@@ -32,6 +32,7 @@ import { parseGeoPoint, parseGeoLineString } from '../../../utils/geo';
 import { mediaService } from '../../../services/media';
 import { useUploadPhoto } from '../../../hooks/useCommunity';
 import { useTrailReviews } from '../../../hooks/useReviews';
+import { useActiveHikerCount } from '../../../hooks/useCompletions';
 import { ReviewsList } from '../../../components/trail/ReviewsList';
 import { WriteReviewModal } from '../../../components/trail/WriteReviewModal';
 import { WeatherCard } from '../../../components/trail/WeatherCard';
@@ -51,6 +52,7 @@ export default function TrailDetailScreen() {
   const [reviewModalVisible, setReviewModalVisible] = useState(false);
   const uploadPhotoMutation = useUploadPhoto();
   const { data: reviews = [] } = useTrailReviews(id);
+  const { data: activeCount } = useActiveHikerCount(id);
 
   const [isSavedOffline, setIsSavedOffline] = useState(() =>
     trailCache.isTrailSavedOffline(id),
@@ -144,6 +146,24 @@ export default function TrailDetailScreen() {
           )}
         </View>
 
+        {trail.status && trail.status !== 'open' && (
+          <View style={[styles.statusBanner, STATUS_BANNER_BG[trail.status]]}>
+            <Ionicons
+              name={trail.status === 'closed' ? 'close-circle' : 'warning'}
+              size={18}
+              color={STATUS_BANNER_ICON[trail.status]}
+            />
+            <View style={styles.statusBannerText}>
+              <Text style={[styles.statusBannerTitle, { color: STATUS_BANNER_ICON[trail.status] }]}>
+                Trail {STATUS_LABEL_DETAIL[trail.status]}
+              </Text>
+              {trail.status_note ? (
+                <Text style={styles.statusBannerNote}>{trail.status_note}</Text>
+              ) : null}
+            </View>
+          </View>
+        )}
+
         <View style={styles.content}>
           <View style={styles.titleRow}>
             <DifficultyBadge difficulty={trail.difficulty} size="md" />
@@ -163,6 +183,12 @@ export default function TrailDetailScreen() {
               <Ionicons name="star" size={18} color="#FFB800" />
               <Text style={styles.rating}>{trail.avg_rating}</Text>
               <Text style={styles.reviewCount}>({trail.review_count} reviews)</Text>
+            </View>
+          )}
+
+          {activeCount != null && activeCount > 0 && (
+            <View style={styles.activeHikersRow}>
+              <Text style={styles.activeHikersText}>🥾 {activeCount} hiker{activeCount !== 1 ? 's' : ''} currently on this trail</Text>
             </View>
           )}
 
@@ -211,6 +237,16 @@ export default function TrailDetailScreen() {
 
           <CheckpointList checkpoints={trail.checkpoints} />
 
+          {/* Upcoming Group Hikes */}
+          <TouchableOpacity
+            style={styles.sectionLink}
+            onPress={() => router.push(`/trail/${id}/events` as any)}
+          >
+            <Ionicons name="people-outline" size={18} color={Colors.primary} />
+            <Text style={styles.sectionLinkText}>Upcoming Group Hikes</Text>
+            <Ionicons name="chevron-forward" size={16} color={Colors.textLight} />
+          </TouchableOpacity>
+
           {/* Community Photos */}
           <CommunityPhotos
             trailId={id}
@@ -258,6 +294,22 @@ export default function TrailDetailScreen() {
     </View>
   );
 }
+
+const STATUS_LABEL_DETAIL: Record<string, string> = {
+  closed: 'Closed',
+  seasonal: 'Seasonally Closed',
+  maintenance: 'Under Maintenance',
+};
+const STATUS_BANNER_BG: Record<string, object> = {
+  closed: { backgroundColor: '#FEF2F2' },
+  seasonal: { backgroundColor: '#FFFBEB' },
+  maintenance: { backgroundColor: '#EFF6FF' },
+};
+const STATUS_BANNER_ICON: Record<string, string> = {
+  closed: '#DC2626',
+  seasonal: '#D97706',
+  maintenance: '#2563EB',
+};
 
 const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   container: {
@@ -357,5 +409,51 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     backgroundColor: Colors.surface,
     borderTopWidth: 1,
     borderTopColor: Colors.borderLight,
+  },
+  sectionLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: Colors.surface,
+    borderRadius: 10,
+    marginHorizontal: 16,
+  },
+  sectionLinkText: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: '600',
+    color: Colors.primary,
+  },
+  activeHikersRow: {
+    paddingHorizontal: 16,
+  },
+  activeHikersText: {
+    fontSize: 14,
+    color: '#16A34A',
+    fontWeight: '600',
+  },
+  statusBanner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    marginHorizontal: 16,
+    marginTop: 12,
+    padding: 12,
+    borderRadius: 10,
+  },
+  statusBannerText: {
+    flex: 1,
+    gap: 2,
+  },
+  statusBannerTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  statusBannerNote: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+    lineHeight: 18,
   },
 });

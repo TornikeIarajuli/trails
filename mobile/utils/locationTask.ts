@@ -5,7 +5,7 @@ import { useHikeStore } from '../store/hikeStore';
 export const BACKGROUND_LOCATION_TASK = 'background-location';
 
 // Must be defined at module level (expo-task-manager requirement)
-TaskManager.defineTask(BACKGROUND_LOCATION_TASK, ({ data, error }: any) => {
+TaskManager.defineTask(BACKGROUND_LOCATION_TASK, async ({ data, error }: any) => {
   if (error || !data) return;
   const { locations } = data as { locations: Location.LocationObject[] };
   const { addGpsPoint, isActive, isPaused } = useHikeStore.getState();

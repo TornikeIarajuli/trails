@@ -15,6 +15,7 @@ import { Trail } from '../../types/trail';
 import { DifficultyBadge } from './DifficultyBadge';
 import { formatDistance, formatDuration } from '../../utils/formatters';
 import { useSettingsStore } from '../../store/settingsStore';
+import { useActiveHikerCount } from '../../hooks/useCompletions';
 
 interface TrailCardProps {
   trail: Trail;
@@ -29,6 +30,7 @@ export function TrailCard({ trail, index = 0 }: TrailCardProps) {
 
   const scale = useSharedValue(1);
   const animatedStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+  const { data: activeCount } = useActiveHikerCount(trail.id);
 
   const delay = Math.min(index, 8) * 50;
 
@@ -51,6 +53,13 @@ export function TrailCard({ trail, index = 0 }: TrailCardProps) {
           style={styles.image}
         />
         <View style={styles.content}>
+          {trail.status && trail.status !== 'open' && (
+            <View style={[styles.statusPill, { backgroundColor: STATUS_BG[trail.status] }]}>
+              <Text style={[styles.statusText, { color: STATUS_COLOR[trail.status] }]}>
+                {STATUS_LABEL[trail.status]}
+              </Text>
+            </View>
+          )}
           <View style={styles.header}>
             <DifficultyBadge difficulty={trail.difficulty} />
             <Text style={styles.region}>{trail.region}</Text>
@@ -71,12 +80,33 @@ export function TrailCard({ trail, index = 0 }: TrailCardProps) {
               <Ionicons name="trending-up-outline" size={14} color={Colors.textSecondary} />
               <Text style={styles.statText}>{trail.elevation_gain_m ?? '--'}m</Text>
             </View>
+            {activeCount != null && activeCount > 0 && (
+              <View style={styles.stat}>
+                <Text style={styles.activeHikers}>🥾 {activeCount} active</Text>
+              </View>
+            )}
           </View>
         </View>
       </Pressable>
     </Animated.View>
   );
 }
+
+const STATUS_LABEL: Record<string, string> = {
+  closed: 'Closed',
+  seasonal: 'Seasonal',
+  maintenance: 'Maintenance',
+};
+const STATUS_BG: Record<string, string> = {
+  closed: '#FEE2E2',
+  seasonal: '#FEF3C7',
+  maintenance: '#DBEAFE',
+};
+const STATUS_COLOR: Record<string, string> = {
+  closed: '#DC2626',
+  seasonal: '#D97706',
+  maintenance: '#2563EB',
+};
 
 const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   card: {
@@ -128,5 +158,23 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   statText: {
     fontSize: 13,
     color: Colors.textSecondary,
+  },
+  activeHikers: {
+    fontSize: 12,
+    color: '#16A34A',
+    fontWeight: '600',
+  },
+  statusPill: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    marginBottom: 6,
+  },
+  statusText: {
+    fontSize: 11,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
 });

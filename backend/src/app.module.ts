@@ -19,6 +19,7 @@ import { FeedModule } from './feed/feed.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { ShopModule } from './shop/shop.module';
 import { CommentsModule } from './comments/comments.module';
+import { EventsModule } from './events/events.module';
 
 @Module({
   imports: [
@@ -43,6 +44,7 @@ import { CommentsModule } from './comments/comments.module';
     NotificationsModule,
     ShopModule,
     CommentsModule,
+    EventsModule,
   ],
   providers: [
     { provide: APP_FILTER, useClass: SentryGlobalFilter },

@@ -15,25 +15,24 @@ import { FollowUser } from '../../../types/follow';
 
 type Tab = 'followers' | 'following';
 
-function UserRow({ user, styles }: { user: { profiles: FollowUser }; styles: any }) {
-  const profile = user.profiles;
-  if (!profile) return null;
+function UserRow({ user, styles }: { user: FollowUser; styles: any }) {
+  if (!user) return null;
 
   return (
     <TouchableOpacity
       style={styles.userRow}
       activeOpacity={0.7}
-      onPress={() => router.push(`/trail/user/${profile.id}`)}
+      onPress={() => router.push(`/trail/user/${user.id}`)}
     >
       <Avatar
-        uri={profile.avatar_url}
-        name={profile.full_name || profile.username}
+        uri={user.avatar_url}
+        name={user.full_name || user.username}
         size={48}
       />
       <View style={styles.userInfo}>
-        <Text style={styles.username}>{profile.username}</Text>
-        {profile.full_name && (
-          <Text style={styles.fullName}>{profile.full_name}</Text>
+        <Text style={styles.username}>{user.username}</Text>
+        {user.full_name && (
+          <Text style={styles.fullName}>{user.full_name}</Text>
         )}
       </View>
     </TouchableOpacity>

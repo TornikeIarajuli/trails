@@ -18,13 +18,13 @@ async function loadSavedIdsToMemory() {
       cacheDir.create();
     }
     if (savedIdsFile.exists) {
-      const raw = savedIdsFile.text();
+      const raw = await savedIdsFile.text();
       const ids: string[] = JSON.parse(raw);
       memoryCache.set('saved_ids', ids);
       for (const id of ids) {
         const f = trailFile(id);
         if (f.exists) {
-          memoryCache.set(`trail_${id}`, JSON.parse(f.text()));
+          memoryCache.set(`trail_${id}`, JSON.parse(await f.text()));
         }
       }
     }

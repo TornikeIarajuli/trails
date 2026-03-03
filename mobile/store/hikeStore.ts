@@ -9,6 +9,12 @@ export interface GpsPoint {
   timestamp: number;
 }
 
+export interface PendingSync {
+  trailId: string;
+  elapsedSeconds: number;
+  completedAt: string;
+}
+
 interface HikeState {
   isActive: boolean;
   trailId: string | null;
@@ -21,6 +27,7 @@ interface HikeState {
   gpsPoints: GpsPoint[];
   lastHikeGpsPoints: GpsPoint[];
   distanceCoveredMeters: number;
+  pendingSync: PendingSync | null;
   startHike: (trailId: string) => void;
   endHike: () => void;
   pauseHike: () => void;
@@ -29,6 +36,7 @@ interface HikeState {
   markCheckpointVisited: (checkpointId: string) => void;
   addGpsPoint: (lat: number, lng: number) => void;
   clearLastHikeGps: () => void;
+  setPendingSync: (sync: PendingSync | null) => void;
 }
 
 export const useHikeStore = create<HikeState>()(
@@ -45,6 +53,7 @@ export const useHikeStore = create<HikeState>()(
       gpsPoints: [],
       lastHikeGpsPoints: [],
       distanceCoveredMeters: 0,
+      pendingSync: null,
 
       startHike: (trailId) =>
         set({
@@ -126,6 +135,8 @@ export const useHikeStore = create<HikeState>()(
       },
 
       clearLastHikeGps: () => set({ lastHikeGpsPoints: [] }),
+
+      setPendingSync: (sync) => set({ pendingSync: sync }),
     }),
     {
       name: 'hike-store',
@@ -142,6 +153,7 @@ export const useHikeStore = create<HikeState>()(
         gpsPoints: state.gpsPoints,
         lastHikeGpsPoints: state.lastHikeGpsPoints,
         distanceCoveredMeters: state.distanceCoveredMeters,
+        pendingSync: state.pendingSync,
       }),
     },
   ),

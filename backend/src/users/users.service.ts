@@ -1,9 +1,13 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { SupabaseService } from '../config/supabase.config';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class UsersService {
-  constructor(private supabaseService: SupabaseService) {}
+  constructor(
+    private supabaseService: SupabaseService,
+    private notificationsService: NotificationsService,
+  ) {}
 
   async getProfile(userId: string) {
     const admin = this.supabaseService.getAdminClient();
@@ -87,6 +91,48 @@ export class UsersService {
       rank: index + 1,
       ...user,
     }));
+  }
+
+  async deleteAccount(userId: string) {
+    const admin = this.supabaseService.getAdminClient();
+    const { error } = await admin.auth.admin.deleteUser(userId);
+    if (error) throw error;
+  }
+
+  async setEmergencyContact(userId: string, contactUserId: string | null) {
+    const admin = this.supabaseService.getAdminClient();
+    const { error } = await admin
+      .from('profiles')
+      .update({ emergency_contact_user_id: contactUserId })
+      .eq('id', userId);
+    if (error) throw error;
+    return { ok: true };
+  }
+
+  async triggerSos(userId: string, lat: number, lng: number) {
+    const admin = this.supabaseService.getAdminClient();
+
+    const { data: profile } = await admin
+      .from('profiles')
+      .select('username, emergency_contact_user_id')
+      .eq('id', userId)
+      .single();
+
+    if (!profile) throw new NotFoundException('User not found');
+
+    const contactId = profile.emergency_contact_user_id;
+    if (contactId) {
+      const mapsUrl = `https://maps.google.com/?q=${lat},${lng}`;
+      await this.notificationsService.sendToUser(
+        contactId,
+        `🆘 SOS from ${profile.username}`,
+        `${profile.username} needs help! Location: ${mapsUrl}`,
+        { type: 'sos', userId, lat, lng },
+        'sos',
+      );
+    }
+
+    return { sent: !!contactId };
   }
 
   async searchUsers(query: string) {

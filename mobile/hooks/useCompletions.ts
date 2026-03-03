@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { completionsService } from '../services/completions';
 import { showError } from '../utils/showError';
 import { queryKeys } from '../utils/queryKeys';
+import api from '../services/api';
 
 export function useMyCompletions() {
   return useQuery({
@@ -60,5 +61,17 @@ export function useDeleteCompletion() {
       queryClient.invalidateQueries({ queryKey: queryKeys.profile.root() });
     },
     onError: (err) => showError(err),
+  });
+}
+
+export function useActiveHikerCount(trailId: string) {
+  return useQuery({
+    queryKey: queryKeys.activeHikes.count(trailId),
+    queryFn: async () => {
+      const { data } = await api.get<{ count: number }>(`/completions/active/${trailId}/count`);
+      return data.count;
+    },
+    enabled: !!trailId,
+    refetchInterval: 60_000,
   });
 }

@@ -291,4 +291,34 @@ export class CompletionsService {
 
     return data;
   }
+
+  async markHikeActive(userId: string, trailId: string) {
+    const admin = this.supabaseService.getAdminClient();
+    const { error } = await admin
+      .from('active_hikes')
+      .upsert({ trail_id: trailId, user_id: userId }, { onConflict: 'trail_id,user_id' });
+    if (error) throw error;
+    return { active: true };
+  }
+
+  async markHikeInactive(userId: string, trailId: string) {
+    const admin = this.supabaseService.getAdminClient();
+    const { error } = await admin
+      .from('active_hikes')
+      .delete()
+      .eq('trail_id', trailId)
+      .eq('user_id', userId);
+    if (error) throw error;
+    return { active: false };
+  }
+
+  async getActiveCount(trailId: string) {
+    const admin = this.supabaseService.getAdminClient();
+    const { count, error } = await admin
+      .from('active_hikes')
+      .select('*', { count: 'exact', head: true })
+      .eq('trail_id', trailId);
+    if (error) throw error;
+    return { count: count ?? 0 };
+  }
 }

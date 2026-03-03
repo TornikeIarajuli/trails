@@ -59,7 +59,7 @@ export class TrailsService {
     let query = admin
       .from('trails')
       .select(
-        'id, name_en, name_ka, difficulty, region, cover_image_url, distance_km, elevation_gain_m, estimated_hours, created_at, start_point',
+        'id, name_en, name_ka, difficulty, region, cover_image_url, distance_km, elevation_gain_m, estimated_hours, status, status_note, created_at, start_point',
         { count: 'exact' },
       )
       .eq('is_published', true)

@@ -1,0 +1,26 @@
+appId: com.gzatrails.app
+---
+# Login Flow
+# Prerequisite: test account must exist in Supabase (test@example.com / TestPass123)
+
+- launchApp:
+    clearState: true
+
+# Wait for login screen
+- assertVisible: "Log In"
+
+# Fill in credentials
+- tapOn:
+    text: "Email"
+- inputText: "test@example.com"
+
+- tapOn:
+    text: "Password"
+- inputText: "TestPass123"
+
+# Submit
+- tapOn: "Log In"
+
+# Verify landing on home tab
+- assertVisible: "Trails"
+- assertVisible: "Explore Georgia's Best Trails"

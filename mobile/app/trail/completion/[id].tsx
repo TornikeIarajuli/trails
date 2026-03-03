@@ -12,7 +12,7 @@ import { Image } from 'expo-image';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import * as FileSystem from 'expo-file-system';
+import { File as FSFile, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import { useColors, ColorPalette } from '../../../constants/colors';
 import { useMyCompletions } from '../../../hooks/useCompletions';
@@ -121,11 +121,11 @@ export default function CompletionDetailScreen() {
       const trailName = trail?.name_en ?? 'hike';
       const filename = `${trailName.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.gpx`;
       const gpx = buildGpxString(trailName, lastHikeGpsPoints);
-      const fileUri = `${FileSystem.cacheDirectory}${filename}`;
-      await FileSystem.writeAsStringAsync(fileUri, gpx, { encoding: FileSystem.EncodingType.UTF8 });
+      const f = new FSFile(Paths.cache, filename);
+      f.write(gpx);
       const canShare = await Sharing.isAvailableAsync();
       if (canShare) {
-        await Sharing.shareAsync(fileUri, { mimeType: 'application/gpx+xml', dialogTitle: 'Export GPX Track' });
+        await Sharing.shareAsync(f.uri, { mimeType: 'application/gpx+xml', dialogTitle: 'Export GPX Track' });
         clearLastHikeGps();
       } else {
         Alert.alert('Sharing not available', 'Your device does not support file sharing.');

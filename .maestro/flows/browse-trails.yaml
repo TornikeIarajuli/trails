@@ -1,0 +1,49 @@
+appId: com.gzatrails.app
+---
+# Browse Trails Flow
+# Prerequisite: user is logged in
+
+- launchApp
+
+# Home screen loads with trail list
+- assertVisible: "Trails"
+
+# Scroll down to see trail cards
+- scroll
+
+# Open first trail card
+- tapOn:
+    index: 0
+    id: "trail-card"
+
+# Trail detail screen
+- assertVisible: "Start Hike"
+- assertVisible: "Checkpoints"
+
+# Go back
+- tapOn:
+    id: "back-button"
+
+# Switch to map view
+- tapOn:
+    id: "map-toggle"
+
+# Map renders (just check no crash)
+- assertVisible: "Trails"
+
+# Switch back to list
+- tapOn:
+    id: "list-toggle"
+
+# Test search
+- tapOn:
+    id: "search-input"
+- inputText: "Kazbegi"
+
+# Results filter
+- assertVisible: "Kazbegi"
+
+# Clear search
+- clearText
+- tapOn:
+    id: "search-input"

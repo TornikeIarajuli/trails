@@ -100,4 +100,23 @@ export const queryKeys = {
   likes: {
     activity: (activityId: string) => ['likes', activityId] as const,
   },
+
+  // Active hikes (congestion)
+  activeHikes: {
+    count: (trailId: string) => ['activeHikes', 'count', trailId] as const,
+  },
+
+  // Notifications
+  notifications: {
+    list: (page: number) => ['notifications', 'list', page] as const,
+    prefs: () => ['notifications', 'prefs'] as const,
+    root: () => ['notifications'] as const,
+  },
+
+  // Events
+  events: {
+    trail: (trailId: string) => ['events', 'trail', trailId] as const,
+    detail: (id: string) => ['events', id] as const,
+    root: () => ['events'] as const,
+  },
 };

@@ -3,8 +3,10 @@ import { Platform } from 'react-native';
 import * as Device from 'expo-device';
 import Constants from 'expo-constants';
 import { router } from 'expo-router';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { notificationsService } from '../services/notifications';
 import { useAuthStore } from '../store/authStore';
+import { queryKeys } from '../utils/queryKeys';
 
 // expo-notifications remote push is not available in Expo Go (SDK 53+)
 const isExpoGo = Constants.appOwnership === 'expo';
@@ -16,7 +18,8 @@ try {
   if (!isExpoGo && Notifications?.setNotificationHandler) {
     Notifications.setNotificationHandler({
       handleNotification: async () => ({
-        shouldShowAlert: true,
+        shouldShowBanner: true,
+        shouldShowList: true,
         shouldPlaySound: true,
         shouldSetBadge: false,
       }),
@@ -60,9 +63,48 @@ async function registerForPushNotifications(): Promise<string | null> {
   }
 }
 
+export function useNotificationList(page = 1) {
+  return useQuery({
+    queryKey: queryKeys.notifications.list(page),
+    queryFn: () => notificationsService.getNotifications(page),
+  });
+}
+
+export function useMarkRead() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => notificationsService.markRead(id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.notifications.root() }),
+  });
+}
+
+export function useMarkAllRead() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => notificationsService.markAllRead(),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.notifications.root() }),
+  });
+}
+
+export function useNotificationPrefs() {
+  return useQuery({
+    queryKey: queryKeys.notifications.prefs(),
+    queryFn: () => notificationsService.getPreferences(),
+  });
+}
+
+export function useUpdateNotificationPrefs() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (prefs: Parameters<typeof notificationsService.updatePreferences>[0]) =>
+      notificationsService.updatePreferences(prefs),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.notifications.prefs() }),
+  });
+}
+
 export function useNotificationSetup() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
-  const responseListener = useRef<any>();
+  const responseListener = useRef<any>(null);
 
   useEffect(() => {
     if (!isAuthenticated || isExpoGo || !Notifications) return;
@@ -91,7 +133,7 @@ export function useNotificationSetup() {
     return () => {
       try {
         if (responseListener.current && Notifications) {
-          Notifications.removeNotificationSubscription(responseListener.current);
+          responseListener.current?.remove();
         }
       } catch {}
     };

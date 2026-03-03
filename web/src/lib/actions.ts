@@ -19,6 +19,69 @@ export async function getStats() {
   };
 }
 
+// ── Analytics ──
+export async function getAnalyticsData() {
+  const supabase = createAdminClient();
+
+  // Completions per week (last 8 weeks)
+  const eightWeeksAgo = new Date();
+  eightWeeksAgo.setDate(eightWeeksAgo.getDate() - 56);
+
+  const { data: completionRows } = await supabase
+    .from("trail_completions")
+    .select("completed_at")
+    .gte("completed_at", eightWeeksAgo.toISOString())
+    .eq("status", "approved");
+
+  // Group by ISO week
+  const weekMap: Record<string, number> = {};
+  (completionRows ?? []).forEach((row) => {
+    const d = new Date(row.completed_at);
+    const monday = new Date(d);
+    monday.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+    const key = monday.toISOString().slice(0, 10);
+    weekMap[key] = (weekMap[key] ?? 0) + 1;
+  });
+  const completionsPerWeek = Object.entries(weekMap)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([week, count]) => ({ week: week.slice(5), count })); // "MM-DD"
+
+  // Top 5 trails by completions
+  const { data: trailRows } = await supabase
+    .from("trail_completions")
+    .select("trail_id, trails:trail_id(name_en)")
+    .eq("status", "approved");
+
+  const trailMap: Record<string, { name: string; count: number }> = {};
+  (trailRows ?? []).forEach((row: any) => {
+    const id = row.trail_id;
+    if (!trailMap[id]) trailMap[id] = { name: row.trails?.name_en ?? id, count: 0 };
+    trailMap[id].count++;
+  });
+  const topTrails = Object.values(trailMap)
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 5);
+
+  // User signups per month (last 6 months)
+  const sixMonthsAgo = new Date();
+  sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+  const { data: userRows } = await supabase
+    .from("profiles")
+    .select("created_at")
+    .gte("created_at", sixMonthsAgo.toISOString());
+
+  const monthMap: Record<string, number> = {};
+  (userRows ?? []).forEach((row) => {
+    const key = row.created_at.slice(0, 7); // "YYYY-MM"
+    monthMap[key] = (monthMap[key] ?? 0) + 1;
+  });
+  const signupsPerMonth = Object.entries(monthMap)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([month, count]) => ({ month: month.slice(5), count })); // "MM"
+
+  return { completionsPerWeek, topTrails, signupsPerMonth };
+}
+
 // ── Trails ──
 export async function getTrails() {
   const supabase = createAdminClient();

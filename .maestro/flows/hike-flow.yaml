@@ -1,0 +1,37 @@
+appId: com.gzatrails.app
+---
+# Hike Flow
+# Prerequisite: user is logged in, at least one published trail exists
+
+- launchApp
+
+# Navigate to first trail
+- tapOn:
+    index: 0
+    id: "trail-card"
+
+# Start hike
+- tapOn: "Start Hike"
+
+# Hike screen visible
+- assertVisible: "00:00:00"
+
+# Pause hike
+- tapOn: "Pause"
+- assertVisible: "Resume"
+
+# Resume hike
+- tapOn: "Resume"
+- assertVisible: "Pause"
+
+# End hike
+- tapOn:
+    id: "close-button"
+
+# Confirm end hike dialog
+- tapOn: "End Hike"
+
+# Completion screen appears (or back to trail)
+# The exact text depends on completion status
+- assertTrue:
+    condition: "visible('completion') || visible('Trails')"

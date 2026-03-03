@@ -25,6 +25,8 @@ import { mediaService } from '../../../services/media';
 import { useRecordHike } from '../../../hooks/useCompletions';
 import { startBackgroundTracking, stopBackgroundTracking } from '../../../utils/locationTask';
 import * as Haptics from 'expo-haptics';
+import api from '../../../services/api';
+import { useAuthStore } from '../../../store/authStore';
 
 // Isolated timer component — only this re-renders every second
 function HikeTimer({ styles }: { styles: ReturnType<typeof createStyles> }) {
@@ -94,6 +96,32 @@ export default function HikeScreen() {
   const resumeHike = useHikeStore((s) => s.resumeHike);
   const addGpsPoint = useHikeStore((s) => s.addGpsPoint);
   const markCheckpointVisited = useHikeStore((s) => s.markCheckpointVisited);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+
+  const handleSos = () => {
+    Alert.alert(
+      '🆘 SOS',
+      'Send an emergency alert to your emergency contact with your current GPS location?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Send SOS',
+          style: 'destructive',
+          onPress: () => {
+            const lat = location?.latitude;
+            const lng = location?.longitude;
+            if (!lat || !lng) {
+              Alert.alert('No GPS', 'Waiting for GPS fix. Please try again in a moment.');
+              return;
+            }
+            api.post('/users/me/sos', { lat, lng })
+              .then(() => Alert.alert('SOS Sent', 'Your emergency contact has been notified with your location.'))
+              .catch(() => Alert.alert('Error', 'Failed to send SOS. Try calling emergency services directly.'));
+          },
+        },
+      ],
+    );
+  };
 
   // Haptic tracking refs
   const nearbyAlertedRef = useRef<Set<string>>(new Set());
@@ -111,14 +139,20 @@ export default function HikeScreen() {
     })
     .filter(Boolean) as any[];
 
-  // Start hike on mount + begin background GPS
+  // Start hike on mount + begin background GPS + mark active
   useEffect(() => {
     if (!isActive && id) {
       startHike(id);
     }
     startBackgroundTracking();
+    if (id) {
+      api.post(`/completions/active/${id}`).catch(() => {});
+    }
     return () => {
-      // Do NOT stop on unmount — only stop explicitly when the user ends the hike
+      // Clean up active hike record on unmount (user navigated away without ending)
+      if (id) {
+        api.delete(`/completions/active/${id}`).catch(() => {});
+      }
     };
   }, [id]);
 
@@ -175,6 +209,7 @@ export default function HikeScreen() {
         style: 'destructive',
         onPress: () => {
           stopBackgroundTracking();
+          if (id) api.delete(`/completions/active/${id}`).catch(() => {});
           const elapsed = useHikeStore.getState().elapsedSeconds;
           if (id) {
             recordHike.mutate(
@@ -189,6 +224,12 @@ export default function HikeScreen() {
                   router.replace(`/trail/completion/${data?.id ?? id}${params}` as any);
                 },
                 onError: () => {
+                  // Save for offline retry
+                  useHikeStore.getState().setPendingSync({
+                    trailId: id!,
+                    elapsedSeconds: elapsed ?? 0,
+                    completedAt: new Date().toISOString(),
+                  });
                   endHike();
                   router.back();
                 },
@@ -338,6 +379,16 @@ export default function HikeScreen() {
           </Text>
         </View>
       </View>
+
+      {/* SOS Button */}
+      {isAuthenticated && (
+        <TouchableOpacity
+          style={[styles.sosButton, { top: insets.top + 8 }]}
+          onPress={handleSos}
+        >
+          <Text style={styles.sosText}>SOS</Text>
+        </TouchableOpacity>
+      )}
 
       {/* Photo button */}
       <TouchableOpacity
@@ -599,5 +650,26 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     color: Colors.error,
     fontWeight: '700',
     fontSize: 16,
+  },
+  sosButton: {
+    position: 'absolute',
+    right: 16,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: '#DC2626',
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 4,
+    shadowColor: '#DC2626',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.4,
+    shadowRadius: 6,
+  },
+  sosText: {
+    color: '#fff',
+    fontWeight: '900',
+    fontSize: 13,
+    letterSpacing: 0.5,
   },
 });

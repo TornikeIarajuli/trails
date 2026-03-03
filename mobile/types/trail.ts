@@ -1,6 +1,7 @@
 import { Checkpoint } from './checkpoint';
 
 export type TrailDifficulty = 'easy' | 'medium' | 'hard' | 'ultra';
+export type TrailStatus = 'open' | 'closed' | 'seasonal' | 'maintenance';
 export type MediaType = 'photo' | 'video';
 
 export interface Trail {
@@ -16,6 +17,8 @@ export interface Trail {
   estimated_hours: number | null;
   cover_image_url: string | null;
   is_published: boolean;
+  status: TrailStatus;
+  status_note: string | null;
   created_at: string;
   start_point?: unknown;
 }

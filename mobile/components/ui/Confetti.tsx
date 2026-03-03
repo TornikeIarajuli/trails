@@ -10,17 +10,20 @@ interface Particle {
   y: Animated.Value;
   opacity: Animated.Value;
   rotate: Animated.Value;
+  xStart: number;
   color: string;
   size: number;
   isRect: boolean;
 }
 
 function createParticle(): Particle {
+  const xStart = Math.random() * SCREEN_W;
   return {
-    x: new Animated.Value(Math.random() * SCREEN_W),
+    x: new Animated.Value(xStart),
     y: new Animated.Value(-20),
     opacity: new Animated.Value(1),
     rotate: new Animated.Value(0),
+    xStart,
     color: COLORS[Math.floor(Math.random() * COLORS.length)],
     size: 6 + Math.random() * 8,
     isRect: Math.random() > 0.5,
@@ -43,7 +46,9 @@ export function Confetti({ visible }: ConfettiProps) {
 
     // Reset particles
     particles.forEach((p) => {
-      p.x.setValue(Math.random() * SCREEN_W);
+      const newX = Math.random() * SCREEN_W;
+      p.xStart = newX;
+      p.x.setValue(newX);
       p.y.setValue(-20 - Math.random() * 60);
       p.opacity.setValue(1);
       p.rotate.setValue(0);
@@ -58,7 +63,7 @@ export function Confetti({ visible }: ConfettiProps) {
           useNativeDriver: true,
         }),
         Animated.timing(p.x, {
-          toValue: p.x._value + (Math.random() - 0.5) * 120,
+          toValue: p.xStart + (Math.random() - 0.5) * 120,
           duration,
           useNativeDriver: true,
         }),

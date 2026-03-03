@@ -31,8 +31,23 @@ export class NotificationsService {
     return { removed: true };
   }
 
-  async sendToUser(userId: string, title: string, body: string, data?: Record<string, any>) {
+  async sendToUser(
+    userId: string,
+    title: string,
+    body: string,
+    data?: Record<string, any>,
+    type = 'general',
+  ) {
     const admin = this.supabaseService.getAdminClient();
+
+    // Persist to notification history
+    await admin.from('notifications').insert({
+      user_id: userId,
+      type,
+      title,
+      body,
+      data: data ?? null,
+    });
 
     const { data: tokens } = await admin
       .from('push_tokens')
@@ -65,5 +80,80 @@ export class NotificationsService {
       console.error('Push notification failed:', err);
       return { sent: 0, error: err.message };
     }
+  }
+
+  async getNotifications(userId: string, page = 1, limit = 20) {
+    const admin = this.supabaseService.getAdminClient();
+    const offset = (page - 1) * limit;
+
+    const { data, error, count } = await admin
+      .from('notifications')
+      .select('*', { count: 'exact' })
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1);
+
+    if (error) throw error;
+
+    const unreadCount = data?.filter((n) => !n.read_at).length ?? 0;
+    return { data: data ?? [], unreadCount, total: count ?? 0 };
+  }
+
+  async markRead(userId: string, notificationId: string) {
+    const admin = this.supabaseService.getAdminClient();
+    const { error } = await admin
+      .from('notifications')
+      .update({ read_at: new Date().toISOString() })
+      .eq('id', notificationId)
+      .eq('user_id', userId);
+    if (error) throw error;
+    return { ok: true };
+  }
+
+  async markAllRead(userId: string) {
+    const admin = this.supabaseService.getAdminClient();
+    const { error } = await admin
+      .from('notifications')
+      .update({ read_at: new Date().toISOString() })
+      .eq('user_id', userId)
+      .is('read_at', null);
+    if (error) throw error;
+    return { ok: true };
+  }
+
+  async getPreferences(userId: string) {
+    const admin = this.supabaseService.getAdminClient();
+    const { data } = await admin
+      .from('notification_preferences')
+      .select('*')
+      .eq('user_id', userId)
+      .single();
+
+    // Return defaults if no row yet
+    return data ?? {
+      user_id: userId,
+      new_follower: true,
+      badge_earned: true,
+      completion_approved: true,
+      event_invite: true,
+      trail_condition: true,
+    };
+  }
+
+  async updatePreferences(userId: string, prefs: Partial<{
+    new_follower: boolean;
+    badge_earned: boolean;
+    completion_approved: boolean;
+    event_invite: boolean;
+    trail_condition: boolean;
+  }>) {
+    const admin = this.supabaseService.getAdminClient();
+    const { data, error } = await admin
+      .from('notification_preferences')
+      .upsert({ user_id: userId, ...prefs }, { onConflict: 'user_id' })
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
   }
 }

@@ -78,5 +78,5 @@ export const Colors = LightColors;
 // Hook for components — returns the active palette based on theme
 export function useColors(): ColorPalette {
   const isDarkMode = useSettingsStore((s) => s.isDarkMode);
-  return isDarkMode ? DarkColors : LightColors;
+  return (isDarkMode ? DarkColors : LightColors) as ColorPalette;
 }

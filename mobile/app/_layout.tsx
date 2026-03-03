@@ -11,6 +11,7 @@ import { useAuthStore } from '../store/authStore';
 import { useSettingsStore } from '../store/settingsStore';
 import { useColors } from '../constants/colors';
 import { useNotificationSetup } from '../hooks/useNotifications';
+import { useNetworkSync } from '../hooks/useNetworkSync';
 
 try {
   SplashScreen.preventAutoHideAsync();
@@ -35,6 +36,7 @@ function RootLayoutInner() {
   const hydrateSettings = useSettingsStore((s) => s.hydrate);
 
   useNotificationSetup();
+  useNetworkSync();
 
   useEffect(() => {
     Promise.all([restoreSession(), hydrateSettings()]).finally(() => {
