@@ -13,6 +13,7 @@ import { useColors } from '../constants/colors';
 import { useNotificationSetup } from '../hooks/useNotifications';
 import { useNetworkSync } from '../hooks/useNetworkSync';
 import { useHeartbeat } from '../hooks/useHeartbeat';
+import { NetworkBanner } from '../components/ui/NetworkBanner';
 
 try {
   SplashScreen.preventAutoHideAsync();
@@ -51,6 +52,7 @@ function RootLayoutInner() {
   return (
     <>
       <StatusBar style={isDarkMode ? 'light' : 'dark'} />
+      <NetworkBanner />
       <Stack
         screenOptions={{
           headerStyle: { backgroundColor: Colors.surface },
