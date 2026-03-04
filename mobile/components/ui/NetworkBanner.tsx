@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { Animated, Text, StyleSheet, View } from 'react-native';
+import { Animated, Text, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNetworkStatus } from '../../hooks/useNetworkStatus';
@@ -29,11 +29,16 @@ export function NetworkBanner() {
     <Animated.View
       style={[
         styles.banner,
-        { backgroundColor: bgColor, top: insets.top + 6, transform: [{ translateY }] },
+        {
+          backgroundColor: bgColor,
+          // Place below status bar using safe area inset
+          top: insets.top + 8,
+          transform: [{ translateY }],
+        },
       ]}
       pointerEvents="none"
     >
-      <Ionicons name={icon as any} size={14} color="#fff" />
+      <Ionicons name={icon as any} size={13} color="#fff" />
       <Text style={styles.label}>{label}</Text>
     </Animated.View>
   );
@@ -42,18 +47,22 @@ export function NetworkBanner() {
 const styles = StyleSheet.create({
   banner: {
     position: 'absolute',
+    left: 0,
+    right: 0,
+    marginHorizontal: 40,
     alignSelf: 'center',
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 6,
     paddingHorizontal: 14,
-    paddingVertical: 6,
+    paddingVertical: 5,
     borderRadius: 20,
     zIndex: 9999,
     elevation: 10,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
+    shadowOpacity: 0.2,
     shadowRadius: 4,
   },
   label: {

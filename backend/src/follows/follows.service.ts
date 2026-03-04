@@ -48,10 +48,13 @@ export class FollowsService {
 
     const username = followerProfile?.username ?? 'Someone';
     this.notificationsService
-      .sendToUser(followingId, 'New Follower', `${username} started following you`, {
-        type: 'new_follower',
-        followerId,
-      })
+      .sendToUser(
+        followingId,
+        'New Follower',
+        `${username} started following you`,
+        { followerId },
+        'new_follower',
+      )
       .catch(() => {}); // fire-and-forget
 
     return { following: true };

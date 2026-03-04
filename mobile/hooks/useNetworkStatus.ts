@@ -8,7 +8,7 @@ export function useNetworkStatus(): NetworkQuality {
 
   useEffect(() => {
     const unsubscribe = NetInfo.addEventListener((state) => {
-      if (!state.isConnected || state.isInternetReachable === false) {
+      if (state.isConnected === false) {
         setQuality('offline');
         return;
       }

@@ -8,12 +8,15 @@ export class NotificationsService {
   async registerToken(userId: string, token: string, platform = 'expo') {
     const admin = this.supabaseService.getAdminClient();
 
-    const { error } = await admin
-      .from('push_tokens')
-      .upsert(
-        { user_id: userId, token, platform, updated_at: new Date().toISOString() },
-        { onConflict: 'user_id,token' },
-      );
+    const { error } = await admin.from('push_tokens').upsert(
+      {
+        user_id: userId,
+        token,
+        platform,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'user_id,token' },
+    );
 
     if (error) throw error;
     return { registered: true };
@@ -39,6 +42,21 @@ export class NotificationsService {
     type = 'general',
   ) {
     const admin = this.supabaseService.getAdminClient();
+
+    // Check notification preferences before sending
+    const { data: prefs } = await admin
+      .from('notification_preferences')
+      .select('*')
+      .eq('user_id', userId)
+      .single();
+
+    // If prefs exist, respect them; if no row yet, defaults are all true
+    if (prefs) {
+      const prefKey = type as keyof typeof prefs;
+      if (prefKey in prefs && prefs[prefKey] === false) {
+        return { sent: 0, skipped: 'user_preference' };
+      }
+    }
 
     // Persist to notification history
     await admin.from('notifications').insert({
@@ -130,23 +148,28 @@ export class NotificationsService {
       .single();
 
     // Return defaults if no row yet
-    return data ?? {
-      user_id: userId,
-      new_follower: true,
-      badge_earned: true,
-      completion_approved: true,
-      event_invite: true,
-      trail_condition: true,
-    };
+    return (
+      data ?? {
+        user_id: userId,
+        new_follower: true,
+        badge_earned: true,
+        completion_approved: true,
+        event_invite: true,
+        trail_condition: true,
+      }
+    );
   }
 
-  async updatePreferences(userId: string, prefs: Partial<{
-    new_follower: boolean;
-    badge_earned: boolean;
-    completion_approved: boolean;
-    event_invite: boolean;
-    trail_condition: boolean;
-  }>) {
+  async updatePreferences(
+    userId: string,
+    prefs: Partial<{
+      new_follower: boolean;
+      badge_earned: boolean;
+      completion_approved: boolean;
+      event_invite: boolean;
+      trail_condition: boolean;
+    }>,
+  ) {
     const admin = this.supabaseService.getAdminClient();
     const { data, error } = await admin
       .from('notification_preferences')

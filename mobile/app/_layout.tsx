@@ -1,6 +1,6 @@
 import '../utils/locationTask'; // Register background GPS task before app mounts
 import React, { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { QueryClient } from '@tanstack/react-query';
@@ -50,7 +50,7 @@ function RootLayoutInner() {
   if (isLoading) return null;
 
   return (
-    <>
+    <View style={styles.root}>
       <StatusBar style={isDarkMode ? 'light' : 'dark'} />
       <NetworkBanner />
       <Stack
@@ -68,7 +68,7 @@ function RootLayoutInner() {
         <Stack.Screen name="trail" options={{ headerShown: false }} />
         <Stack.Screen name="search" options={{ title: 'Find Users', presentation: 'modal' }} />
       </Stack>
-    </>
+    </View>
   );
 }
 
@@ -102,6 +102,10 @@ function RootLayout() {
     </PersistQueryClientProvider>
   );
 }
+
+const styles = StyleSheet.create({
+  root: { flex: 1 },
+});
 
 class ErrorBoundary extends React.Component<
   { children: React.ReactNode; onError: () => void },
