@@ -95,6 +95,49 @@ export class UsersService {
 
   async deleteAccount(userId: string) {
     const admin = this.supabaseService.getAdminClient();
+
+    // Helper to extract storage object path from a public URL
+    const extractPath = (url: string, bucket: string): string | null => {
+      const marker = `/object/public/${bucket}/`;
+      const idx = url.indexOf(marker);
+      return idx >= 0 ? decodeURIComponent(url.slice(idx + marker.length)) : null;
+    };
+
+    // 1. Delete hike photos from trail-media bucket
+    const { data: hikePhotos } = await admin
+      .from('trail_photos')
+      .select('url')
+      .eq('user_id', userId);
+    const hikePaths = (hikePhotos ?? [])
+      .map((p) => extractPath(p.url, 'trail-media'))
+      .filter(Boolean) as string[];
+    if (hikePaths.length) {
+      await admin.storage.from('trail-media').remove(hikePaths);
+    }
+
+    // 2. Delete proof photos from proof-photos bucket
+    const { data: completions } = await admin
+      .from('trail_completions')
+      .select('proof_photo_url')
+      .eq('user_id', userId)
+      .not('proof_photo_url', 'is', null);
+    const proofPaths = (completions ?? [])
+      .map((c) => extractPath(c.proof_photo_url as string, 'proof-photos'))
+      .filter(Boolean) as string[];
+    if (proofPaths.length) {
+      await admin.storage.from('proof-photos').remove(proofPaths);
+    }
+
+    // 3. Delete avatar (stored as avatars/{userId}.{ext})
+    const { data: avatarFiles } = await admin.storage
+      .from('proof-photos')
+      .list('avatars', { search: userId });
+    const avatarPaths = (avatarFiles ?? []).map((f) => `avatars/${f.name}`);
+    if (avatarPaths.length) {
+      await admin.storage.from('proof-photos').remove(avatarPaths);
+    }
+
+    // 4. Delete auth user — cascades all DB rows via FK ON DELETE CASCADE
     const { error } = await admin.auth.admin.deleteUser(userId);
     if (error) throw error;
   }

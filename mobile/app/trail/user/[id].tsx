@@ -26,7 +26,7 @@ function formatDate(dateStr: string) {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
-const ONLINE_THRESHOLD_MS = 3 * 60 * 1000; // 3 minutes
+const ONLINE_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes
 
 function getOnlineStatus(lastSeenAt: string | null): { online: boolean; label: string } {
   if (!lastSeenAt) return { online: false, label: 'Offline' };

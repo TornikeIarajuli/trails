@@ -3,7 +3,7 @@ import { AppState, AppStateStatus } from 'react-native';
 import { useAuthStore } from '../store/authStore';
 import { usersService } from '../services/users';
 
-const HEARTBEAT_INTERVAL_MS = 30_000; // 30 seconds
+const HEARTBEAT_INTERVAL_MS = 2 * 60 * 1000; // 2 minutes
 
 export function useHeartbeat() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
