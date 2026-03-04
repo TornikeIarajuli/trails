@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
 import { useColors, ColorPalette } from '../../constants/colors';
-import { useIsOnline } from '../../hooks/useIsOnline';
+import { useNetworkStatus } from '../../hooks/useNetworkStatus';
 
 type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -47,7 +47,13 @@ function Header() {
   const pathname = usePathname();
   const Colors = useColors();
   const styles = useMemo(() => createStyles(Colors), [Colors]);
-  const isOnline = useIsOnline();
+  const networkQuality = useNetworkStatus();
+
+  const bannerConfig = networkQuality === 'offline'
+    ? { icon: 'cloud-offline-outline' as const, text: "You're offline — showing cached data", color: '#C62828' }
+    : networkQuality === 'poor'
+    ? { icon: 'cellular-outline' as const, text: 'Poor connection', color: '#E65100' }
+    : null;
 
   return (
     <View>
@@ -78,10 +84,10 @@ function Header() {
           })}
         </View>
       </View>
-      {!isOnline && (
-        <View style={styles.offlineBanner}>
-          <Ionicons name="cloud-offline-outline" size={14} color="#fff" />
-          <Text style={styles.offlineText}>You're offline — showing cached data</Text>
+      {bannerConfig && (
+        <View style={[styles.offlineBanner, { backgroundColor: bannerConfig.color }]}>
+          <Ionicons name={bannerConfig.icon} size={13} color="#fff" />
+          <Text style={styles.offlineText}>{bannerConfig.text}</Text>
         </View>
       )}
     </View>
