@@ -118,6 +118,26 @@ export async function saveTrail(id: string | null, payload: Record<string, unkno
   return { data: null, error: error?.message ?? null };
 }
 
+export async function uploadCoverImage(id: string, formData: FormData) {
+  const file = formData.get("file") as File;
+  if (!file) return { error: "No file provided", url: null };
+
+  const supabase = createAdminClient();
+  const ext = file.name.split(".").pop() ?? "jpg";
+  const fileName = `${crypto.randomUUID()}.${ext}`;
+  const path = `covers/${id}/${fileName}`;
+
+  const arrayBuffer = await file.arrayBuffer();
+  const { error: uploadError } = await supabase.storage
+    .from("trail-media")
+    .upload(path, arrayBuffer, { contentType: file.type, upsert: true });
+
+  if (uploadError) return { error: uploadError.message, url: null };
+
+  const { data: urlData } = supabase.storage.from("trail-media").getPublicUrl(path);
+  return { error: null, url: urlData.publicUrl };
+}
+
 export async function uploadTrailPhoto(id: string, formData: FormData) {
   const file = formData.get("file") as File;
   if (!file) return { error: "No file provided", record: null };

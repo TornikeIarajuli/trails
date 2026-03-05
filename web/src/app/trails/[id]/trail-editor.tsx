@@ -2,7 +2,7 @@
 
 import { useEffect, useState, use } from "react";
 import { useRouter } from "next/navigation";
-import { getTrailDetail, saveTrail, uploadTrailPhoto, deleteTrailMedia } from "@/lib/actions";
+import { getTrailDetail, saveTrail, uploadTrailPhoto, uploadCoverImage, deleteTrailMedia } from "@/lib/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -82,6 +82,7 @@ export function TrailEditor({ paramsPromise }: { paramsPromise: Promise<{ id: st
   const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [uploadingCover, setUploadingCover] = useState(false);
 
   useEffect(() => {
     if (isNew) return;
@@ -123,6 +124,20 @@ export function TrailEditor({ paramsPromise }: { paramsPromise: Promise<{ id: st
       alert("Trail saved!");
     }
     setSaving(false);
+  }
+
+  async function handleUploadCover(file: File) {
+    setUploadingCover(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const trailId = isNew ? "new" : id;
+      const { error, url } = await uploadCoverImage(trailId, formData);
+      if (error) { alert(`Upload failed: ${error}`); return; }
+      if (url) update("cover_image_url", url);
+    } finally {
+      setUploadingCover(false);
+    }
   }
 
   async function handleUploadPhoto(file: File) {
@@ -311,21 +326,58 @@ export function TrailEditor({ paramsPromise }: { paramsPromise: Promise<{ id: st
 
         {/* Cover Image */}
         <Card>
-          <CardHeader><CardTitle>Cover Image</CardTitle></CardHeader>
-          <CardContent>
-            <Label>Cover Image URL</Label>
-            <Input
-              value={trail.cover_image_url ?? ""}
-              onChange={(e) => update("cover_image_url", e.target.value || null)}
-              placeholder="https://..."
-            />
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle>Cover Image</CardTitle>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={uploadingCover}
+                  onClick={() => document.getElementById("cover-upload")?.click()}
+                >
+                  {uploadingCover ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Upload className="h-4 w-4 mr-1" />}
+                  {uploadingCover ? "Uploading..." : "Upload File"}
+                </Button>
+                <input
+                  id="cover-upload"
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) void handleUploadCover(file);
+                    e.target.value = "";
+                  }}
+                />
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="grid gap-3">
             {trail.cover_image_url && (
-              <img
-                src={trail.cover_image_url}
-                alt="Cover"
-                className="mt-3 rounded-lg max-h-48 object-cover"
-              />
+              <div className="relative group w-fit">
+                <img
+                  src={trail.cover_image_url}
+                  alt="Cover"
+                  className="rounded-lg max-h-48 object-cover"
+                />
+                <button
+                  onClick={() => update("cover_image_url", null)}
+                  className="absolute top-1 right-1 bg-destructive text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                >
+                  <Trash2 className="h-3 w-3" />
+                </button>
+              </div>
             )}
+            <div>
+              <Label className="text-xs text-muted-foreground">Or paste a URL</Label>
+              <Input
+                value={trail.cover_image_url ?? ""}
+                onChange={(e) => update("cover_image_url", e.target.value || null)}
+                placeholder="https://..."
+                className="mt-1"
+              />
+            </div>
           </CardContent>
         </Card>
 
