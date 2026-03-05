@@ -92,7 +92,24 @@ export class NotificationsService {
         body: JSON.stringify(messages),
       });
 
-      const result = await response.json();
+      const result = (await response.json()) as {
+        data: Array<{ status: string; details?: { error?: string } }>;
+      };
+
+      // Clean up tokens Expo says are no longer registered
+      if (Array.isArray(result.data)) {
+        const deadTokens = tokens
+          .filter(
+            (_, i) =>
+              result.data[i]?.status === 'error' &&
+              result.data[i]?.details?.error === 'DeviceNotRegistered',
+          )
+          .map((t) => t.token);
+        if (deadTokens.length > 0) {
+          void admin.from('push_tokens').delete().in('token', deadTokens);
+        }
+      }
+
       return { sent: messages.length, result };
     } catch (err) {
       console.error('Push notification failed:', err);

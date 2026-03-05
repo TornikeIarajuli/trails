@@ -11,5 +11,6 @@ export function useFeed() {
       return page < totalPages ? page + 1 : undefined;
     },
     initialPageParam: 1,
+    staleTime: 2 * 60 * 1000, // 2 min — social feed should feel reasonably fresh
   });
 }

@@ -6,5 +6,6 @@ export function useLeaderboard(limit?: number) {
   return useQuery({
     queryKey: queryKeys.leaderboard(limit ?? 50),
     queryFn: () => usersService.getLeaderboard(limit),
+    staleTime: 15 * 60 * 1000, // 15 min — backed by server-side cache too
   });
 }

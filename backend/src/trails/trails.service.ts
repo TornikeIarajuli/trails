@@ -3,9 +3,14 @@ import { SupabaseService } from '../config/supabase.config';
 import { CreateTrailDto } from './dto/create-trail.dto';
 import { UpdateTrailDetailsDto } from './dto/update-trail-details.dto';
 import { TrailFilterDto, NearbyQueryDto } from './dto/trail-filter.dto';
+import { TtlCache } from '../common/ttl-cache';
+
+const TRAIL_LIST_TTL = 5 * 60 * 1000;   // 5 min — trail lists rarely change
+const TRAIL_DETAIL_TTL = 10 * 60 * 1000; // 10 min — trail details change even less
 
 @Injectable()
 export class TrailsService {
+  private cache = new TtlCache();
   constructor(private supabaseService: SupabaseService) {}
 
   async create(dto: CreateTrailDto) {
@@ -52,6 +57,10 @@ export class TrailsService {
   }
 
   async findAll(filter: TrailFilterDto) {
+    const cacheKey = `trails:list:${JSON.stringify(filter)}`;
+    const cached = this.cache.get(cacheKey);
+    if (cached) return cached;
+
     const admin = this.supabaseService.getAdminClient();
     const { page = 1, limit = 20 } = filter;
     const offset = (page - 1) * limit;
@@ -92,7 +101,7 @@ export class TrailsService {
 
     if (error) throw error;
 
-    return {
+    const result = {
       data,
       pagination: {
         page,
@@ -101,9 +110,15 @@ export class TrailsService {
         totalPages: Math.ceil((count ?? 0) / limit),
       },
     };
+    this.cache.set(cacheKey, result, TRAIL_LIST_TTL);
+    return result;
   }
 
   async findOne(id: string) {
+    const cacheKey = `trails:detail:${id}`;
+    const cached = this.cache.get(cacheKey);
+    if (cached) return cached;
+
     const admin = this.supabaseService.getAdminClient();
 
     const { data: trail, error } = await admin
@@ -158,7 +173,7 @@ export class TrailsService {
       .select('id', { count: 'exact', head: true })
       .eq('trail_id', id);
 
-    return {
+    const result = {
       ...trail,
       media: media ?? [],
       checkpoints: checkpoints ?? [],
@@ -168,6 +183,8 @@ export class TrailsService {
       recent_conditions: conditions ?? [],
       photos_count: photosCount ?? 0,
     };
+    this.cache.set(cacheKey, result, TRAIL_DETAIL_TTL);
+    return result;
   }
 
   async updateDetails(id: string, dto: UpdateTrailDetailsDto) {
@@ -176,9 +193,18 @@ export class TrailsService {
     // Only allow non-coordinate fields to be updated
     const updateData: Record<string, unknown> = {};
     const allowedFields = [
-      'name_en', 'name_ka', 'description_en', 'description_ka',
-      'difficulty', 'region', 'distance_km', 'elevation_gain_m',
-      'estimated_hours', 'start_address', 'cover_image_url', 'is_published',
+      'name_en',
+      'name_ka',
+      'description_en',
+      'description_ka',
+      'difficulty',
+      'region',
+      'distance_km',
+      'elevation_gain_m',
+      'estimated_hours',
+      'start_address',
+      'cover_image_url',
+      'is_published',
     ];
 
     for (const field of allowedFields) {
@@ -201,6 +227,9 @@ export class TrailsService {
     if (error) throw error;
     if (!data) throw new NotFoundException('Trail not found');
 
+    // Invalidate caches for this trail and all list caches
+    this.cache.delete(`trails:detail:${id}`);
+    this.cache.deleteByPrefix('trails:list:');
     return data;
   }
 
@@ -211,6 +240,8 @@ export class TrailsService {
 
     if (error) throw error;
 
+    this.cache.delete(`trails:detail:${id}`);
+    this.cache.deleteByPrefix('trails:list:');
     return { message: 'Trail deleted successfully' };
   }
 

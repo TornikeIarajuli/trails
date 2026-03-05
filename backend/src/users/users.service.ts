@@ -1,9 +1,13 @@
+import { TtlCache } from '../common/ttl-cache';
+const LEADERBOARD_TTL = 15 * 60 * 1000;
+
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { SupabaseService } from '../config/supabase.config';
 import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class UsersService {
+  private cache = new TtlCache();
   constructor(
     private supabaseService: SupabaseService,
     private notificationsService: NotificationsService,
@@ -76,6 +80,10 @@ export class UsersService {
   }
 
   async getLeaderboard(limit: number = 20) {
+    const cacheKey = `leaderboard:${limit}`;
+    const cached = this.cache.get(cacheKey);
+    if (cached) return cached;
+
     const admin = this.supabaseService.getAdminClient();
 
     const { data, error } = await admin
@@ -87,10 +95,13 @@ export class UsersService {
 
     if (error) throw error;
 
-    return data?.map((user, index) => ({
+    const result = data?.map((user, index) => ({
+
       rank: index + 1,
       ...user,
     }));
+    this.cache.set(cacheKey, result, LEADERBOARD_TTL);
+    return result;
   }
 
   async deleteAccount(userId: string) {
@@ -172,8 +183,8 @@ export class UsersService {
           'Emergency Contact',
           setter.username +
             ' has set you as their emergency contact. You will be notified if they trigger an SOS.',
-          { type: 'general', setterId: userId },
-          'general',
+          { setterId: userId },
+          'emergency_contact',
         );
       }
     }

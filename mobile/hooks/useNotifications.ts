@@ -67,6 +67,7 @@ export function useNotificationList(page = 1) {
   return useQuery({
     queryKey: queryKeys.notifications.list(page),
     queryFn: () => notificationsService.getNotifications(page),
+    staleTime: 30 * 1000, // 30 sec — notifications should feel near-real-time
   });
 }
 
@@ -125,6 +126,14 @@ export function useNotificationSetup() {
             router.push(`/trail/user/${data.followerId}`);
           } else if (data?.type === 'badge_earned') {
             router.push('/(tabs)/profile/badges');
+          } else if (data?.type === 'sos' && data.userId) {
+            router.push(`/trail/user/${data.userId}`);
+          } else if (data?.type === 'emergency_contact') {
+            router.push('/(tabs)/profile/settings');
+          } else if (data?.type === 'completion_approved') {
+            router.push('/(tabs)/profile/analytics');
+          } else if (data?.type === 'event_invite' && data.eventId) {
+            router.push(`/trail/events/${data.eventId}`);
           }
         },
       );
