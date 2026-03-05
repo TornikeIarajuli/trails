@@ -108,6 +108,8 @@ export async function getTrailDetail(id: string) {
   return { trail, checkpoints: checkpoints ?? [], media: media ?? [] };
 }
 
+const BACKEND_URL = process.env.BACKEND_URL ?? "https://trails-en04.onrender.com/api";
+
 export async function saveTrail(id: string | null, payload: Record<string, unknown>) {
   const supabase = createAdminClient();
   if (!id) {
@@ -115,6 +117,13 @@ export async function saveTrail(id: string | null, payload: Record<string, unkno
     return { data, error: error?.message ?? null };
   }
   const { error } = await supabase.from("trails").update(payload).eq("id", id);
+  if (!error) {
+    // Invalidate backend TTL cache so mobile sees changes immediately
+    await fetch(`${BACKEND_URL}/trails/${id}/cache`, {
+      method: "DELETE",
+      headers: { "x-service-key": process.env.SUPABASE_SERVICE_ROLE_KEY ?? "" },
+    }).catch(() => {}); // non-fatal
+  }
   return { data: null, error: error?.message ?? null };
 }
 

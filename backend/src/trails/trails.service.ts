@@ -10,7 +10,7 @@ const TRAIL_DETAIL_TTL = 10 * 60 * 1000; // 10 min — trail details change even
 
 @Injectable()
 export class TrailsService {
-  private cache = new TtlCache();
+  private cache = new TtlCache<any>();
   constructor(private supabaseService: SupabaseService) {}
 
   async create(dto: CreateTrailDto) {
@@ -231,6 +231,11 @@ export class TrailsService {
     this.cache.delete(`trails:detail:${id}`);
     this.cache.deleteByPrefix('trails:list:');
     return data;
+  }
+
+  invalidateCache(id: string) {
+    this.cache.delete(`trails:detail:${id}`);
+    this.cache.deleteByPrefix('trails:list:');
   }
 
   async remove(id: string) {

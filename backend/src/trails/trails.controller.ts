@@ -7,8 +7,10 @@ import {
   Body,
   Param,
   Query,
+  Headers,
   UseGuards,
   ParseUUIDPipe,
+  ForbiddenException,
 } from '@nestjs/common';
 import { TrailsService } from './trails.service';
 import { CreateTrailDto } from './dto/create-trail.dto';
@@ -53,6 +55,16 @@ export class TrailsController {
     @Body() dto: UpdateTrailDetailsDto,
   ) {
     return this.trailsService.updateDetails(id, dto);
+  }
+
+  @Delete(':id/cache')
+  invalidateCache(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Headers('x-service-key') key: string,
+  ) {
+    if (key !== process.env.SUPABASE_SERVICE_ROLE_KEY) throw new ForbiddenException();
+    this.trailsService.invalidateCache(id);
+    return { ok: true };
   }
 
   @Delete(':id')
