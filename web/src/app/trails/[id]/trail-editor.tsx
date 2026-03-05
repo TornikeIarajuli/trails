@@ -2,14 +2,14 @@
 
 import { useEffect, useState, use } from "react";
 import { useRouter } from "next/navigation";
-import { getTrailDetail, saveTrail, uploadTrailPhoto, uploadCoverImage, deleteTrailMedia } from "@/lib/actions";
+import { getTrailDetail, saveTrail, uploadTrailPhoto, uploadCoverImage, uploadGpxRoute, deleteTrailMedia } from "@/lib/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Save, Trash2, Upload, Loader2 } from "lucide-react";
+import { ArrowLeft, Save, Trash2, Upload, Loader2, RouteIcon } from "lucide-react";
 import Link from "next/link";
 
 interface Trail {
@@ -83,6 +83,8 @@ export function TrailEditor({ paramsPromise }: { paramsPromise: Promise<{ id: st
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
+  const [uploadingGpx, setUploadingGpx] = useState(false);
+  const [gpxResult, setGpxResult] = useState<{ points: number; originalPoints: number } | null>(null);
 
   useEffect(() => {
     if (isNew) return;
@@ -137,6 +139,20 @@ export function TrailEditor({ paramsPromise }: { paramsPromise: Promise<{ id: st
       if (url) update("cover_image_url", url);
     } finally {
       setUploadingCover(false);
+    }
+  }
+
+  async function handleUploadGpx(file: File) {
+    setUploadingGpx(true);
+    setGpxResult(null);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const result = await uploadGpxRoute(id, formData);
+      if (result.error) { alert(`GPX import failed: ${result.error}`); return; }
+      setGpxResult({ points: result.points, originalPoints: result.originalPoints ?? result.points });
+    } finally {
+      setUploadingGpx(false);
     }
   }
 
@@ -458,6 +474,55 @@ export function TrailEditor({ paramsPromise }: { paramsPromise: Promise<{ id: st
                     </div>
                   ))}
                 </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Route / GPX */}
+        {!isNew && (
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle>Route</CardTitle>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={uploadingGpx}
+                  onClick={() => document.getElementById("gpx-upload")?.click()}
+                >
+                  {uploadingGpx ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Upload className="h-4 w-4 mr-1" />}
+                  {uploadingGpx ? "Importing..." : "Upload GPX"}
+                </Button>
+                <input
+                  id="gpx-upload"
+                  type="file"
+                  accept=".gpx,application/gpx+xml,application/octet-stream"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) void handleUploadGpx(file);
+                    e.target.value = "";
+                  }}
+                />
+              </div>
+            </CardHeader>
+            <CardContent>
+              {gpxResult ? (
+                <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
+                  <RouteIcon className="h-4 w-4 shrink-0" />
+                  <span>
+                    Route imported — <strong>{gpxResult.points.toLocaleString()} points</strong>
+                    {gpxResult.originalPoints > gpxResult.points && (
+                      <span className="text-muted-foreground"> (subsampled from {gpxResult.originalPoints.toLocaleString()})</span>
+                    )}
+                  </span>
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  Upload a <code>.gpx</code> file to set or overwrite the trail route on the map.
+                  Exports from Garmin, Strava, AllTrails, and Komoot all work.
+                </p>
               )}
             </CardContent>
           </Card>

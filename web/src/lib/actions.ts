@@ -127,6 +127,62 @@ export async function saveTrail(id: string | null, payload: Record<string, unkno
   return { data: null, error: error?.message ?? null };
 }
 
+export async function uploadGpxRoute(trailId: string, formData: FormData) {
+  const file = formData.get("file") as File;
+  if (!file) return { error: "No file provided", points: 0 };
+
+  const text = await file.text();
+
+  // Extract trkpt elements — handle both attribute orders (lat/lon or lon/lat)
+  const coords: [number, number][] = []; // [lng, lat]
+  const trkptRegex = /<trkpt\b[^>]*>/g;
+  const latRe = /lat="([\d.eE+-]+)"/;
+  const lonRe = /lon="([\d.eE+-]+)"/;
+
+  let m;
+  while ((m = trkptRegex.exec(text)) !== null) {
+    const latM = latRe.exec(m[0]);
+    const lonM = lonRe.exec(m[0]);
+    if (latM && lonM) {
+      coords.push([parseFloat(lonM[1]), parseFloat(latM[1])]);
+    }
+  }
+
+  if (coords.length < 2) {
+    return { error: "No valid track points found. Make sure the file is a valid GPX with a <trkseg>.", points: 0 };
+  }
+
+  // Subsample to ≤800 points so API responses stay snappy; always keep first+last
+  let sampled = coords;
+  if (coords.length > 800) {
+    const step = Math.ceil(coords.length / 800);
+    sampled = coords.filter((_, i) => i % step === 0);
+    if (sampled[sampled.length - 1] !== coords[coords.length - 1]) {
+      sampled.push(coords[coords.length - 1]);
+    }
+  }
+
+  const linestring = `SRID=4326;LINESTRING(${sampled.map(([lng, lat]) => `${lng} ${lat}`).join(",")})`;
+  const startPt = `SRID=4326;POINT(${sampled[0][0]} ${sampled[0][1]})`;
+  const endPt = `SRID=4326;POINT(${sampled[sampled.length - 1][0]} ${sampled[sampled.length - 1][1]})`;
+
+  const supabase = createAdminClient();
+  const { error } = await supabase
+    .from("trails")
+    .update({ route: linestring, start_point: startPt, end_point: endPt })
+    .eq("id", trailId);
+
+  if (error) return { error: error.message, points: 0 };
+
+  // Invalidate backend cache
+  await fetch(`${BACKEND_URL}/trails/${trailId}/cache`, {
+    method: "DELETE",
+    headers: { "x-service-key": process.env.SUPABASE_SERVICE_ROLE_KEY ?? "" },
+  }).catch(() => {});
+
+  return { error: null, points: sampled.length, originalPoints: coords.length };
+}
+
 export async function uploadCoverImage(id: string, formData: FormData) {
   const file = formData.get("file") as File;
   if (!file) return { error: "No file provided", url: null };
