@@ -243,6 +243,41 @@ export async function deleteTrailMedia(mediaId: string) {
   await supabase.from("trail_media").delete().eq("id", mediaId);
 }
 
+// ── Checkpoints ──
+export async function deleteCheckpoint(id: string) {
+  const supabase = createAdminClient();
+  await supabase.from("trail_checkpoints").delete().eq("id", id);
+}
+
+export async function addCheckpoint(trailId: string, payload: {
+  name_en: string;
+  name_ka: string | null;
+  type: string;
+  lat: number;
+  lng: number;
+  elevation_m: number | null;
+  is_checkable: boolean;
+  sort_order: number;
+}) {
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from("trail_checkpoints")
+    .insert({
+      trail_id: trailId,
+      name_en: payload.name_en,
+      name_ka: payload.name_ka || null,
+      type: payload.type,
+      coordinates: `SRID=4326;POINT(${payload.lng} ${payload.lat})`,
+      elevation_m: payload.elevation_m || null,
+      is_checkable: payload.is_checkable,
+      sort_order: payload.sort_order,
+    })
+    .select()
+    .single();
+  if (error) return { error: error.message, record: null };
+  return { error: null, record: data };
+}
+
 // ── Users ──
 export async function getUsers() {
   const supabase = createAdminClient();

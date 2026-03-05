@@ -3,7 +3,7 @@
 import { useEffect, useState, use } from "react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
-import { getTrailDetail, saveTrail, uploadTrailPhoto, uploadCoverImage, uploadGpxRoute, getTrailRoute, deleteTrailMedia } from "@/lib/actions";
+import { getTrailDetail, saveTrail, uploadTrailPhoto, uploadCoverImage, uploadGpxRoute, getTrailRoute, deleteTrailMedia, deleteCheckpoint, addCheckpoint } from "@/lib/actions";
 import type { RouteGeoJSON } from "@/components/RouteMap";
 
 const RouteMap = dynamic(
@@ -16,7 +16,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Save, Trash2, Upload, Loader2, RouteIcon } from "lucide-react";
+import { ArrowLeft, Save, Trash2, Upload, Loader2, RouteIcon, Plus, X } from "lucide-react";
 import Link from "next/link";
 
 interface Trail {
@@ -45,6 +45,8 @@ interface Checkpoint {
   elevation_m: number | null;
   is_checkable: boolean;
   sort_order: number;
+  lat?: number;
+  lng?: number;
 }
 
 interface TrailMedia {
@@ -62,6 +64,9 @@ const STATUS_COLORS: Record<string, string> = {
   seasonal: "bg-yellow-100 text-yellow-800 border-yellow-300",
   maintenance: "bg-blue-100 text-blue-800 border-blue-300",
 };
+const CHECKPOINT_TYPES = ["viewpoint", "water_source", "campsite", "landmark", "summit", "shelter", "bridge", "pass", "lake", "waterfall", "ruins", "church", "tower"];
+
+const EMPTY_CP_FORM = { name_en: "", name_ka: "", type: "landmark", lat: "", lng: "", elevation_m: "", is_checkable: false };
 
 export function TrailEditor({ paramsPromise }: { paramsPromise: Promise<{ id: string }> }) {
   const { id } = use(paramsPromise);
@@ -93,6 +98,12 @@ export function TrailEditor({ paramsPromise }: { paramsPromise: Promise<{ id: st
   const [uploadingGpx, setUploadingGpx] = useState(false);
   const [gpxResult, setGpxResult] = useState<{ points: number; originalPoints: number } | null>(null);
   const [routeGeojson, setRouteGeojson] = useState<RouteGeoJSON | null>(null);
+
+  // Checkpoint add form
+  const [showCpForm, setShowCpForm] = useState(false);
+  const [cpForm, setCpForm] = useState(EMPTY_CP_FORM);
+  const [savingCp, setSavingCp] = useState(false);
+  const [clickMarker, setClickMarker] = useState<[number, number] | null>(null);
 
   useEffect(() => {
     if (isNew) return;
@@ -160,7 +171,6 @@ export function TrailEditor({ paramsPromise }: { paramsPromise: Promise<{ id: st
       const result = await uploadGpxRoute(id, formData);
       if (result.error) { alert(`GPX import failed: ${result.error}`); return; }
       setGpxResult({ points: result.points, originalPoints: result.originalPoints ?? result.points });
-      // Refresh map
       const route = await getTrailRoute(id);
       if (route) setRouteGeojson(route);
     } finally {
@@ -174,10 +184,7 @@ export function TrailEditor({ paramsPromise }: { paramsPromise: Promise<{ id: st
       const formData = new FormData();
       formData.append("file", file);
       const { error, record } = await uploadTrailPhoto(id, formData);
-      if (error) {
-        alert(`Upload failed: ${error}`);
-        return;
-      }
+      if (error) { alert(`Upload failed: ${error}`); return; }
       if (record) setMedia((prev) => [...prev, record as TrailMedia]);
     } finally {
       setUploading(false);
@@ -188,6 +195,50 @@ export function TrailEditor({ paramsPromise }: { paramsPromise: Promise<{ id: st
     if (!confirm("Delete this photo?")) return;
     await deleteTrailMedia(mediaId);
     setMedia((prev) => prev.filter((m) => m.id !== mediaId));
+  }
+
+  async function handleDeleteCheckpoint(cpId: string) {
+    if (!confirm("Delete this checkpoint?")) return;
+    await deleteCheckpoint(cpId);
+    setCheckpoints((prev) => prev.filter((c) => c.id !== cpId));
+  }
+
+  function handleMapClick(lat: number, lng: number) {
+    if (!showCpForm) return;
+    setClickMarker([lat, lng]);
+    setCpForm((prev) => ({
+      ...prev,
+      lat: lat.toFixed(7),
+      lng: lng.toFixed(7),
+    }));
+  }
+
+  async function handleAddCheckpoint() {
+    if (!cpForm.name_en.trim()) { alert("Name (EN) is required"); return; }
+    const lat = parseFloat(cpForm.lat);
+    const lng = parseFloat(cpForm.lng);
+    if (isNaN(lat) || isNaN(lng)) { alert("Valid lat/lng required — click on the map or type them in"); return; }
+
+    setSavingCp(true);
+    try {
+      const { error, record } = await addCheckpoint(id, {
+        name_en: cpForm.name_en.trim(),
+        name_ka: cpForm.name_ka.trim() || null,
+        type: cpForm.type,
+        lat,
+        lng,
+        elevation_m: cpForm.elevation_m ? parseInt(cpForm.elevation_m) : null,
+        is_checkable: cpForm.is_checkable,
+        sort_order: checkpoints.length,
+      });
+      if (error) { alert(`Failed: ${error}`); return; }
+      if (record) setCheckpoints((prev) => [...prev, record as Checkpoint]);
+      setCpForm(EMPTY_CP_FORM);
+      setClickMarker(null);
+      setShowCpForm(false);
+    } finally {
+      setSavingCp(false);
+    }
   }
 
   if (loading) return <p className="text-muted-foreground">Loading...</p>;
@@ -224,19 +275,11 @@ export function TrailEditor({ paramsPromise }: { paramsPromise: Promise<{ id: st
             </div>
             <div>
               <Label>Description (English)</Label>
-              <Textarea
-                rows={4}
-                value={trail.description_en ?? ""}
-                onChange={(e) => update("description_en", e.target.value || null)}
-              />
+              <Textarea rows={4} value={trail.description_en ?? ""} onChange={(e) => update("description_en", e.target.value || null)} />
             </div>
             <div>
               <Label>Description (Georgian)</Label>
-              <Textarea
-                rows={4}
-                value={trail.description_ka ?? ""}
-                onChange={(e) => update("description_ka", e.target.value || null)}
-              />
+              <Textarea rows={4} value={trail.description_ka ?? ""} onChange={(e) => update("description_ka", e.target.value || null)} />
             </div>
           </CardContent>
         </Card>
@@ -254,15 +297,8 @@ export function TrailEditor({ paramsPromise }: { paramsPromise: Promise<{ id: st
                 <Label>Difficulty</Label>
                 <div className="flex gap-2 mt-1">
                   {DIFFICULTIES.map((d) => (
-                    <button
-                      key={d}
-                      onClick={() => update("difficulty", d)}
-                      className={`px-3 py-1.5 rounded text-sm font-medium border transition-colors ${
-                        trail.difficulty === d
-                          ? "bg-primary text-primary-foreground border-primary"
-                          : "bg-muted border-border hover:bg-muted/80"
-                      }`}
-                    >
+                    <button key={d} onClick={() => update("difficulty", d)}
+                      className={`px-3 py-1.5 rounded text-sm font-medium border transition-colors ${trail.difficulty === d ? "bg-primary text-primary-foreground border-primary" : "bg-muted border-border hover:bg-muted/80"}`}>
                       {d.charAt(0).toUpperCase() + d.slice(1)}
                     </button>
                   ))}
@@ -272,45 +308,23 @@ export function TrailEditor({ paramsPromise }: { paramsPromise: Promise<{ id: st
             <div className="grid grid-cols-3 gap-4">
               <div>
                 <Label>Distance (km)</Label>
-                <Input
-                  type="number"
-                  step="0.1"
-                  value={trail.distance_km ?? ""}
-                  onChange={(e) => update("distance_km", e.target.value ? parseFloat(e.target.value) : null)}
-                />
+                <Input type="number" step="0.1" value={trail.distance_km ?? ""} onChange={(e) => update("distance_km", e.target.value ? parseFloat(e.target.value) : null)} />
               </div>
               <div>
                 <Label>Elevation Gain (m)</Label>
-                <Input
-                  type="number"
-                  value={trail.elevation_gain_m ?? ""}
-                  onChange={(e) => update("elevation_gain_m", e.target.value ? parseInt(e.target.value) : null)}
-                />
+                <Input type="number" value={trail.elevation_gain_m ?? ""} onChange={(e) => update("elevation_gain_m", e.target.value ? parseInt(e.target.value) : null)} />
               </div>
               <div>
                 <Label>Estimated Hours</Label>
-                <Input
-                  type="number"
-                  step="0.5"
-                  value={trail.estimated_hours ?? ""}
-                  onChange={(e) => update("estimated_hours", e.target.value ? parseFloat(e.target.value) : null)}
-                />
+                <Input type="number" step="0.5" value={trail.estimated_hours ?? ""} onChange={(e) => update("estimated_hours", e.target.value ? parseFloat(e.target.value) : null)} />
               </div>
             </div>
             <div className="flex items-center gap-4">
               <Label>Published</Label>
-              <button
-                onClick={() => update("is_published", !trail.is_published)}
-                className={`w-11 h-6 rounded-full transition-colors relative ${
-                  trail.is_published ? "bg-primary" : "bg-muted-foreground/30"
-                }`}
-              >
-                <span
-                  className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${
-                    trail.is_published ? "translate-x-5.5 left-0.5" : "left-0.5"
-                  }`}
-                  style={{ transform: trail.is_published ? "translateX(22px)" : "translateX(2px)" }}
-                />
+              <button onClick={() => update("is_published", !trail.is_published)}
+                className={`w-11 h-6 rounded-full transition-colors relative ${trail.is_published ? "bg-primary" : "bg-muted-foreground/30"}`}>
+                <span className="absolute top-0.5 w-5 h-5 rounded-full bg-white shadow"
+                  style={{ transform: trail.is_published ? "translateX(22px)" : "translateX(2px)" }} />
               </button>
             </div>
           </CardContent>
@@ -324,15 +338,8 @@ export function TrailEditor({ paramsPromise }: { paramsPromise: Promise<{ id: st
               <Label>Status</Label>
               <div className="flex gap-2 mt-1 flex-wrap">
                 {STATUSES.map((s) => (
-                  <button
-                    key={s}
-                    onClick={() => update("status", s)}
-                    className={`px-3 py-1.5 rounded text-sm font-medium border transition-colors ${
-                      trail.status === s
-                        ? STATUS_COLORS[s]
-                        : "bg-muted border-border hover:bg-muted/80"
-                    }`}
-                  >
+                  <button key={s} onClick={() => update("status", s)}
+                    className={`px-3 py-1.5 rounded text-sm font-medium border transition-colors ${trail.status === s ? STATUS_COLORS[s] : "bg-muted border-border hover:bg-muted/80"}`}>
                     {s.charAt(0).toUpperCase() + s.slice(1)}
                   </button>
                 ))}
@@ -341,12 +348,9 @@ export function TrailEditor({ paramsPromise }: { paramsPromise: Promise<{ id: st
             {trail.status !== "open" && (
               <div>
                 <Label>Status Note (shown to hikers)</Label>
-                <Textarea
-                  rows={2}
-                  value={trail.status_note ?? ""}
+                <Textarea rows={2} value={trail.status_note ?? ""}
                   onChange={(e) => update("status_note", e.target.value || null)}
-                  placeholder="e.g. Trail closed due to storm damage, reopening June 2025"
-                />
+                  placeholder="e.g. Trail closed due to storm damage, reopening June 2025" />
               </div>
             )}
           </CardContent>
@@ -358,53 +362,29 @@ export function TrailEditor({ paramsPromise }: { paramsPromise: Promise<{ id: st
             <div className="flex items-center justify-between">
               <CardTitle>Cover Image</CardTitle>
               <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={uploadingCover}
-                  onClick={() => document.getElementById("cover-upload")?.click()}
-                >
+                <Button variant="outline" size="sm" disabled={uploadingCover}
+                  onClick={() => document.getElementById("cover-upload")?.click()}>
                   {uploadingCover ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Upload className="h-4 w-4 mr-1" />}
                   {uploadingCover ? "Uploading..." : "Upload File"}
                 </Button>
-                <input
-                  id="cover-upload"
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) void handleUploadCover(file);
-                    e.target.value = "";
-                  }}
-                />
+                <input id="cover-upload" type="file" accept="image/*" className="hidden"
+                  onChange={(e) => { const file = e.target.files?.[0]; if (file) void handleUploadCover(file); e.target.value = ""; }} />
               </div>
             </div>
           </CardHeader>
           <CardContent className="grid gap-3">
             {trail.cover_image_url && (
               <div className="relative group w-fit">
-                <img
-                  src={trail.cover_image_url}
-                  alt="Cover"
-                  className="rounded-lg max-h-48 object-cover"
-                />
-                <button
-                  onClick={() => update("cover_image_url", null)}
-                  className="absolute top-1 right-1 bg-destructive text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                >
+                <img src={trail.cover_image_url} alt="Cover" className="rounded-lg max-h-48 object-cover" />
+                <button onClick={() => update("cover_image_url", null)}
+                  className="absolute top-1 right-1 bg-destructive text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity">
                   <Trash2 className="h-3 w-3" />
                 </button>
               </div>
             )}
             <div>
               <Label className="text-xs text-muted-foreground">Or paste a URL</Label>
-              <Input
-                value={trail.cover_image_url ?? ""}
-                onChange={(e) => update("cover_image_url", e.target.value || null)}
-                placeholder="https://..."
-                className="mt-1"
-              />
+              <Input value={trail.cover_image_url ?? ""} onChange={(e) => update("cover_image_url", e.target.value || null)} placeholder="https://..." className="mt-1" />
             </div>
           </CardContent>
         </Card>
@@ -415,26 +395,13 @@ export function TrailEditor({ paramsPromise }: { paramsPromise: Promise<{ id: st
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle>Trail Photos ({media.length})</CardTitle>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={uploading}
-                  onClick={() => document.getElementById("photo-upload")?.click()}
-                >
+                <Button variant="outline" size="sm" disabled={uploading}
+                  onClick={() => document.getElementById("photo-upload")?.click()}>
                   {uploading ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Upload className="h-4 w-4 mr-1" />}
                   {uploading ? "Uploading..." : "Upload Photo"}
                 </Button>
-                <input
-                  id="photo-upload"
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) handleUploadPhoto(file);
-                    e.target.value = "";
-                  }}
-                />
+                <input id="photo-upload" type="file" accept="image/*" className="hidden"
+                  onChange={(e) => { const file = e.target.files?.[0]; if (file) handleUploadPhoto(file); e.target.value = ""; }} />
               </div>
             </CardHeader>
             <CardContent>
@@ -445,10 +412,8 @@ export function TrailEditor({ paramsPromise }: { paramsPromise: Promise<{ id: st
                   {media.map((m) => (
                     <div key={m.id} className="relative group">
                       <img src={m.url} alt={m.caption ?? ""} className="rounded-lg aspect-square object-cover w-full" />
-                      <button
-                        onClick={() => deleteMedia(m.id)}
-                        className="absolute top-1 right-1 bg-destructive text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                      >
+                      <button onClick={() => deleteMedia(m.id)}
+                        className="absolute top-1 right-1 bg-destructive text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity">
                         <Trash2 className="h-3 w-3" />
                       </button>
                       {m.caption && <p className="text-xs text-muted-foreground mt-1 truncate">{m.caption}</p>}
@@ -463,28 +428,94 @@ export function TrailEditor({ paramsPromise }: { paramsPromise: Promise<{ id: st
         {/* Checkpoints */}
         {!isNew && (
           <Card>
-            <CardHeader><CardTitle>Checkpoints ({checkpoints.length})</CardTitle></CardHeader>
-            <CardContent>
-              {checkpoints.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No checkpoints.</p>
-              ) : (
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle>Checkpoints ({checkpoints.length})</CardTitle>
+                <Button variant="outline" size="sm" onClick={() => { setShowCpForm((v) => !v); setCpForm(EMPTY_CP_FORM); setClickMarker(null); }}>
+                  {showCpForm ? <><X className="h-4 w-4 mr-1" />Cancel</> : <><Plus className="h-4 w-4 mr-1" />Add Checkpoint</>}
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="grid gap-3">
+              {checkpoints.length === 0 && !showCpForm && (
+                <p className="text-sm text-muted-foreground">No checkpoints. Click "Add Checkpoint" to place one on the map.</p>
+              )}
+              {checkpoints.length > 0 && (
                 <div className="space-y-2">
                   {checkpoints.map((cp, i) => (
-                    <div key={cp.id} className="flex items-center gap-3 p-3 border rounded-lg">
+                    <div key={cp.id} className="flex items-center gap-3 p-3 border rounded-lg group">
                       <span className="text-sm text-muted-foreground w-6">{i + 1}</span>
                       <div className="flex-1">
                         <p className="font-medium text-sm">{cp.name_en}</p>
                         {cp.name_ka && <p className="text-xs text-muted-foreground">{cp.name_ka}</p>}
                       </div>
                       <Badge variant="outline">{cp.type}</Badge>
-                      {cp.elevation_m && (
-                        <span className="text-xs text-muted-foreground">{cp.elevation_m}m</span>
-                      )}
+                      {cp.elevation_m && <span className="text-xs text-muted-foreground">{cp.elevation_m}m</span>}
                       <Badge variant={cp.is_checkable ? "default" : "secondary"}>
                         {cp.is_checkable ? "Checkable" : "Info"}
                       </Badge>
+                      <button onClick={() => handleDeleteCheckpoint(cp.id)}
+                        className="text-destructive opacity-0 group-hover:opacity-100 transition-opacity p-1">
+                        <Trash2 className="h-4 w-4" />
+                      </button>
                     </div>
                   ))}
+                </div>
+              )}
+
+              {/* Add checkpoint form */}
+              {showCpForm && (
+                <div className="border rounded-lg p-4 bg-muted/30 grid gap-3">
+                  {routeGeojson && (
+                    <p className="text-xs text-blue-700 bg-blue-50 border border-blue-200 rounded px-2 py-1">
+                      Click anywhere on the map below to set the checkpoint location.
+                    </p>
+                  )}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label className="text-xs">Name (EN) *</Label>
+                      <Input value={cpForm.name_en} onChange={(e) => setCpForm((p) => ({ ...p, name_en: e.target.value }))} placeholder="e.g. Summit" />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Name (KA)</Label>
+                      <Input value={cpForm.name_ka} onChange={(e) => setCpForm((p) => ({ ...p, name_ka: e.target.value }))} placeholder="Georgian name" />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label className="text-xs">Type</Label>
+                      <select value={cpForm.type} onChange={(e) => setCpForm((p) => ({ ...p, type: e.target.value }))}
+                        className="w-full mt-1 h-9 rounded-md border border-input bg-background px-3 text-sm">
+                        {CHECKPOINT_TYPES.map((t) => <option key={t} value={t}>{t.replace("_", " ")}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <Label className="text-xs">Elevation (m)</Label>
+                      <Input type="number" value={cpForm.elevation_m} onChange={(e) => setCpForm((p) => ({ ...p, elevation_m: e.target.value }))} placeholder="optional" />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label className="text-xs">Latitude</Label>
+                      <Input value={cpForm.lat} onChange={(e) => setCpForm((p) => ({ ...p, lat: e.target.value }))} placeholder="41.8735..." />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Longitude</Label>
+                      <Input value={cpForm.lng} onChange={(e) => setCpForm((p) => ({ ...p, lng: e.target.value }))} placeholder="46.2394..." />
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Label className="text-xs">Checkable (GPS check-in)</Label>
+                    <button onClick={() => setCpForm((p) => ({ ...p, is_checkable: !p.is_checkable }))}
+                      className={`w-9 h-5 rounded-full transition-colors relative ${cpForm.is_checkable ? "bg-primary" : "bg-muted-foreground/30"}`}>
+                      <span className="absolute top-0.5 w-4 h-4 rounded-full bg-white shadow"
+                        style={{ transform: cpForm.is_checkable ? "translateX(18px)" : "translateX(2px)" }} />
+                    </button>
+                  </div>
+                  <Button onClick={handleAddCheckpoint} disabled={savingCp} size="sm" className="w-fit">
+                    {savingCp ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Plus className="h-4 w-4 mr-1" />}
+                    {savingCp ? "Saving..." : "Save Checkpoint"}
+                  </Button>
                 </div>
               )}
             </CardContent>
@@ -497,32 +528,29 @@ export function TrailEditor({ paramsPromise }: { paramsPromise: Promise<{ id: st
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle>Route</CardTitle>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={uploadingGpx}
-                  onClick={() => document.getElementById("gpx-upload")?.click()}
-                >
+                <Button variant="outline" size="sm" disabled={uploadingGpx}
+                  onClick={() => document.getElementById("gpx-upload")?.click()}>
                   {uploadingGpx ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Upload className="h-4 w-4 mr-1" />}
                   {uploadingGpx ? "Importing..." : "Upload GPX"}
                 </Button>
-                <input
-                  id="gpx-upload"
-                  type="file"
-                  accept=".gpx,application/gpx+xml,application/octet-stream"
-                  className="hidden"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) void handleUploadGpx(file);
-                    e.target.value = "";
-                  }}
-                />
+                <input id="gpx-upload" type="file" accept=".gpx,application/gpx+xml,application/octet-stream" className="hidden"
+                  onChange={(e) => { const file = e.target.files?.[0]; if (file) void handleUploadGpx(file); e.target.value = ""; }} />
               </div>
             </CardHeader>
             <CardContent className="grid gap-3">
               {routeGeojson ? (
                 <>
-                  <RouteMap geojson={routeGeojson} />
+                  {showCpForm && (
+                    <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1">
+                      Checkpoint placement active — click the map to set location
+                    </p>
+                  )}
+                  <RouteMap
+                    geojson={routeGeojson}
+                    onMapClick={showCpForm ? handleMapClick : undefined}
+                    clickMarker={clickMarker}
+                    checkpointMarkers={checkpoints.filter((c) => c.lat != null && c.lng != null).map((c) => ({ lat: c.lat!, lng: c.lng! }))}
+                  />
                   {gpxResult && (
                     <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
                       <RouteIcon className="h-4 w-4 shrink-0" />
@@ -534,10 +562,8 @@ export function TrailEditor({ paramsPromise }: { paramsPromise: Promise<{ id: st
                       </span>
                     </div>
                   )}
-                  {!gpxResult && (
-                    <p className="text-xs text-muted-foreground">
-                      Green = start · Red = end. Upload a new GPX to overwrite.
-                    </p>
+                  {!gpxResult && !showCpForm && (
+                    <p className="text-xs text-muted-foreground">Green = start · Red = end · Orange = checkpoints. Upload a new GPX to overwrite.</p>
                   )}
                 </>
               ) : (
