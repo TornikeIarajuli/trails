@@ -5,7 +5,7 @@ import { UpdateTrailDetailsDto } from './dto/update-trail-details.dto';
 import { TrailFilterDto, NearbyQueryDto } from './dto/trail-filter.dto';
 import { TtlCache } from '../common/ttl-cache';
 
-const TRAIL_LIST_TTL = 5 * 60 * 1000;   // 5 min — trail lists rarely change
+const TRAIL_LIST_TTL = 5 * 60 * 1000; // 5 min — trail lists rarely change
 const TRAIL_DETAIL_TTL = 10 * 60 * 1000; // 10 min — trail details change even less
 
 @Injectable()

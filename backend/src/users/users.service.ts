@@ -96,7 +96,6 @@ export class UsersService {
     if (error) throw error;
 
     const result = data?.map((user, index) => ({
-
       rank: index + 1,
       ...user,
     }));
@@ -111,7 +110,9 @@ export class UsersService {
     const extractPath = (url: string, bucket: string): string | null => {
       const marker = `/object/public/${bucket}/`;
       const idx = url.indexOf(marker);
-      return idx >= 0 ? decodeURIComponent(url.slice(idx + marker.length)) : null;
+      return idx >= 0
+        ? decodeURIComponent(url.slice(idx + marker.length))
+        : null;
     };
 
     // 1. Delete hike photos from trail-media bucket
