@@ -100,12 +100,19 @@ export async function deleteTrail(id: string) {
 // ── Trail Detail ──
 export async function getTrailDetail(id: string) {
   const supabase = createAdminClient();
-  const [{ data: trail }, { data: checkpoints }, { data: media }] = await Promise.all([
+  const [{ data: trail }, { data: checkpoints }, { data: media }, { data: routeGeojson }] = await Promise.all([
     supabase.from("trails").select("*").eq("id", id).single(),
     supabase.from("trail_checkpoints").select("*").eq("trail_id", id).order("sort_order"),
     supabase.from("trail_media").select("*").eq("trail_id", id).order("sort_order"),
+    supabase.rpc("get_trail_route", { trail_uuid: id }),
   ]);
-  return { trail, checkpoints: checkpoints ?? [], media: media ?? [] };
+  return { trail, checkpoints: checkpoints ?? [], media: media ?? [], routeGeojson: routeGeojson ?? null };
+}
+
+export async function getTrailRoute(trailId: string) {
+  const supabase = createAdminClient();
+  const { data } = await supabase.rpc("get_trail_route", { trail_uuid: trailId });
+  return (data as { type: string; coordinates: [number, number][] } | null) ?? null;
 }
 
 const BACKEND_URL = process.env.BACKEND_URL ?? "https://trails-en04.onrender.com/api";

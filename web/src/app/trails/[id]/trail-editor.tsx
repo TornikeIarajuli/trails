@@ -2,7 +2,14 @@
 
 import { useEffect, useState, use } from "react";
 import { useRouter } from "next/navigation";
-import { getTrailDetail, saveTrail, uploadTrailPhoto, uploadCoverImage, uploadGpxRoute, deleteTrailMedia } from "@/lib/actions";
+import dynamic from "next/dynamic";
+import { getTrailDetail, saveTrail, uploadTrailPhoto, uploadCoverImage, uploadGpxRoute, getTrailRoute, deleteTrailMedia } from "@/lib/actions";
+import type { RouteGeoJSON } from "@/components/RouteMap";
+
+const RouteMap = dynamic(
+  () => import("@/components/RouteMap").then((m) => m.RouteMap),
+  { ssr: false, loading: () => <div className="h-80 rounded-lg bg-muted animate-pulse" /> },
+);
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -85,13 +92,15 @@ export function TrailEditor({ paramsPromise }: { paramsPromise: Promise<{ id: st
   const [uploadingCover, setUploadingCover] = useState(false);
   const [uploadingGpx, setUploadingGpx] = useState(false);
   const [gpxResult, setGpxResult] = useState<{ points: number; originalPoints: number } | null>(null);
+  const [routeGeojson, setRouteGeojson] = useState<RouteGeoJSON | null>(null);
 
   useEffect(() => {
     if (isNew) return;
-    getTrailDetail(id).then(({ trail: t, checkpoints: cps, media: med }) => {
+    getTrailDetail(id).then(({ trail: t, checkpoints: cps, media: med, routeGeojson: rg }) => {
       if (t) setTrail(t as Trail);
       setCheckpoints(cps as Checkpoint[]);
       setMedia(med as TrailMedia[]);
+      if (rg) setRouteGeojson(rg as RouteGeoJSON);
     }).finally(() => setLoading(false));
   }, [id, isNew]);
 
@@ -151,6 +160,9 @@ export function TrailEditor({ paramsPromise }: { paramsPromise: Promise<{ id: st
       const result = await uploadGpxRoute(id, formData);
       if (result.error) { alert(`GPX import failed: ${result.error}`); return; }
       setGpxResult({ points: result.points, originalPoints: result.originalPoints ?? result.points });
+      // Refresh map
+      const route = await getTrailRoute(id);
+      if (route) setRouteGeojson(route);
     } finally {
       setUploadingGpx(false);
     }
@@ -507,20 +519,30 @@ export function TrailEditor({ paramsPromise }: { paramsPromise: Promise<{ id: st
                 />
               </div>
             </CardHeader>
-            <CardContent>
-              {gpxResult ? (
-                <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
-                  <RouteIcon className="h-4 w-4 shrink-0" />
-                  <span>
-                    Route imported — <strong>{gpxResult.points.toLocaleString()} points</strong>
-                    {gpxResult.originalPoints > gpxResult.points && (
-                      <span className="text-muted-foreground"> (subsampled from {gpxResult.originalPoints.toLocaleString()})</span>
-                    )}
-                  </span>
-                </div>
+            <CardContent className="grid gap-3">
+              {routeGeojson ? (
+                <>
+                  <RouteMap geojson={routeGeojson} />
+                  {gpxResult && (
+                    <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
+                      <RouteIcon className="h-4 w-4 shrink-0" />
+                      <span>
+                        Route updated — <strong>{gpxResult.points.toLocaleString()} points</strong>
+                        {gpxResult.originalPoints > gpxResult.points && (
+                          <span className="text-muted-foreground"> (subsampled from {gpxResult.originalPoints.toLocaleString()})</span>
+                        )}
+                      </span>
+                    </div>
+                  )}
+                  {!gpxResult && (
+                    <p className="text-xs text-muted-foreground">
+                      Green = start · Red = end. Upload a new GPX to overwrite.
+                    </p>
+                  )}
+                </>
               ) : (
                 <p className="text-sm text-muted-foreground">
-                  Upload a <code>.gpx</code> file to set or overwrite the trail route on the map.
+                  No route data. Upload a <code>.gpx</code> file to set the trail route.
                   Exports from Garmin, Strava, AllTrails, and Komoot all work.
                 </p>
               )}
