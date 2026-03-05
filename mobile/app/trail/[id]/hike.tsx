@@ -27,6 +27,7 @@ import { startBackgroundTracking, stopBackgroundTracking } from '../../../utils/
 import * as Haptics from 'expo-haptics';
 import api from '../../../services/api';
 import { useAuthStore } from '../../../store/authStore';
+import { analytics } from '../../../utils/analytics';
 
 // Isolated timer component — only this re-renders every second
 function HikeTimer({ styles }: { styles: ReturnType<typeof createStyles> }) {
@@ -143,6 +144,7 @@ export default function HikeScreen() {
   useEffect(() => {
     if (!isActive && id) {
       startHike(id);
+      analytics.hikeStarted(id, trail?.name_en ?? id);
     }
     startBackgroundTracking();
     if (id) {
@@ -217,6 +219,7 @@ export default function HikeScreen() {
               {
                 onSuccess: (data: any) => {
                   const newBadgeIds: string[] = data?.new_badge_ids ?? [];
+                  analytics.hikeCompleted(id, elapsed, distanceCoveredMeters / 1000);
                   endHike();
                   const params = newBadgeIds.length > 0
                     ? `?newBadgeIds=${encodeURIComponent(JSON.stringify(newBadgeIds))}`

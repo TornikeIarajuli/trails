@@ -2,6 +2,7 @@ import { useMutation } from '@tanstack/react-query';
 import { useAuthStore } from '../store/authStore';
 import { authService } from '../services/auth';
 import { router } from 'expo-router';
+import { identify, reset } from '../utils/analytics';
 
 export function useLogin() {
   const setSession = useAuthStore((s) => s.setSession);
@@ -11,6 +12,7 @@ export function useLogin() {
       authService.login(data),
     onSuccess: (data) => {
       setSession(data.user, data.session.access_token, data.session.refresh_token);
+      if (data.user) identify(data.user.id, { email: data.user.email });
       router.replace('/(tabs)/home');
     },
   });
@@ -26,13 +28,13 @@ export function useSignup() {
       username: string;
       full_name?: string;
     }) => authService.signup(data),
-    onSuccess: (data) => {
+    onSuccess: (data, variables) => {
       if (data.session) {
         setSession(data.user, data.session.access_token, data.session.refresh_token);
         router.replace('/(tabs)/home');
       } else {
-        // Email confirmation required — redirect to login
-        router.replace('/(auth)/login');
+        // Email confirmation required
+        router.replace({ pathname: '/(auth)/verify-email', params: { email: variables.email } });
       }
     },
   });
@@ -45,6 +47,7 @@ export function useForgotPassword() {
 }
 
 export function logout() {
+  reset();
   useAuthStore.getState().clearSession();
   router.replace('/(auth)/login');
 }

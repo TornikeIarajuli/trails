@@ -37,6 +37,7 @@ import { ReviewsList } from '../../../components/trail/ReviewsList';
 import { WriteReviewModal } from '../../../components/trail/WriteReviewModal';
 import { WeatherCard } from '../../../components/trail/WeatherCard';
 import { trailCache } from '../../../utils/trailCache';
+import { analytics } from '../../../utils/analytics';
 
 export default function TrailDetailScreen() {
   const Colors = useColors();
@@ -58,10 +59,11 @@ export default function TrailDetailScreen() {
     trailCache.isTrailSavedOffline(id),
   );
 
-  // Cache trail data when loaded
+  // Cache trail data when loaded + track view
   React.useEffect(() => {
     if (trail) {
       trailCache.setTrailDetail(id, trail);
+      analytics.trailViewed(id, trail.name_en);
     }
   }, [trail, id]);
 

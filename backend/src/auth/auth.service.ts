@@ -1,4 +1,8 @@
-import { Injectable, BadRequestException, UnauthorizedException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { SupabaseService } from '../config/supabase.config';
 import { SignupDto } from './dto/signup.dto';
 import { LoginDto } from './dto/login.dto';
@@ -58,6 +62,21 @@ export class AuthService {
       user: data.user,
       session: data.session,
     };
+  }
+
+  async resendVerification(email: string) {
+    const admin = this.supabaseService.getAdminClient();
+
+    const { error } = await admin.auth.resend({
+      type: 'signup',
+      email,
+    });
+
+    if (error) {
+      throw new BadRequestException(error.message);
+    }
+
+    return { message: 'Verification email resent.' };
   }
 
   async forgotPassword(email: string) {

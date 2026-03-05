@@ -3,6 +3,8 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { PostHogProvider } from 'posthog-react-native';
+import { initAnalytics } from '../utils/analytics';
 import { QueryClient } from '@tanstack/react-query';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import { queryPersister } from '../utils/queryPersister';
@@ -90,14 +92,16 @@ function RootLayout() {
   }
 
   return (
-    <PersistQueryClientProvider
-      client={queryClient}
-      persistOptions={{ persister: queryPersister, maxAge: 24 * 60 * 60 * 1000 }}
-    >
-      <ErrorBoundary onError={() => setHasError(true)}>
-        <RootLayoutInner />
-      </ErrorBoundary>
-    </PersistQueryClientProvider>
+    <PostHogProvider client={initAnalytics()} autocapture>
+      <PersistQueryClientProvider
+        client={queryClient}
+        persistOptions={{ persister: queryPersister, maxAge: 24 * 60 * 60 * 1000 }}
+      >
+        <ErrorBoundary onError={() => setHasError(true)}>
+          <RootLayoutInner />
+        </ErrorBoundary>
+      </PersistQueryClientProvider>
+    </PostHogProvider>
   );
 }
 

@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Switch, Alert, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Switch, Alert, ScrollView, Linking } from 'react-native';
 import { Stack, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors, ColorPalette } from '../../../constants/colors';
@@ -155,6 +155,33 @@ export default function SettingsScreen() {
           <TouchableOpacity style={styles.actionRow} onPress={handleDeleteAccount} activeOpacity={0.7}>
             <Ionicons name="trash-outline" size={22} color={Colors.error} />
             <Text style={styles.actionText}>Delete Account</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Legal</Text>
+          <TouchableOpacity
+            style={styles.linkRow}
+            activeOpacity={0.7}
+            onPress={() => Linking.openURL('https://trails-en04.onrender.com/legal/privacy')}
+          >
+            <View style={styles.rowLeft}>
+              <Ionicons name="shield-checkmark-outline" size={20} color={Colors.text} />
+              <Text style={styles.rowLabel}>Privacy Policy</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={Colors.textLight} />
+          </TouchableOpacity>
+          <View style={styles.divider} />
+          <TouchableOpacity
+            style={styles.linkRow}
+            activeOpacity={0.7}
+            onPress={() => Linking.openURL('https://trails-en04.onrender.com/legal/terms')}
+          >
+            <View style={styles.rowLeft}>
+              <Ionicons name="document-text-outline" size={20} color={Colors.text} />
+              <Text style={styles.rowLabel}>Terms of Service</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={Colors.textLight} />
           </TouchableOpacity>
         </View>
 

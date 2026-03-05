@@ -20,6 +20,12 @@ export class AuthController {
     return this.authService.login(dto);
   }
 
+  @Post('resend-verification')
+  @Throttle({ default: { ttl: 60000, limit: 3 } })
+  resendVerification(@Body('email') email: string) {
+    return this.authService.resendVerification(email);
+  }
+
   @Post('forgot-password')
   @Throttle({ default: { ttl: 60000, limit: 3 } })
   forgotPassword(@Body('email') email: string) {
