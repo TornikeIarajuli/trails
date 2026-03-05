@@ -3,10 +3,6 @@ import { Platform } from 'react-native';
 const DEV_MACHINE_IP = '192.168.100.12';
 
 const getApiBaseUrl = () => {
-  if (__DEV__) {
-    return `http://${DEV_MACHINE_IP}:3000/api`;
-  }
-  // Replace with your actual Render URL after deploying
   return 'https://trails-en04.onrender.com/api';
 };
 
