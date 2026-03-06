@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import * as SecureStore from 'expo-secure-store';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type Language = 'en' | 'ka';
 
@@ -39,7 +39,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
 
   hydrate: async () => {
     try {
-      const raw = await SecureStore.getItemAsync(STORAGE_KEY);
+      const raw = await AsyncStorage.getItem(STORAGE_KEY);
       if (raw) {
         const data = JSON.parse(raw);
         set({
@@ -59,5 +59,5 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
 
 function persist(state: SettingsState) {
   const { language, isDarkMode, hasSeenOnboarding } = state;
-  SecureStore.setItemAsync(STORAGE_KEY, JSON.stringify({ language, isDarkMode, hasSeenOnboarding })).catch(() => {});
+  AsyncStorage.setItem(STORAGE_KEY, JSON.stringify({ language, isDarkMode, hasSeenOnboarding })).catch(() => {});
 }

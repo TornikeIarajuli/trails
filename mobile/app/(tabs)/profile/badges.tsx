@@ -16,40 +16,9 @@ import { BadgeCard } from '../../../components/badges/BadgeCard';
 import { BadgeDetailSheet } from '../../../components/badges/BadgeDetailSheet';
 import { LoadingSpinner } from '../../../components/ui/LoadingSpinner';
 import { Badge, BadgeCategory, UserBadge } from '../../../types/badge';
-
-const CATEGORY_LABELS: Record<BadgeCategory, string> = {
-  completions: 'Trail Completions',
-  difficulty: 'Difficulty Challenges',
-  region: 'Regional Explorer',
-  streak: 'Streaks',
-  special: 'Special Achievements',
-};
+import { BADGE_CATEGORY_LABEL, getBadgeProgress } from '../../../components/badges/badgeConstants';
 
 const CATEGORY_ORDER: BadgeCategory[] = ['completions', 'difficulty', 'region', 'streak', 'special'];
-
-type Progress = {
-  total_completions: number;
-  completions_by_difficulty: Record<string, number>;
-  completions_by_region: Record<string, number>;
-  unique_regions: number;
-};
-
-function getProgressForBadge(badge: Badge, progress: Progress | undefined) {
-  if (!progress || !badge.threshold) return null;
-  const target = badge.threshold;
-  if (badge.category === 'completions') {
-    return { current: Math.min(progress.total_completions, target), target };
-  }
-  if (badge.category === 'difficulty' && badge.difficulty) {
-    const count = progress.completions_by_difficulty[badge.difficulty] ?? 0;
-    return { current: Math.min(count, target), target };
-  }
-  if (badge.category === 'region' && badge.region) {
-    const count = progress.completions_by_region[badge.region] ?? 0;
-    return { current: Math.min(count, target), target };
-  }
-  return null;
-}
 
 export default function BadgesScreen() {
   const Colors = useColors();
@@ -84,7 +53,7 @@ export default function BadgesScreen() {
     if (!allBadges || !progress) return [];
     return allBadges
       .filter((b) => !earnedMap.has(b.id))
-      .map((b) => ({ badge: b, prog: getProgressForBadge(b, progress) }))
+      .map((b) => ({ badge: b, prog: getBadgeProgress(b, progress) }))
       .filter((x) => x.prog && x.prog.current > 0)
       .sort((a, b) => {
         const pctA = a.prog!.current / a.prog!.target;
@@ -103,7 +72,7 @@ export default function BadgesScreen() {
   const selectedEarned = selectedBadge ? earnedMap.has(selectedBadge.id) : false;
   const selectedEarnedAt = selectedBadge ? (earnedMap.get(selectedBadge.id)?.earned_at ?? null) : null;
   const selectedProgress = selectedBadge && !selectedEarned
-    ? getProgressForBadge(selectedBadge, progress)
+    ? getBadgeProgress(selectedBadge, progress)
     : null;
 
   return (
@@ -164,11 +133,11 @@ export default function BadgesScreen() {
         {/* Badges by category — 3-column grid */}
         {CATEGORY_ORDER.filter((cat) => grouped[cat]?.length > 0).map((category) => (
           <View key={category} style={styles.section}>
-            <Text style={styles.sectionTitle}>{CATEGORY_LABELS[category]}</Text>
+            <Text style={styles.sectionTitle}>{BADGE_CATEGORY_LABEL[category]}</Text>
             <View style={styles.grid}>
               {grouped[category].map((badge) => {
                 const earned = earnedMap.has(badge.id);
-                const prog = !earned ? getProgressForBadge(badge, progress) : null;
+                const prog = !earned ? getBadgeProgress(badge, progress) : null;
                 return (
                   <TouchableOpacity
                     key={badge.id}

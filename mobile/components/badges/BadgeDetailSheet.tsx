@@ -9,31 +9,9 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors, ColorPalette } from '../../constants/colors';
-import { Badge, BadgeCategory } from '../../types/badge';
+import { Badge } from '../../types/badge';
 import { formatDate } from '../../utils/formatters';
-
-const ICON_MAP: Record<string, string> = {
-  footsteps: 'footsteps', compass: 'compass', flame: 'flame', trophy: 'trophy',
-  leaf: 'leaf', flag: 'flag', rocket: 'rocket', snow: 'snow',
-  'trail-sign': 'trail-sign', wine: 'wine', camera: 'camera',
-  megaphone: 'megaphone', bookmark: 'bookmark', star: 'star', ribbon: 'ribbon',
-};
-
-const CATEGORY_COLOR: Record<BadgeCategory, string> = {
-  completions: '#F59E0B',
-  difficulty:  '#EF4444',
-  region:      '#3B82F6',
-  streak:      '#8B5CF6',
-  special:     '#10B981',
-};
-
-const CATEGORY_LABEL: Record<BadgeCategory, string> = {
-  completions: 'Trail Completions',
-  difficulty:  'Difficulty Challenge',
-  region:      'Regional Explorer',
-  streak:      'Streak',
-  special:     'Special Achievement',
-};
+import { BADGE_ICON_MAP, BADGE_CATEGORY_COLOR, BADGE_CATEGORY_LABEL } from './badgeConstants';
 
 interface Props {
   badge: Badge | null;
@@ -49,8 +27,8 @@ export function BadgeDetailSheet({ badge, earned, earnedAt, progress, onClose }:
 
   if (!badge) return null;
 
-  const iconName = ICON_MAP[badge.icon] ?? 'ribbon';
-  const color = CATEGORY_COLOR[badge.category] ?? Colors.primary;
+  const iconName = BADGE_ICON_MAP[badge.icon] ?? 'ribbon';
+  const color = BADGE_CATEGORY_COLOR[badge.category] ?? Colors.primary;
   const pct = progress ? Math.round((progress.current / progress.target) * 100) : 0;
 
   const handleShare = async () => {
@@ -79,7 +57,7 @@ export function BadgeDetailSheet({ badge, earned, earnedAt, progress, onClose }:
         {/* Category pill */}
         <View style={[styles.categoryPill, { backgroundColor: color + '20' }]}>
           <Text style={[styles.categoryText, { color }]}>
-            {CATEGORY_LABEL[badge.category]}
+            {BADGE_CATEGORY_LABEL[badge.category]}
           </Text>
         </View>
 

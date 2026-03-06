@@ -33,4 +33,12 @@ export const completionsService = {
   async deleteCompletion(id: string): Promise<void> {
     await api.delete(`/completions/${id}`);
   },
+
+  async markActive(trailId: string): Promise<void> {
+    await api.post(`/completions/active/${trailId}`);
+  },
+
+  async clearActive(trailId: string): Promise<void> {
+    await api.delete(`/completions/active/${trailId}`);
+  },
 };

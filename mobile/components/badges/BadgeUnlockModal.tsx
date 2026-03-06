@@ -17,30 +17,13 @@ import Animated, {
 import { Ionicons } from '@expo/vector-icons';
 import { useColors, ColorPalette } from '../../constants/colors';
 import { Badge } from '../../types/badge';
+import { BADGE_ICON_MAP } from './badgeConstants';
 
 interface BadgeUnlockModalProps {
   badges: Badge[];
   visible: boolean;
   onClose: () => void;
 }
-
-const ICON_MAP: Record<string, string> = {
-  footsteps: 'footsteps',
-  compass: 'compass',
-  flame: 'flame',
-  trophy: 'trophy',
-  leaf: 'leaf',
-  flag: 'flag',
-  rocket: 'rocket',
-  snow: 'snow',
-  'trail-sign': 'trail-sign',
-  wine: 'wine',
-  camera: 'camera',
-  megaphone: 'megaphone',
-  bookmark: 'bookmark',
-  star: 'star',
-  ribbon: 'ribbon',
-};
 
 function FlipCard({ badge, onNext, isLast, styles, Colors }: {
   badge: Badge;
@@ -77,7 +60,7 @@ function FlipCard({ badge, onNext, isLast, styles, Colors }: {
     };
   });
 
-  const iconName = ICON_MAP[badge.icon] ?? 'ribbon';
+  const iconName = BADGE_ICON_MAP[badge.icon] ?? 'ribbon';
 
   return (
     <View style={styles.cardWrapper}>

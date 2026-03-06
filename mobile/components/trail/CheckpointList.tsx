@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useColors, ColorPalette } from '../../constants/colors';
 import { Checkpoint, CheckpointType } from '../../types/checkpoint';
 import { useSettingsStore } from '../../store/settingsStore';
+import { localName } from '../../utils/i18n';
 
 const CHECKPOINT_ICONS: Record<CheckpointType, string> = {
   viewpoint: 'eye-outline',
@@ -37,7 +38,7 @@ export function CheckpointList({ checkpoints, visitedIds = [] }: CheckpointListP
     <View style={styles.container}>
       <Text style={styles.title}>Checkpoints</Text>
       {checkpoints.map((cp, index) => {
-        const name = language === 'ka' && cp.name_ka ? cp.name_ka : cp.name_en;
+        const name = localName(cp.name_en, cp.name_ka, language);
         const visited = visitedIds.includes(cp.id);
         const iconName = CHECKPOINT_ICONS[cp.type] || 'location-outline';
 

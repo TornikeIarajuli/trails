@@ -2,7 +2,8 @@ import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors, ColorPalette } from '../../constants/colors';
-import { Badge, BadgeCategory } from '../../types/badge';
+import { Badge } from '../../types/badge';
+import { BADGE_ICON_MAP, BADGE_CATEGORY_COLOR } from './badgeConstants';
 
 interface BadgeCardProps {
   badge: Badge;
@@ -11,35 +12,11 @@ interface BadgeCardProps {
   progress?: { current: number; target: number };
 }
 
-const ICON_MAP: Record<string, string> = {
-  footsteps: 'footsteps',
-  compass: 'compass',
-  flame: 'flame',
-  trophy: 'trophy',
-  leaf: 'leaf',
-  flag: 'flag',
-  rocket: 'rocket',
-  snow: 'snow',
-  'trail-sign': 'trail-sign',
-  wine: 'wine',
-  camera: 'camera',
-  megaphone: 'megaphone',
-  bookmark: 'bookmark',
-};
-
-const CATEGORY_COLOR: Record<BadgeCategory, string> = {
-  completions: '#F59E0B', // amber/gold
-  difficulty:  '#EF4444', // red
-  region:      '#3B82F6', // blue
-  streak:      '#8B5CF6', // purple
-  special:     '#10B981', // emerald
-};
-
 export function BadgeCard({ badge, earned, compact, progress }: BadgeCardProps) {
   const Colors = useColors();
   const styles = useMemo(() => createStyles(Colors), [Colors]);
-  const iconName = ICON_MAP[badge.icon] ?? 'ribbon';
-  const categoryColor = CATEGORY_COLOR[badge.category] ?? Colors.primary;
+  const iconName = BADGE_ICON_MAP[badge.icon] ?? 'ribbon';
+  const categoryColor = BADGE_CATEGORY_COLOR[badge.category] ?? Colors.primary;
 
   if (compact) {
     return (

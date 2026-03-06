@@ -14,6 +14,7 @@ import { useColors, ColorPalette } from '../../constants/colors';
 import { Trail } from '../../types/trail';
 import { DifficultyBadge } from './DifficultyBadge';
 import { formatDistance, formatDuration } from '../../utils/formatters';
+import { localName } from '../../utils/i18n';
 import { useSettingsStore } from '../../store/settingsStore';
 import { useActiveHikerCount } from '../../hooks/useCompletions';
 
@@ -26,7 +27,7 @@ export function TrailCard({ trail, index = 0 }: TrailCardProps) {
   const Colors = useColors();
   const styles = useMemo(() => createStyles(Colors), [Colors]);
   const language = useSettingsStore((s) => s.language);
-  const name = language === 'ka' && trail.name_ka ? trail.name_ka : trail.name_en;
+  const name = localName(trail.name_en, trail.name_ka, language);
 
   const scale = useSharedValue(1);
   const animatedStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));

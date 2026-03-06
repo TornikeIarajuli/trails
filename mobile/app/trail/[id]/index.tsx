@@ -38,6 +38,7 @@ import { WriteReviewModal } from '../../../components/trail/WriteReviewModal';
 import { WeatherCard } from '../../../components/trail/WeatherCard';
 import { trailCache } from '../../../utils/trailCache';
 import { analytics } from '../../../utils/analytics';
+import { localName } from '../../../utils/i18n';
 
 export default function TrailDetailScreen() {
   const Colors = useColors();
@@ -82,7 +83,7 @@ export default function TrailDetailScreen() {
 
   if (isLoading || !trail) return <LoadingSpinner />;
 
-  const name = language === 'ka' && trail.name_ka ? trail.name_ka : trail.name_en;
+  const name = localName(trail.name_en, trail.name_ka, language);
   const description =
     language === 'ka' && trail.description_ka
       ? trail.description_ka

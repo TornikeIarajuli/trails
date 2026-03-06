@@ -45,4 +45,12 @@ export const usersService = {
     const response = await api.get('/users/me');
     return (response.data.emergency_contact_user_id as string | null) ?? null;
   },
+
+  async deleteAccount(): Promise<void> {
+    await api.delete('/users/me');
+  },
+
+  async sendSos(lat: number, lng: number): Promise<void> {
+    await api.post('/users/me/sos', { lat, lng });
+  },
 };

@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { commentsService } from '../services/comments';
+import { likesService } from '../services/likes';
 import { useAuthStore } from '../store/authStore';
 import { queryKeys } from '../utils/queryKeys';
 
@@ -8,7 +8,7 @@ export function useLikes(activityId: string) {
 
   const query = useQuery({
     queryKey: queryKeys.likes.activity(activityId),
-    queryFn: () => commentsService.getLikes(activityId),
+    queryFn: () => likesService.getLikes(activityId),
     enabled: !!activityId,
   });
 
@@ -23,7 +23,7 @@ export function useToggleLike() {
 
   return useMutation({
     mutationFn: (data: { activity_id: string; activity_type: string }) =>
-      commentsService.toggleLike(data),
+      likesService.toggleLike(data),
     onMutate: async (variables) => {
       const key = queryKeys.likes.activity(variables.activity_id);
       await queryClient.cancelQueries({ queryKey: key });

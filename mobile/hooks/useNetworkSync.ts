@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { useIsOnline } from './useIsOnline';
+import { useNetworkStatus } from './useNetworkStatus';
 import { useHikeStore } from '../store/hikeStore';
 import { completionsService } from '../services/completions';
 
@@ -9,7 +9,7 @@ import { completionsService } from '../services/completions';
  * automatically retries the failed hike completion.
  */
 export function useNetworkSync() {
-  const isOnline = useIsOnline();
+  const isOnline = useNetworkStatus() !== 'offline';
   const pendingSync = useHikeStore((s) => s.pendingSync);
   const setPendingSync = useHikeStore((s) => s.setPendingSync);
   const isSyncing = useRef(false);

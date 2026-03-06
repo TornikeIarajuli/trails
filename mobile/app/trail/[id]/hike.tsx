@@ -25,8 +25,9 @@ import { mediaService } from '../../../services/media';
 import { useRecordHike } from '../../../hooks/useCompletions';
 import { startBackgroundTracking, stopBackgroundTracking } from '../../../utils/locationTask';
 import * as Haptics from 'expo-haptics';
-import api from '../../../services/api';
 import { useAuthStore } from '../../../store/authStore';
+import { usersService } from '../../../services/users';
+import { completionsService } from '../../../services/completions';
 import { analytics } from '../../../utils/analytics';
 
 // Isolated timer component — only this re-renders every second
@@ -115,7 +116,7 @@ export default function HikeScreen() {
               Alert.alert('No GPS', 'Waiting for GPS fix. Please try again in a moment.');
               return;
             }
-            api.post('/users/me/sos', { lat, lng })
+            usersService.sendSos(lat, lng)
               .then(() => Alert.alert('SOS Sent', 'Your emergency contact has been notified with your location.'))
               .catch(() => Alert.alert('Error', 'Failed to send SOS. Try calling emergency services directly.'));
           },
@@ -148,12 +149,12 @@ export default function HikeScreen() {
     }
     startBackgroundTracking();
     if (id) {
-      api.post(`/completions/active/${id}`).catch(() => {});
+      completionsService.markActive(id).catch(() => {});
     }
     return () => {
       // Clean up active hike record on unmount (user navigated away without ending)
       if (id) {
-        api.delete(`/completions/active/${id}`).catch(() => {});
+        completionsService.clearActive(id).catch(() => {});
       }
     };
   }, [id]);
@@ -211,7 +212,7 @@ export default function HikeScreen() {
         style: 'destructive',
         onPress: () => {
           stopBackgroundTracking();
-          if (id) api.delete(`/completions/active/${id}`).catch(() => {});
+          if (id) completionsService.clearActive(id).catch(() => {});
           const elapsed = useHikeStore.getState().elapsedSeconds;
           if (id) {
             recordHike.mutate(

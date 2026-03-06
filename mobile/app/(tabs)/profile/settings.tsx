@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useColors, ColorPalette } from '../../../constants/colors';
 import { useSettingsStore } from '../../../store/settingsStore';
 import { logout } from '../../../hooks/useAuth';
-import api from '../../../services/api';
+import { usersService } from '../../../services/users';
 
 export default function SettingsScreen() {
   const Colors = useColors();
@@ -36,7 +36,7 @@ export default function SettingsScreen() {
                   style: 'destructive',
                   onPress: async () => {
                     try {
-                      await api.delete('/users/me');
+                      await usersService.deleteAccount();
                       await logout();
                     } catch {
                       Alert.alert('Error', 'Failed to delete account. Please try again.');
