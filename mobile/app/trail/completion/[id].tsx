@@ -31,6 +31,7 @@ import { Confetti } from '../../../components/ui/Confetti';
 import { BadgeUnlockModal } from '../../../components/badges/BadgeUnlockModal';
 import { useAllBadges } from '../../../hooks/useBadges';
 import { Badge } from '../../../types/badge';
+import { analytics } from '../../../utils/analytics';
 
 function formatElapsedTime(seconds: number): string {
   const h = Math.floor(seconds / 3600);
@@ -63,6 +64,7 @@ export default function CompletionDetailScreen() {
       const matched = ids.map((bid) => allBadges.find((b) => b.id === bid)).filter(Boolean) as Badge[];
       if (matched.length > 0) {
         setNewBadges(matched);
+        matched.forEach((b) => analytics.badgeEarned(b.key, b.name_en));
         // Show badge modal after confetti plays (1.5s delay)
         const t = setTimeout(() => setShowBadgeModal(true), 1500);
         return () => clearTimeout(t);

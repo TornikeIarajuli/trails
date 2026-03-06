@@ -8,7 +8,7 @@ let _client: PostHog | null = null;
 export function initAnalytics(): PostHog {
   if (!_client) {
     _client = new PostHog(process.env.EXPO_PUBLIC_POSTHOG_KEY ?? '', {
-      host: 'https://eu.i.posthog.com',
+      host: 'https://us.i.posthog.com',
       disabled: !process.env.EXPO_PUBLIC_POSTHOG_KEY,
     });
   }
@@ -55,4 +55,7 @@ export const analytics = {
 
   searchPerformed: (query: string) =>
     _client?.capture('search_performed', { query }),
+
+  badgeEarned: (badgeKey: string, badgeName: string) =>
+    _client?.capture('badge_earned', { badge_key: badgeKey, badge_name: badgeName }),
 };
