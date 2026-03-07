@@ -8,6 +8,9 @@ export class NotificationsService {
   async registerToken(userId: string, token: string, platform = 'expo') {
     const admin = this.supabaseService.getAdminClient();
 
+    // Delete stale tokens (e.g. Expo Go tokens) before registering the new one
+    await admin.from('push_tokens').delete().eq('user_id', userId).neq('token', token);
+
     const { error } = await admin.from('push_tokens').upsert(
       {
         user_id: userId,

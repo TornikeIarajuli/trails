@@ -3,6 +3,7 @@ import { useAuthStore } from '../store/authStore';
 import { authService } from '../services/auth';
 import { router } from 'expo-router';
 import { identify, reset } from '../utils/analytics';
+import { queryClient } from '../utils/queryClient';
 
 export function useLogin() {
   const setSession = useAuthStore((s) => s.setSession);
@@ -49,5 +50,6 @@ export function useForgotPassword() {
 export function logout() {
   reset();
   useAuthStore.getState().clearSession();
+  queryClient.clear();
   router.replace('/(auth)/login');
 }

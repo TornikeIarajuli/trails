@@ -272,6 +272,14 @@ export default function CompletionDetailScreen() {
           )}
 
           {/* Action Buttons */}
+          <TouchableOpacity
+            style={styles.profileButton}
+            onPress={() => router.replace('/(tabs)/profile' as any)}
+          >
+            <Ionicons name="person-outline" size={20} color={Colors.textOnPrimary} />
+            <Text style={styles.profileButtonText}>Go to Profile</Text>
+          </TouchableOpacity>
+
           <View style={styles.actionRow}>
             <TouchableOpacity
               style={styles.viewTrailButton}
@@ -466,6 +474,21 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     textAlign: 'center',
     fontSize: 14,
     fontWeight: '600',
+  },
+  profileButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: Colors.primary,
+    paddingVertical: 14,
+    borderRadius: 12,
+    marginBottom: 12,
+  },
+  profileButtonText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: Colors.textOnPrimary,
   },
   actionRow: {
     flexDirection: 'row',

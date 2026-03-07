@@ -5,9 +5,9 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { PostHogProvider } from 'posthog-react-native';
 import { initAnalytics } from '../utils/analytics';
-import { QueryClient } from '@tanstack/react-query';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import { queryPersister } from '../utils/queryPersister';
+import { queryClient } from '../utils/queryClient';
 import * as SplashScreen from 'expo-splash-screen';
 import { useAuthStore } from '../store/authStore';
 import { useSettingsStore } from '../store/settingsStore';
@@ -20,15 +20,6 @@ try {
   SplashScreen.preventAutoHideAsync();
 } catch {}
 
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 5 * 60 * 1000,       // 5 min — don't refetch fresh data
-      gcTime: 24 * 60 * 60 * 1000,    // 24h — keep cache alive for offline
-      retry: 2,
-    },
-  },
-});
 
 function RootLayoutInner() {
   const restoreSession = useAuthStore((s) => s.restoreSession);
