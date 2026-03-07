@@ -16,6 +16,29 @@ import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
 import { useSignup } from '../../hooks/useAuth';
 
+function friendlyAuthError(msg: string): string {
+  const m = msg.toLowerCase();
+  if (m.includes('already registered') || m.includes('already in use') || m.includes('already taken') && m.includes('email')) {
+    return 'An account with this email already exists. Try logging in.';
+  }
+  if (m.includes('username') && m.includes('taken')) {
+    return 'That username is already taken. Please choose another.';
+  }
+  if (m.includes('invalid') && m.includes('email')) {
+    return 'Please enter a valid email address.';
+  }
+  if (m.includes('password') && (m.includes('short') || m.includes('least'))) {
+    return 'Password must be at least 8 characters.';
+  }
+  if (m.includes('uppercase') || m.includes('lowercase') || m.includes('number')) {
+    return 'Password must contain an uppercase letter, a lowercase letter, and a number.';
+  }
+  if (m.includes('network') || m.includes('fetch')) {
+    return 'No internet connection. Please check your network and try again.';
+  }
+  return msg;
+}
+
 export default function SignupScreen() {
   const Colors = useColors();
   const styles = useMemo(() => createStyles(Colors), [Colors]);
@@ -31,22 +54,31 @@ export default function SignupScreen() {
       Alert.alert('Error', 'Please fill in all required fields');
       return;
     }
-    if (password.length < 6) {
-      Alert.alert('Error', 'Password must be at least 6 characters');
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      Alert.alert('Error', 'Please enter a valid email address');
       return;
     }
     if (username.length < 3) {
       Alert.alert('Error', 'Username must be at least 3 characters');
       return;
     }
+    if (password.length < 8) {
+      Alert.alert('Error', 'Password must be at least 8 characters');
+      return;
+    }
+    if (!/[A-Z]/.test(password) || !/[a-z]/.test(password) || !/\d/.test(password)) {
+      Alert.alert('Error', 'Password must contain an uppercase letter, a lowercase letter, and a number');
+      return;
+    }
     signup.mutate(
       { email, password, username, full_name: fullName || undefined },
       {
         onError: (error: any) => {
-          Alert.alert(
-            'Signup Failed',
-            error.response?.data?.message || 'Could not create account',
-          );
+          const raw = error.response?.data?.message;
+          const message = Array.isArray(raw)
+            ? raw[0]
+            : (raw ?? 'Could not create account. Please try again.');
+          Alert.alert('Signup Failed', friendlyAuthError(message));
         },
       },
     );
@@ -95,7 +127,7 @@ export default function SignupScreen() {
           />
           <Input
             label="Password *"
-            placeholder="Min 6 characters"
+            placeholder="Min 8 chars, uppercase, number"
             value={password}
             onChangeText={setPassword}
             secureTextEntry
