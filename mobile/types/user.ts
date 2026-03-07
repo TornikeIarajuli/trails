@@ -4,6 +4,7 @@ export interface Profile {
   full_name: string | null;
   avatar_url: string | null;
   bio: string | null;
+  contact_info: string | null;
   total_trails_completed: number;
   created_at: string;
   last_seen_at: string | null;

@@ -30,6 +30,7 @@ export function ProfileCard({ profile }: ProfileCardProps) {
   const [editing, setEditing] = useState(false);
   const [editName, setEditName] = useState('');
   const [editBio, setEditBio] = useState('');
+  const [editContact, setEditContact] = useState('');
 
   const avatarMutation = useMutation({
     mutationFn: async (uri: string) => {
@@ -47,7 +48,7 @@ export function ProfileCard({ profile }: ProfileCardProps) {
   });
 
   const profileMutation = useMutation({
-    mutationFn: (data: { full_name?: string; bio?: string }) =>
+    mutationFn: (data: { full_name?: string; bio?: string; contact_info?: string | null }) =>
       usersService.updateProfile(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.profile.root() });
@@ -78,6 +79,7 @@ export function ProfileCard({ profile }: ProfileCardProps) {
   const startEditing = () => {
     setEditName(profile.full_name || '');
     setEditBio(profile.bio || '');
+    setEditContact(profile.contact_info || '');
     setEditing(true);
   };
 
@@ -85,6 +87,7 @@ export function ProfileCard({ profile }: ProfileCardProps) {
     profileMutation.mutate({
       full_name: editName.trim() || undefined,
       bio: editBio.trim() || undefined,
+      contact_info: editContact.trim() || null,
     });
   };
 
@@ -119,6 +122,12 @@ export function ProfileCard({ profile }: ProfileCardProps) {
           {profile.bio || 'No bio yet. Tap edit to add one.'}
         </Text>
       )}
+      {!editing && profile.contact_info && (
+        <View style={styles.contactRow}>
+          <Ionicons name="call-outline" size={14} color={Colors.primary} />
+          <Text style={styles.contactText}>{profile.contact_info}</Text>
+        </View>
+      )}
 
       {editing ? (
         <View style={styles.editForm}>
@@ -137,6 +146,14 @@ export function ProfileCard({ profile }: ProfileCardProps) {
             onChangeText={setEditBio}
             multiline
             numberOfLines={3}
+          />
+          <TextInput
+            style={styles.editInput}
+            placeholder="Contact info (phone, Telegram, WhatsApp...)"
+            placeholderTextColor={Colors.textLight}
+            value={editContact}
+            onChangeText={setEditContact}
+            maxLength={100}
           />
           <View style={styles.editActions}>
             <TouchableOpacity
@@ -214,6 +231,17 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     marginTop: 8,
     paddingHorizontal: 32,
     fontStyle: 'italic',
+  },
+  contactRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginTop: 6,
+  },
+  contactText: {
+    fontSize: 13,
+    color: Colors.primary,
+    fontWeight: '500',
   },
   editProfileButton: {
     flexDirection: 'row',

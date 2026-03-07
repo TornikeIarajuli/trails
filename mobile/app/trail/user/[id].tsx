@@ -7,6 +7,8 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
+  Linking,
+  Clipboard,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, Stack, router } from 'expo-router';
@@ -291,6 +293,25 @@ export default function PublicProfileScreen() {
             <Text style={styles.bioEmpty}>No bio yet</Text>
           )}
 
+          {profile.contact_info && (
+            <TouchableOpacity
+              style={styles.contactRow}
+              onPress={() =>
+                Alert.alert(
+                  'Contact',
+                  profile.contact_info!,
+                  [
+                    { text: 'Copy', onPress: () => Clipboard.setString(profile.contact_info!) },
+                    { text: 'Close', style: 'cancel' },
+                  ],
+                )
+              }
+            >
+              <Ionicons name="call-outline" size={14} color={Colors.primary} />
+              <Text style={styles.contactText}>{profile.contact_info}</Text>
+            </TouchableOpacity>
+          )}
+
           <FollowCounts userId={id} Colors={Colors} styles={styles} />
           <FollowButton userId={id} Colors={Colors} styles={styles} />
           <EmergencyContactButton userId={id} Colors={Colors} styles={styles} />
@@ -393,6 +414,21 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     color: Colors.textLight,
     fontStyle: 'italic',
     marginTop: 10,
+  },
+  contactRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginTop: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: Colors.primary + '15',
+    borderRadius: 8,
+  },
+  contactText: {
+    fontSize: 13,
+    color: Colors.primary,
+    fontWeight: '500',
   },
   countsRow: {
     flexDirection: 'row',

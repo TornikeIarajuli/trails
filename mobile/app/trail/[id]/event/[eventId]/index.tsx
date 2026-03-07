@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -10,17 +10,21 @@ import {
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useColors, ColorPalette } from '../../../../../constants/colors';
 import { useEvent, useJoinEvent, useLeaveEvent, useDeleteEvent } from '../../../../../hooks/useEvents';
 import { useAuthStore } from '../../../../../store/authStore';
 import { LoadingSpinner } from '../../../../../components/ui/LoadingSpinner';
 import { Button } from '../../../../../components/ui/Button';
+import { CommentsSheet } from '../../../../../components/feed/CommentsSheet';
 
 export default function EventDetailScreen() {
   const { id: trailId, eventId } = useLocalSearchParams<{ id: string; eventId: string }>();
   const Colors = useColors();
   const styles = useMemo(() => createStyles(Colors), [Colors]);
 
+  const insets = useSafeAreaInsets();
+  const [showComments, setShowComments] = useState(false);
   const userId = useAuthStore((s) => s.user?.id);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
 
@@ -61,6 +65,8 @@ export default function EventDetailScreen() {
           headerTintColor: Colors.text,
           headerTitleStyle: { color: Colors.text },
           headerShadowVisible: false,
+          // @ts-ignore - headerStatusBarHeight not in Expo Router types but works at runtime
+          headerStatusBarHeight: insets.top,
         }}
       />
       <ScrollView style={styles.container}>
@@ -96,7 +102,12 @@ export default function EventDetailScreen() {
             {event.max_participants ? `/${event.max_participants}` : ''})
           </Text>
           {(event.participants ?? []).map((p) => (
-            <View key={p.user_id} style={styles.participantRow}>
+            <TouchableOpacity
+              key={p.user_id}
+              style={styles.participantRow}
+              onPress={() => router.push(`/trail/user/${p.user_id}` as any)}
+              activeOpacity={0.7}
+            >
               {p.profiles.avatar_url ? (
                 <Image
                   source={{ uri: p.profiles.avatar_url }}
@@ -112,7 +123,8 @@ export default function EventDetailScreen() {
               {p.user_id === event.organizer_id && (
                 <Text style={styles.organizerTag}>Organizer</Text>
               )}
-            </View>
+              <Ionicons name="chevron-forward" size={14} color={Colors.textLight} />
+            </TouchableOpacity>
           ))}
         </View>
 
@@ -134,6 +146,10 @@ export default function EventDetailScreen() {
               />
             )
           )}
+          <TouchableOpacity style={styles.commentsBtn} onPress={() => setShowComments(true)}>
+            <Ionicons name="chatbubble-outline" size={18} color={Colors.primary} />
+            <Text style={styles.commentsBtnText}>Comments</Text>
+          </TouchableOpacity>
           {isOrganizer && (
             <Button
               title="Cancel Event"
@@ -143,6 +159,13 @@ export default function EventDetailScreen() {
           )}
         </View>
       </ScrollView>
+
+      <CommentsSheet
+        activityId={eventId}
+        activityType="event"
+        visible={showComments}
+        onClose={() => setShowComments(false)}
+      />
     </>
   );
 }
@@ -170,10 +193,22 @@ const createStyles = (Colors: ColorPalette) =>
     label: { fontSize: 12, fontWeight: '600', color: Colors.textSecondary, textTransform: 'uppercase', letterSpacing: 0.5 },
     value: { fontSize: 16, color: Colors.text, fontWeight: '500' },
     description: { fontSize: 15, color: Colors.textSecondary, lineHeight: 22 },
-    participantRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 4 },
+    participantRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 6 },
     avatar: { width: 28, height: 28, borderRadius: 14 },
     avatarFallback: { backgroundColor: Colors.borderLight, alignItems: 'center', justifyContent: 'center' },
     participantName: { fontSize: 14, color: Colors.text, flex: 1 },
     organizerTag: { fontSize: 11, color: Colors.primary, fontWeight: '600' },
     actions: { margin: 16, gap: 10 },
+    commentsBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      paddingVertical: 12,
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: Colors.primary + '40',
+      backgroundColor: Colors.primary + '10',
+    },
+    commentsBtnText: { fontSize: 15, fontWeight: '600', color: Colors.primary },
   });
