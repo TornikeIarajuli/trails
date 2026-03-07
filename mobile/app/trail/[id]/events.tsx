@@ -8,7 +8,10 @@ import {
   ActivityIndicator,
   Alert,
   TextInput,
+  Platform,
+  RefreshControl,
 } from 'react-native';
+import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors, ColorPalette } from '../../../constants/colors';
@@ -72,36 +75,66 @@ export default function TrailEventsScreen() {
   const userId = useAuthStore((s) => s.user?.id);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
 
-  const { data: events = [], isLoading } = useTrailEvents(id);
+  const { data: events = [], isLoading, refetch, isRefetching } = useTrailEvents(id);
   const createEvent = useCreateEvent();
   const deleteEvent = useDeleteEvent();
 
   const [showForm, setShowForm] = useState(false);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [date, setDate] = useState('');
-  const [time, setTime] = useState('');
+  const [scheduledAt, setScheduledAt] = useState(() => {
+    const d = new Date();
+    d.setHours(d.getHours() + 1, 0, 0, 0);
+    return d;
+  });
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showTimePicker, setShowTimePicker] = useState(false);
   const [maxParticipants, setMaxParticipants] = useState('');
 
+  const onDateChange = (_: DateTimePickerEvent, selected?: Date) => {
+    setShowDatePicker(false);
+    if (selected) {
+      const next = new Date(scheduledAt);
+      next.setFullYear(selected.getFullYear(), selected.getMonth(), selected.getDate());
+      setScheduledAt(next);
+    }
+  };
+
+  const onTimeChange = (_: DateTimePickerEvent, selected?: Date) => {
+    setShowTimePicker(false);
+    if (selected) {
+      const next = new Date(scheduledAt);
+      next.setHours(selected.getHours(), selected.getMinutes(), 0, 0);
+      setScheduledAt(next);
+    }
+  };
+
+  const resetForm = () => {
+    setTitle(''); setDescription(''); setMaxParticipants('');
+    const d = new Date(); d.setHours(d.getHours() + 1, 0, 0, 0);
+    setScheduledAt(d);
+  };
+
   const handleCreate = () => {
-    if (!title.trim() || !date.trim() || !time.trim()) {
-      Alert.alert('Required', 'Please fill in title, date, and time.');
+    if (!title.trim()) {
+      Alert.alert('Required', 'Please enter a title.');
       return;
     }
-    const scheduled_at = new Date(`${date}T${time}:00`).toISOString();
+    if (scheduledAt <= new Date()) {
+      Alert.alert('Invalid date', 'Please choose a future date and time.');
+      return;
+    }
     createEvent.mutate(
       {
         trail_id: id,
         title: title.trim(),
         description: description.trim() || undefined,
-        scheduled_at,
+        scheduled_at: scheduledAt.toISOString(),
         max_participants: maxParticipants ? parseInt(maxParticipants) : undefined,
       },
       {
-        onSuccess: () => {
-          setShowForm(false);
-          setTitle(''); setDescription(''); setDate(''); setTime(''); setMaxParticipants('');
-        },
+        onSuccess: () => { setShowForm(false); resetForm(); },
+        onError: (e: any) => Alert.alert('Error', e?.response?.data?.message ?? 'Could not create event.'),
       },
     );
   };
@@ -151,21 +184,36 @@ export default function TrailEventsScreen() {
               onChangeText={setDescription}
             />
             <View style={styles.row}>
-              <TextInput
-                style={[styles.input, { flex: 1 }]}
-                placeholder="Date (YYYY-MM-DD)"
-                placeholderTextColor={Colors.textLight}
-                value={date}
-                onChangeText={setDate}
-              />
-              <TextInput
-                style={[styles.input, { flex: 1 }]}
-                placeholder="Time (HH:MM)"
-                placeholderTextColor={Colors.textLight}
-                value={time}
-                onChangeText={setTime}
-              />
+              <TouchableOpacity style={[styles.pickerBtn, { flex: 1 }]} onPress={() => setShowDatePicker(true)}>
+                <Ionicons name="calendar-outline" size={16} color={Colors.primary} />
+                <Text style={styles.pickerText}>
+                  {scheduledAt.toLocaleDateString([], { day: '2-digit', month: 'short', year: 'numeric' })}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.pickerBtn, { flex: 1 }]} onPress={() => setShowTimePicker(true)}>
+                <Ionicons name="time-outline" size={16} color={Colors.primary} />
+                <Text style={styles.pickerText}>
+                  {scheduledAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </Text>
+              </TouchableOpacity>
             </View>
+            {showDatePicker && (
+              <DateTimePicker
+                value={scheduledAt}
+                mode="date"
+                display={Platform.OS === 'android' ? 'calendar' : 'spinner'}
+                minimumDate={new Date()}
+                onChange={onDateChange}
+              />
+            )}
+            {showTimePicker && (
+              <DateTimePicker
+                value={scheduledAt}
+                mode="time"
+                display={Platform.OS === 'android' ? 'clock' : 'spinner'}
+                onChange={onTimeChange}
+              />
+            )}
             <TextInput
               style={styles.input}
               placeholder="Max participants (optional)"
@@ -201,6 +249,9 @@ export default function TrailEventsScreen() {
             data={events}
             keyExtractor={(e) => e.id}
             contentContainerStyle={{ padding: 16, gap: 12 }}
+            refreshControl={
+              <RefreshControl refreshing={isRefetching} onRefresh={refetch} />
+            }
             renderItem={({ item }) => (
               <EventCard
                 event={item}
@@ -237,6 +288,17 @@ const createStyles = (Colors: ColorPalette) =>
       fontSize: 14,
     },
     row: { flexDirection: 'row', gap: 8 },
+    pickerBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      backgroundColor: Colors.card,
+      borderRadius: 8,
+      padding: 12,
+      borderWidth: 1,
+      borderColor: Colors.primary + '40',
+    },
+    pickerText: { fontSize: 13, color: Colors.text, fontWeight: '500' },
     submitBtn: {
       backgroundColor: Colors.primary,
       borderRadius: 8,

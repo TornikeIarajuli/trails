@@ -10,7 +10,6 @@ import {
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useColors, ColorPalette } from '../../../../../constants/colors';
 import { useEvent, useJoinEvent, useLeaveEvent, useDeleteEvent } from '../../../../../hooks/useEvents';
 import { useAuthStore } from '../../../../../store/authStore';
@@ -19,11 +18,10 @@ import { Button } from '../../../../../components/ui/Button';
 import { CommentsSheet } from '../../../../../components/feed/CommentsSheet';
 
 export default function EventDetailScreen() {
-  const { id: trailId, eventId } = useLocalSearchParams<{ id: string; eventId: string }>();
+  const { eventId } = useLocalSearchParams<{ id: string; eventId: string }>();
   const Colors = useColors();
   const styles = useMemo(() => createStyles(Colors), [Colors]);
 
-  const insets = useSafeAreaInsets();
   const [showComments, setShowComments] = useState(false);
   const userId = useAuthStore((s) => s.user?.id);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
@@ -65,8 +63,6 @@ export default function EventDetailScreen() {
           headerTintColor: Colors.text,
           headerTitleStyle: { color: Colors.text },
           headerShadowVisible: false,
-          // @ts-ignore - headerStatusBarHeight not in Expo Router types but works at runtime
-          headerStatusBarHeight: insets.top,
         }}
       />
       <ScrollView style={styles.container}>

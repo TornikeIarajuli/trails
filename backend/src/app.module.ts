@@ -25,10 +25,12 @@ import { EventsModule } from './events/events.module';
   imports: [
     SentryModule.forRoot(),
     ConfigModule.forRoot({ isGlobal: true }),
-    ThrottlerModule.forRoot([{
-      ttl: 60000,   // 1 minute window
-      limit: 60,    // 60 requests per minute per IP
-    }]),
+    ThrottlerModule.forRoot([
+      {
+        ttl: 60000, // 1 minute window
+        limit: 60, // 60 requests per minute per IP
+      },
+    ]),
     AuthModule,
     TrailsModule,
     MediaModule,

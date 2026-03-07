@@ -64,7 +64,12 @@ export class ReviewsService {
     return data;
   }
 
-  async update(userId: string, reviewId: string, rating: number, comment?: string) {
+  async update(
+    userId: string,
+    reviewId: string,
+    rating: number,
+    comment?: string,
+  ) {
     const admin = this.supabaseService.getAdminClient();
 
     const { data: review } = await admin

@@ -1,4 +1,10 @@
-import { IsString, IsOptional, IsBoolean, IsNumber, IsUrl } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsBoolean,
+  IsNumber,
+  IsUrl,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class CreateProductDto {

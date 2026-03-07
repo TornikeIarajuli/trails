@@ -48,10 +48,7 @@ export class CommunityController {
 
   @Post('photos')
   @UseGuards(AuthGuard)
-  uploadPhoto(
-    @CurrentUser('id') userId: string,
-    @Body() dto: UploadPhotoDto,
-  ) {
+  uploadPhoto(@CurrentUser('id') userId: string, @Body() dto: UploadPhotoDto) {
     return this.communityService.uploadPhoto(userId, dto);
   }
 

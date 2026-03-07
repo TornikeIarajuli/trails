@@ -33,7 +33,8 @@ export class EventsController {
   @UseGuards(AuthGuard)
   create(
     @CurrentUser('id') userId: string,
-    @Body() dto: {
+    @Body()
+    dto: {
       trail_id: string;
       title: string;
       description?: string;

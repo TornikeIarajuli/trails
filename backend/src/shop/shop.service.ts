@@ -64,8 +64,14 @@ export class ShopService {
 
     const updateData: Record<string, unknown> = {};
     const fields = [
-      'name', 'description', 'image_url', 'price',
-      'shop_name', 'external_url', 'is_published', 'sort_order',
+      'name',
+      'description',
+      'image_url',
+      'price',
+      'shop_name',
+      'external_url',
+      'is_published',
+      'sort_order',
     ];
 
     for (const field of fields) {

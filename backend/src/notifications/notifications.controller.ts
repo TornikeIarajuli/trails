@@ -32,10 +32,7 @@ export class NotificationsController {
 
   @Delete('remove-token')
   @UseGuards(AuthGuard)
-  removeToken(
-    @CurrentUser('id') userId: string,
-    @Body('token') token: string,
-  ) {
+  removeToken(@CurrentUser('id') userId: string, @Body('token') token: string) {
     return this.notificationsService.removeToken(userId, token);
   }
 
@@ -45,7 +42,10 @@ export class NotificationsController {
     @CurrentUser('id') userId: string,
     @Query('page') page?: string,
   ) {
-    return this.notificationsService.getNotifications(userId, page ? parseInt(page) : 1);
+    return this.notificationsService.getNotifications(
+      userId,
+      page ? parseInt(page) : 1,
+    );
   }
 
   @Patch(':id/read')

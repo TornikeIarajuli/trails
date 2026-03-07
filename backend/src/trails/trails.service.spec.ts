@@ -13,14 +13,31 @@ import { SupabaseService } from '../config/supabase.config';
 // ---------------------------------------------------------------------------
 function makeBuilder(resolveValue: object) {
   const self: Record<string, jest.Mock> & {
-    then: (res: (v: unknown) => unknown, rej?: (e: unknown) => unknown) => Promise<unknown>;
+    then: (
+      res: (v: unknown) => unknown,
+      rej?: (e: unknown) => unknown,
+    ) => Promise<unknown>;
     catch: (fn: (e: unknown) => unknown) => Promise<unknown>;
   } = {} as any;
 
   const chainMethods = [
-    'select', 'insert', 'update', 'delete', 'upsert',
-    'eq', 'neq', 'ilike', 'or', 'gte', 'lte', 'gt', 'lt',
-    'order', 'range', 'limit', 'head',
+    'select',
+    'insert',
+    'update',
+    'delete',
+    'upsert',
+    'eq',
+    'neq',
+    'ilike',
+    'or',
+    'gte',
+    'lte',
+    'gt',
+    'lt',
+    'order',
+    'range',
+    'limit',
+    'head',
   ];
 
   chainMethods.forEach((m) => {
@@ -139,8 +156,12 @@ describe('TrailsService', () => {
 
       await service.findAll({ page: 1, limit: 20, search: 'peak' });
 
-      expect(builder.or).toHaveBeenCalledWith(expect.stringContaining('name_en.ilike.%peak%'));
-      expect(builder.or).toHaveBeenCalledWith(expect.stringContaining('name_ka.ilike.%peak%'));
+      expect(builder.or).toHaveBeenCalledWith(
+        expect.stringContaining('name_en.ilike.%peak%'),
+      );
+      expect(builder.or).toHaveBeenCalledWith(
+        expect.stringContaining('name_ka.ilike.%peak%'),
+      );
     });
 
     it('applies gte filter for min_distance', async () => {
@@ -173,7 +194,11 @@ describe('TrailsService', () => {
     });
 
     it('throws when Supabase returns an error', async () => {
-      const builder = makeBuilder({ data: null, error: new Error('DB down'), count: null });
+      const builder = makeBuilder({
+        data: null,
+        error: new Error('DB down'),
+        count: null,
+      });
       adminMock.from.mockReturnValue(builder);
 
       await expect(service.findAll({ page: 1, limit: 20 })).rejects.toThrow();
@@ -194,17 +219,27 @@ describe('TrailsService', () => {
   // -------------------------------------------------------------------------
   describe('findOne', () => {
     it('throws NotFoundException when the trail row does not exist', async () => {
-      const trailBuilder = makeBuilder({ data: null, error: { message: 'Row not found' } });
+      const trailBuilder = makeBuilder({
+        data: null,
+        error: { message: 'Row not found' },
+      });
       adminMock.from.mockReturnValue(trailBuilder);
 
-      await expect(service.findOne('nonexistent-id')).rejects.toThrow(NotFoundException);
+      await expect(service.findOne('nonexistent-id')).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('throws NotFoundException with the correct message', async () => {
-      const trailBuilder = makeBuilder({ data: null, error: { code: 'PGRST116' } });
+      const trailBuilder = makeBuilder({
+        data: null,
+        error: { code: 'PGRST116' },
+      });
       adminMock.from.mockReturnValue(trailBuilder);
 
-      await expect(service.findOne('bad-id')).rejects.toThrow('Trail not found');
+      await expect(service.findOne('bad-id')).rejects.toThrow(
+        'Trail not found',
+      );
     });
 
     it('returns a trail enriched with media, checkpoints, reviews, conditions, photos', async () => {
@@ -223,12 +258,12 @@ describe('TrailsService', () => {
       const photoB = makeBuilder({ data: null, error: null, count: 3 });
 
       adminMock.from
-        .mockReturnValueOnce(trailB)    // trails
-        .mockReturnValueOnce(mediaB)    // trail_media
-        .mockReturnValueOnce(cpB)       // trail_checkpoints
-        .mockReturnValueOnce(revB)      // trail_reviews
-        .mockReturnValueOnce(condB)     // trail_conditions
-        .mockReturnValueOnce(photoB);   // trail_photos
+        .mockReturnValueOnce(trailB) // trails
+        .mockReturnValueOnce(mediaB) // trail_media
+        .mockReturnValueOnce(cpB) // trail_checkpoints
+        .mockReturnValueOnce(revB) // trail_reviews
+        .mockReturnValueOnce(condB) // trail_conditions
+        .mockReturnValueOnce(photoB); // trail_photos
 
       const result = await service.findOne('trail-1');
 
@@ -247,12 +282,12 @@ describe('TrailsService', () => {
       const revB = makeBuilder({ data: reviews, error: null });
 
       adminMock.from
-        .mockReturnValueOnce(trailB)   // trails
-        .mockReturnValueOnce(emptyB)   // trail_media
-        .mockReturnValueOnce(emptyB)   // trail_checkpoints
-        .mockReturnValueOnce(revB)     // trail_reviews
-        .mockReturnValueOnce(emptyB)   // trail_conditions
-        .mockReturnValueOnce(emptyB);  // trail_photos
+        .mockReturnValueOnce(trailB) // trails
+        .mockReturnValueOnce(emptyB) // trail_media
+        .mockReturnValueOnce(emptyB) // trail_checkpoints
+        .mockReturnValueOnce(revB) // trail_reviews
+        .mockReturnValueOnce(emptyB) // trail_conditions
+        .mockReturnValueOnce(emptyB); // trail_photos
 
       const result = await service.findOne('t1');
 
@@ -307,16 +342,25 @@ describe('TrailsService', () => {
     });
 
     it('returns the raw RPC data array', async () => {
-      const nearby = [{ id: 'n1', name_en: 'Close Peak', distance_from_user_m: 1200 }];
+      const nearby = [
+        { id: 'n1', name_en: 'Close Peak', distance_from_user_m: 1200 },
+      ];
       adminMock.rpc.mockResolvedValue({ data: nearby, error: null });
 
-      const result = await service.findNearby({ lat: 41.0, lng: 44.0, radius_km: 10 });
+      const result = await service.findNearby({
+        lat: 41.0,
+        lng: 44.0,
+        radius_km: 10,
+      });
 
       expect(result).toEqual(nearby);
     });
 
     it('throws when the RPC returns an error', async () => {
-      adminMock.rpc.mockResolvedValue({ data: null, error: new Error('RPC error') });
+      adminMock.rpc.mockResolvedValue({
+        data: null,
+        error: new Error('RPC error'),
+      });
 
       await expect(service.findNearby({ lat: 0, lng: 0 })).rejects.toThrow();
     });
@@ -413,7 +457,9 @@ describe('TrailsService', () => {
       const builder = makeBuilder({ data: updatedTrail, error: null });
       adminMock.from.mockReturnValue(builder);
 
-      const result = await service.updateDetails('t1', { name_en: 'Updated' } as any);
+      const result = await service.updateDetails('t1', {
+        name_en: 'Updated',
+      } as any);
 
       expect(result).toEqual(updatedTrail);
     });
@@ -452,7 +498,9 @@ describe('TrailsService', () => {
     });
 
     it('throws when Supabase returns an error', async () => {
-      const builder = makeBuilder({ error: new Error('Foreign key violation') });
+      const builder = makeBuilder({
+        error: new Error('Foreign key violation'),
+      });
       adminMock.from.mockReturnValue(builder);
 
       await expect(service.remove('trail-1')).rejects.toThrow();

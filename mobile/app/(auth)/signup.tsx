@@ -7,7 +7,6 @@ import {
   Platform,
   ScrollView,
   TouchableOpacity,
-  Alert,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
@@ -47,27 +46,29 @@ export default function SignupScreen() {
   const [username, setUsername] = useState('');
   const [fullName, setFullName] = useState('');
   const [password, setPassword] = useState('');
+  const [errorMsg, setErrorMsg] = useState('');
   const signup = useSignup();
 
   const handleSignup = () => {
+    setErrorMsg('');
     if (!email || !username || !password) {
-      Alert.alert('Error', 'Please fill in all required fields');
+      setErrorMsg('Please fill in all required fields.');
       return;
     }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      Alert.alert('Error', 'Please enter a valid email address');
+      setErrorMsg('Please enter a valid email address.');
       return;
     }
     if (username.length < 3) {
-      Alert.alert('Error', 'Username must be at least 3 characters');
+      setErrorMsg('Username must be at least 3 characters.');
       return;
     }
     if (password.length < 8) {
-      Alert.alert('Error', 'Password must be at least 8 characters');
+      setErrorMsg('Password must be at least 8 characters.');
       return;
     }
     if (!/[A-Z]/.test(password) || !/[a-z]/.test(password) || !/\d/.test(password)) {
-      Alert.alert('Error', 'Password must contain an uppercase letter, a lowercase letter, and a number');
+      setErrorMsg('Password must contain an uppercase letter, a lowercase letter, and a number.');
       return;
     }
     signup.mutate(
@@ -78,7 +79,7 @@ export default function SignupScreen() {
           const message = Array.isArray(raw)
             ? raw[0]
             : (raw ?? 'Could not create account. Please try again.');
-          Alert.alert('Signup Failed', friendlyAuthError(message));
+          setErrorMsg(friendlyAuthError(message));
         },
       },
     );
@@ -132,6 +133,7 @@ export default function SignupScreen() {
             onChangeText={setPassword}
             secureTextEntry
           />
+          {errorMsg ? <Text style={styles.errorText}>{errorMsg}</Text> : null}
           <Button
             title="Create Account"
             onPress={handleSignup}
@@ -184,6 +186,12 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   },
   form: {
     gap: 4,
+  },
+  errorText: {
+    color: Colors.error,
+    fontSize: 14,
+    textAlign: 'center',
+    marginTop: 4,
   },
   loginLink: {
     alignItems: 'center',

@@ -30,7 +30,9 @@ export class CompletionsService {
       .single();
 
     if (existing) {
-      throw new ConflictException('You have already submitted a completion for this trail');
+      throw new ConflictException(
+        'You have already submitted a completion for this trail',
+      );
     }
 
     // Get trail endpoint for GPS validation
@@ -161,7 +163,9 @@ export class CompletionsService {
     if (error) throw error;
 
     await this.incrementUserCompletionCount(admin, userId);
-    const badgeResult = await admin.rpc('check_and_award_badges', { p_user_id: userId });
+    const badgeResult = await admin.rpc('check_and_award_badges', {
+      p_user_id: userId,
+    });
 
     const newBadgeIds: string[] = badgeResult.data ?? [];
 
@@ -172,7 +176,8 @@ export class CompletionsService {
         .select('name_en')
         .in('id', newBadgeIds);
 
-      const names = newBadges?.map((b) => b.name_en).join(', ') ?? 'a new badge';
+      const names =
+        newBadges?.map((b) => b.name_en).join(', ') ?? 'a new badge';
       this.notificationsService
         .sendToUser(userId, 'Badge Earned!', `You earned: ${names}`, {
           type: 'badge_earned',
@@ -286,7 +291,9 @@ export class CompletionsService {
     // Update count if approving
     if (status === 'approved') {
       await this.incrementUserCompletionCount(admin, completion.user_id);
-      await admin.rpc('check_and_award_badges', { p_user_id: completion.user_id });
+      await admin.rpc('check_and_award_badges', {
+        p_user_id: completion.user_id,
+      });
     }
 
     return data;
@@ -296,7 +303,10 @@ export class CompletionsService {
     const admin = this.supabaseService.getAdminClient();
     const { error } = await admin
       .from('active_hikes')
-      .upsert({ trail_id: trailId, user_id: userId }, { onConflict: 'trail_id,user_id' });
+      .upsert(
+        { trail_id: trailId, user_id: userId },
+        { onConflict: 'trail_id,user_id' },
+      );
     if (error) throw error;
     return { active: true };
   }
