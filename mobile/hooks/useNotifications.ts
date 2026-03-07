@@ -130,6 +130,8 @@ export function useNotificationSetup() {
             router.push(`/trail/user/${data.userId}`);
           } else if (data?.type === 'emergency_contact') {
             router.push('/(tabs)/profile/settings');
+          } else if (data?.type === 'new_comment') {
+            router.push('/(tabs)/community');
           } else if (data?.type === 'completion_approved') {
             router.push('/(tabs)/profile/analytics');
           } else if (data?.type === 'event_invite' && data.eventId) {

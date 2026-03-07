@@ -1,17 +1,27 @@
-import { Injectable, ForbiddenException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import { SupabaseService } from '../config/supabase.config';
+import { NotificationsService } from '../notifications/notifications.service';
 import { CreateCommentDto } from './dto/create-comment.dto';
 
 @Injectable()
 export class CommentsService {
-  constructor(private supabaseService: SupabaseService) {}
+  constructor(
+    private supabaseService: SupabaseService,
+    private notificationsService: NotificationsService,
+  ) {}
 
   async getComments(activityId: string) {
     const admin = this.supabaseService.getAdminClient();
 
     const { data, error } = await admin
       .from('activity_comments')
-      .select('id, activity_id, activity_type, user_id, comment, created_at, profiles:user_id(username, avatar_url)')
+      .select(
+        'id, activity_id, activity_type, user_id, comment, created_at, profiles:user_id(username, avatar_url)',
+      )
       .eq('activity_id', activityId)
       .order('created_at', { ascending: true });
 
@@ -24,12 +34,61 @@ export class CommentsService {
 
     const { data, error } = await admin
       .from('activity_comments')
-      .insert({ activity_id: dto.activity_id, activity_type: dto.activity_type, user_id: userId, comment: dto.comment })
-      .select('id, activity_id, activity_type, user_id, comment, created_at, profiles:user_id(username, avatar_url)')
+      .insert({
+        activity_id: dto.activity_id,
+        activity_type: dto.activity_type,
+        user_id: userId,
+        comment: dto.comment,
+      })
+      .select(
+        'id, activity_id, activity_type, user_id, comment, created_at, profiles:user_id(username, avatar_url)',
+      )
       .single();
 
     if (error) throw error;
+
+    // Fire-and-forget: notify the activity owner (skip if commenter is owner)
+    this.notifyActivityOwner(userId, dto.activity_id, dto.activity_type, data).catch(() => {});
+
     return data;
+  }
+
+  private async notifyActivityOwner(
+    commenterId: string,
+    activityId: string,
+    activityType: string,
+    comment: Record<string, any>,
+  ) {
+    const admin = this.supabaseService.getAdminClient();
+
+    // Resolve owner of the activity
+    let ownerId: string | null = null;
+    if (activityType === 'completion') {
+      const { data } = await admin
+        .from('completions')
+        .select('user_id')
+        .eq('id', activityId)
+        .single();
+      ownerId = data?.user_id ?? null;
+    } else if (activityType === 'event') {
+      const { data } = await admin
+        .from('events')
+        .select('organizer_id')
+        .eq('id', activityId)
+        .single();
+      ownerId = data?.organizer_id ?? null;
+    }
+
+    if (!ownerId || ownerId === commenterId) return;
+
+    const username = (comment.profiles as any)?.username ?? 'Someone';
+    await this.notificationsService.sendToUser(
+      ownerId,
+      'New Comment',
+      `${username} commented on your activity`,
+      { activityId, activityType, commenterId },
+      'new_comment',
+    );
   }
 
   async deleteComment(userId: string, commentId: string) {
@@ -42,9 +101,13 @@ export class CommentsService {
       .single();
 
     if (!existing) throw new NotFoundException('Comment not found');
-    if (existing.user_id !== userId) throw new ForbiddenException("Cannot delete another user's comment");
+    if (existing.user_id !== userId)
+      throw new ForbiddenException("Cannot delete another user's comment");
 
-    const { error } = await admin.from('activity_comments').delete().eq('id', commentId);
+    const { error } = await admin
+      .from('activity_comments')
+      .delete()
+      .eq('id', commentId);
     if (error) throw error;
     return { message: 'Deleted' };
   }

@@ -1,21 +1,31 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { SupabaseService } from '../config/supabase.config';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class EventsService {
-  constructor(private supabaseService: SupabaseService) {}
+  constructor(
+    private supabaseService: SupabaseService,
+    private notificationsService: NotificationsService,
+  ) {}
 
   async findAll(trailId?: string) {
     const admin = this.supabaseService.getAdminClient();
 
     let query = admin
       .from('events')
-      .select(`
+      .select(
+        `
         *,
         organizer:organizer_id (id, username, avatar_url),
         trails:trail_id (id, name_en),
         participant_count:event_participants(count)
-      `)
+      `,
+      )
       .gte('scheduled_at', new Date().toISOString())
       .order('scheduled_at', { ascending: true });
 
@@ -33,7 +43,8 @@ export class EventsService {
 
     const { data, error } = await admin
       .from('events')
-      .select(`
+      .select(
+        `
         *,
         organizer:organizer_id (id, username, avatar_url),
         trails:trail_id (id, name_en, difficulty, region),
@@ -42,7 +53,8 @@ export class EventsService {
           joined_at,
           profiles:user_id (id, username, avatar_url)
         )
-      `)
+      `,
+      )
       .eq('id', id)
       .single();
 
@@ -101,10 +113,10 @@ export class EventsService {
   async join(userId: string, eventId: string) {
     const admin = this.supabaseService.getAdminClient();
 
-    // Check max_participants
+    // Fetch event details (capacity check + organizer for notification)
     const { data: event } = await admin
       .from('events')
-      .select('max_participants')
+      .select('max_participants, organizer_id, title')
       .eq('id', eventId)
       .single();
 
@@ -122,9 +134,32 @@ export class EventsService {
 
     const { error } = await admin
       .from('event_participants')
-      .upsert({ event_id: eventId, user_id: userId }, { onConflict: 'event_id,user_id' });
+      .upsert(
+        { event_id: eventId, user_id: userId },
+        { onConflict: 'event_id,user_id' },
+      );
 
     if (error) throw error;
+
+    // Notify the organizer (skip if the organizer is joining their own event)
+    if (event.organizer_id && event.organizer_id !== userId) {
+      const { data: joinerProfile } = await admin
+        .from('profiles')
+        .select('username')
+        .eq('id', userId)
+        .single();
+      const username = joinerProfile?.username ?? 'Someone';
+      this.notificationsService
+        .sendToUser(
+          event.organizer_id,
+          'New Participant',
+          `${username} joined your event: ${event.title}`,
+          { eventId, userId },
+          'event_invite',
+        )
+        .catch(() => {}); // fire-and-forget
+    }
+
     return { joined: true };
   }
 

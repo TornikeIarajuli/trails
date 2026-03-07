@@ -2,8 +2,10 @@ import { Module } from '@nestjs/common';
 import { EventsController } from './events.controller';
 import { EventsService } from './events.service';
 import { SupabaseService } from '../config/supabase.config';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
+  imports: [NotificationsModule],
   controllers: [EventsController],
   providers: [EventsService, SupabaseService],
   exports: [EventsService],
