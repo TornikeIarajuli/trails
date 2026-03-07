@@ -103,9 +103,28 @@ export function useUpdateNotificationPrefs() {
   });
 }
 
+function navigateFromNotification(data: Record<string, any>) {
+  if (data?.type === 'new_follower' && data.followerId) {
+    router.push(`/trail/user/${data.followerId}`);
+  } else if (data?.type === 'badge_earned') {
+    router.push('/(tabs)/profile/badges');
+  } else if (data?.type === 'sos' && data.userId) {
+    router.push(`/trail/user/${data.userId}`);
+  } else if (data?.type === 'emergency_contact') {
+    router.push('/(tabs)/profile/settings');
+  } else if (data?.type === 'new_comment') {
+    router.push('/(tabs)/community');
+  } else if (data?.type === 'completion_approved') {
+    router.push('/(tabs)/profile/analytics');
+  } else if (data?.type === 'event_invite' && data.eventId) {
+    router.push(`/trail/events/${data.eventId}`);
+  }
+}
+
 export function useNotificationSetup() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const responseListener = useRef<any>(null);
+  const coldStartHandled = useRef(false);
 
   useEffect(() => {
     if (!isAuthenticated || isExpoGo || !Notifications) return;
@@ -117,26 +136,23 @@ export function useNotificationSetup() {
       }
     });
 
-    // Handle notification taps
+    // Cold-start: app was opened by tapping a notification — handle it once
+    if (!coldStartHandled.current) {
+      coldStartHandled.current = true;
+      try {
+        Notifications.getLastNotificationResponseAsync().then((response) => {
+          if (response) {
+            navigateFromNotification(response.notification.request.content.data);
+          }
+        });
+      } catch {}
+    }
+
+    // Foreground / background tap listener
     try {
       responseListener.current = Notifications.addNotificationResponseReceivedListener(
         (response) => {
-          const data = response.notification.request.content.data;
-          if (data?.type === 'new_follower' && data.followerId) {
-            router.push(`/trail/user/${data.followerId}`);
-          } else if (data?.type === 'badge_earned') {
-            router.push('/(tabs)/profile/badges');
-          } else if (data?.type === 'sos' && data.userId) {
-            router.push(`/trail/user/${data.userId}`);
-          } else if (data?.type === 'emergency_contact') {
-            router.push('/(tabs)/profile/settings');
-          } else if (data?.type === 'new_comment') {
-            router.push('/(tabs)/community');
-          } else if (data?.type === 'completion_approved') {
-            router.push('/(tabs)/profile/analytics');
-          } else if (data?.type === 'event_invite' && data.eventId) {
-            router.push(`/trail/events/${data.eventId}`);
-          }
+          navigateFromNotification(response.notification.request.content.data);
         },
       );
     } catch {}
