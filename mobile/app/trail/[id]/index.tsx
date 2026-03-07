@@ -215,14 +215,16 @@ export default function TrailDetailScreen() {
             />
           )}
 
-          {/* Report condition link */}
+          {/* Report condition button */}
           {isAuthenticated && (
             <TouchableOpacity
               style={styles.reportLink}
               onPress={() => setConditionModalVisible(true)}
+              activeOpacity={0.7}
             >
-              <Ionicons name="flag-outline" size={16} color={Colors.primary} />
+              <Ionicons name="flag-outline" size={18} color={Colors.primary} />
               <Text style={styles.reportLinkText}>Report Trail Condition</Text>
+              <Ionicons name="chevron-forward" size={16} color={Colors.textLight} style={{ marginLeft: 'auto' }} />
             </TouchableOpacity>
           )}
 
@@ -398,13 +400,21 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   reportLink: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 16,
+    gap: 8,
+    marginHorizontal: 16,
+    marginVertical: 4,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    backgroundColor: Colors.surface,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
   reportLinkText: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '600',
     color: Colors.primary,
+    flex: 1,
   },
   bottomBar: {
     paddingHorizontal: 16,
