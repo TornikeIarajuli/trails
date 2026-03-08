@@ -69,8 +69,9 @@ export function ReportConditionModal({
           setDescription('');
           onClose();
         },
-        onError: () => {
-          Alert.alert('Error', 'Failed to submit report');
+        onError: (err: any) => {
+          const msg = err?.response?.data?.message ?? err?.message ?? 'Failed to submit report';
+          Alert.alert('Error', Array.isArray(msg) ? msg.join('\n') : msg);
         },
       },
     );

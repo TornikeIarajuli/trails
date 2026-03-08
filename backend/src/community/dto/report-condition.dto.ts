@@ -1,4 +1,4 @@
-import { IsUUID, IsEnum, IsOptional, IsString } from 'class-validator';
+import { IsEnum, IsOptional, IsString, IsNotEmpty } from 'class-validator';
 
 export enum ConditionType {
   TRAIL_CLEAR = 'trail_clear',
@@ -18,7 +18,8 @@ export enum SeverityLevel {
 }
 
 export class ReportConditionDto {
-  @IsUUID()
+  @IsString()
+  @IsNotEmpty()
   trail_id: string;
 
   @IsEnum(ConditionType)
