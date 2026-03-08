@@ -1,7 +1,8 @@
-import { IsUUID, IsString, IsOptional } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional } from 'class-validator';
 
 export class UploadPhotoDto {
-  @IsUUID()
+  @IsString()
+  @IsNotEmpty()
   trail_id: string;
 
   @IsString()

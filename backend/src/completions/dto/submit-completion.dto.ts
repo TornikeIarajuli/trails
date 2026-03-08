@@ -1,7 +1,8 @@
-import { IsString, IsUUID, IsNumber, IsOptional } from 'class-validator';
+import { IsString, IsNotEmpty, IsNumber, IsOptional } from 'class-validator';
 
 export class SubmitCompletionDto {
-  @IsUUID()
+  @IsString()
+  @IsNotEmpty()
   trail_id: string;
 
   @IsString()

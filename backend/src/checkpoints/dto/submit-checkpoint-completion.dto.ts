@@ -1,7 +1,8 @@
-import { IsString, IsUUID, IsNumber, IsOptional } from 'class-validator';
+import { IsString, IsNotEmpty, IsNumber, IsOptional } from 'class-validator';
 
 export class SubmitCheckpointCompletionDto {
-  @IsUUID()
+  @IsString()
+  @IsNotEmpty()
   checkpoint_id: string;
 
   @IsString()

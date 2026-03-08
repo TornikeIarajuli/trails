@@ -1,11 +1,11 @@
 import {
   IsString,
+  IsNotEmpty,
   IsOptional,
   IsEnum,
   IsNumber,
   IsBoolean,
   IsArray,
-  IsUUID,
   Min,
 } from 'class-validator';
 import { Type } from 'class-transformer';
@@ -27,7 +27,8 @@ export enum CheckpointType {
 }
 
 export class CreateCheckpointDto {
-  @IsUUID()
+  @IsString()
+  @IsNotEmpty()
   trail_id: string;
 
   @IsString()
