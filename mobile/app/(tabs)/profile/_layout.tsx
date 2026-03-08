@@ -20,6 +20,8 @@ export default function ProfileLayout() {
       <Stack.Screen name="badges" />
       <Stack.Screen name="notifications" />
       <Stack.Screen name="notification-preferences" />
+      <Stack.Screen name="privacy" />
+      <Stack.Screen name="terms" />
     </Stack>
   );
 }

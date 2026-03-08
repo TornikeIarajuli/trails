@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Switch, Alert, ScrollView, Linking } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Switch, Alert, ScrollView } from 'react-native';
 import { Stack, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors, ColorPalette } from '../../../constants/colors';
@@ -163,7 +163,7 @@ export default function SettingsScreen() {
           <TouchableOpacity
             style={styles.linkRow}
             activeOpacity={0.7}
-            onPress={() => Linking.openURL('https://trails-en04.onrender.com/legal/privacy')}
+            onPress={() => router.push('/(tabs)/profile/privacy')}
           >
             <View style={styles.rowLeft}>
               <Ionicons name="shield-checkmark-outline" size={20} color={Colors.text} />
@@ -175,7 +175,7 @@ export default function SettingsScreen() {
           <TouchableOpacity
             style={styles.linkRow}
             activeOpacity={0.7}
-            onPress={() => Linking.openURL('https://trails-en04.onrender.com/legal/terms')}
+            onPress={() => router.push('/(tabs)/profile/terms')}
           >
             <View style={styles.rowLeft}>
               <Ionicons name="document-text-outline" size={20} color={Colors.text} />
