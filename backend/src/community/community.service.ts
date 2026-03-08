@@ -4,12 +4,16 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { SupabaseService } from '../config/supabase.config';
+import { TrailsService } from '../trails/trails.service';
 import { ReportConditionDto } from './dto/report-condition.dto';
 import { UploadPhotoDto } from './dto/upload-photo.dto';
 
 @Injectable()
 export class CommunityService {
-  constructor(private supabaseService: SupabaseService) {}
+  constructor(
+    private supabaseService: SupabaseService,
+    private trailsService: TrailsService,
+  ) {}
 
   // ---- Trail Conditions ----
 
@@ -35,6 +39,7 @@ export class CommunityService {
       .single();
 
     if (error) throw error;
+    this.trailsService.invalidateCache(dto.trail_id);
     return data;
   }
 
@@ -51,6 +56,7 @@ export class CommunityService {
       )
       .eq('trail_id', trailId)
       .eq('is_active', true)
+      .gte('reported_at', new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString())
       .order('reported_at', { ascending: false });
 
     if (error) throw error;

@@ -164,6 +164,7 @@ export class TrailsService {
       })
       .eq('trail_id', id)
       .eq('is_active', true)
+      .gte('reported_at', new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString())
       .order('reported_at', { ascending: false })
       .limit(3);
 
