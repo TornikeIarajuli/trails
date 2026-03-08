@@ -131,48 +131,48 @@ export class TrailsService {
       throw new NotFoundException('Trail not found');
     }
 
-    // Fetch media for this trail
-    const { data: media } = await admin
-      .from('trail_media')
-      .select('*')
-      .eq('trail_id', id)
-      .order('sort_order', { ascending: true });
-
-    // Fetch checkpoints
-    const { data: checkpoints } = await admin
-      .from('trail_checkpoints')
-      .select('*')
-      .eq('trail_id', id)
-      .order('sort_order', { ascending: true });
-
-    // Fetch average rating
-    const { data: reviews } = await admin
-      .from('trail_reviews')
-      .select('rating')
-      .eq('trail_id', id);
+    // Fetch all supplementary data in parallel
+    const [
+      { data: media },
+      { data: checkpoints },
+      { data: reviews },
+      { data: conditions, count: conditionsCount },
+      { count: photosCount },
+    ] = await Promise.all([
+      admin
+        .from('trail_media')
+        .select('*')
+        .eq('trail_id', id)
+        .order('sort_order', { ascending: true }),
+      admin
+        .from('trail_checkpoints')
+        .select('*')
+        .eq('trail_id', id)
+        .order('sort_order', { ascending: true }),
+      admin
+        .from('trail_reviews')
+        .select('rating')
+        .eq('trail_id', id),
+      admin
+        .from('trail_conditions')
+        .select('id, condition_type, severity, description, reported_at', {
+          count: 'exact',
+        })
+        .eq('trail_id', id)
+        .eq('is_active', true)
+        .gte('reported_at', new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString())
+        .order('reported_at', { ascending: false })
+        .limit(3),
+      admin
+        .from('trail_photos')
+        .select('id', { count: 'exact', head: true })
+        .eq('trail_id', id),
+    ]);
 
     const avgRating =
       reviews && reviews.length > 0
         ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length
         : null;
-
-    // Fetch active conditions count + latest 3
-    const { data: conditions, count: conditionsCount } = await admin
-      .from('trail_conditions')
-      .select('id, condition_type, severity, description, reported_at', {
-        count: 'exact',
-      })
-      .eq('trail_id', id)
-      .eq('is_active', true)
-      .gte('reported_at', new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString())
-      .order('reported_at', { ascending: false })
-      .limit(3);
-
-    // Fetch community photos count
-    const { count: photosCount } = await admin
-      .from('trail_photos')
-      .select('id', { count: 'exact', head: true })
-      .eq('trail_id', id);
 
     const result = {
       ...trail,

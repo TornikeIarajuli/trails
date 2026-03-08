@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { View, FlatList, Text, StyleSheet } from 'react-native';
+import { View, FlatList, Text, StyleSheet, RefreshControl } from 'react-native';
 import { useColors, ColorPalette } from '../../../constants/colors';
 import { useLeaderboard } from '../../../hooks/useLeaderboard';
 import { LeaderboardRow } from '../../../components/leaderboard/LeaderboardRow';
@@ -9,7 +9,7 @@ export default function LeaderboardScreen() {
   const Colors = useColors();
   const styles = useMemo(() => createStyles(Colors), [Colors]);
 
-  const { data, isLoading } = useLeaderboard(50);
+  const { data, isLoading, refetch, isRefetching } = useLeaderboard(50);
 
   return (
     <View style={styles.container}>
@@ -29,6 +29,14 @@ export default function LeaderboardScreen() {
           )}
           contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefetching}
+              onRefresh={refetch}
+              tintColor={Colors.primary}
+              colors={[Colors.primary]}
+            />
+          }
           ListEmptyComponent={
             <View style={styles.empty}>
               <Text style={styles.emptyText}>No hikers yet. Be the first!</Text>

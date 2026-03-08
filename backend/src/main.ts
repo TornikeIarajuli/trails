@@ -3,12 +3,16 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
 import express from 'express';
+import helmet from 'helmet';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
     rawBody: true,
     bodyParser: true,
   });
+
+  // Security headers (CSP, HSTS, X-Frame-Options, etc.)
+  app.use(helmet());
 
   // Cap request body at 15 MB (covers largest photo uploads; rejects abuse)
   app.use(express.json({ limit: '15mb' }));

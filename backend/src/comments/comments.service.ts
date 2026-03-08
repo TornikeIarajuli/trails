@@ -14,19 +14,30 @@ export class CommentsService {
     private notificationsService: NotificationsService,
   ) {}
 
-  async getComments(activityId: string) {
+  async getComments(activityId: string, page = 1, limit = 50) {
     const admin = this.supabaseService.getAdminClient();
+    const offset = (page - 1) * limit;
 
-    const { data, error } = await admin
+    const { data, error, count } = await admin
       .from('activity_comments')
       .select(
         'id, activity_id, activity_type, user_id, comment, created_at, profiles:user_id(username, avatar_url)',
+        { count: 'exact' },
       )
       .eq('activity_id', activityId)
-      .order('created_at', { ascending: true });
+      .order('created_at', { ascending: true })
+      .range(offset, offset + limit - 1);
 
     if (error) throw error;
-    return data ?? [];
+    return {
+      data: data ?? [],
+      pagination: {
+        page,
+        limit,
+        total: count ?? 0,
+        totalPages: Math.ceil((count ?? 0) / limit),
+      },
+    };
   }
 
   async createComment(userId: string, dto: CreateCommentDto) {

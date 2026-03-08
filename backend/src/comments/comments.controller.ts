@@ -5,6 +5,7 @@ import {
   Delete,
   Body,
   Param,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { CommentsService } from './comments.service';
@@ -17,8 +18,16 @@ export class CommentsController {
   constructor(private commentsService: CommentsService) {}
 
   @Get(':activityId')
-  getComments(@Param('activityId') activityId: string) {
-    return this.commentsService.getComments(activityId);
+  getComments(
+    @Param('activityId') activityId: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.commentsService.getComments(
+      activityId,
+      page ? parseInt(page, 10) : 1,
+      limit ? parseInt(limit, 10) : 50,
+    );
   }
 
   @Post()

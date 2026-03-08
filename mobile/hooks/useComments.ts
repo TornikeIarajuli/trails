@@ -3,11 +3,12 @@ import { commentsService } from '../services/comments';
 import { showError } from '../utils/showError';
 import { queryKeys } from '../utils/queryKeys';
 
-export function useComments(activityId: string) {
+export function useComments(activityId: string, page = 1, limit = 50) {
   return useQuery({
-    queryKey: queryKeys.comments.activity(activityId),
-    queryFn: () => commentsService.getComments(activityId),
+    queryKey: [...queryKeys.comments.activity(activityId), page, limit],
+    queryFn: () => commentsService.getComments(activityId, page, limit),
     enabled: !!activityId,
+    select: (res) => res.data,
   });
 }
 

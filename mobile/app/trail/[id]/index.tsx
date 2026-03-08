@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   Alert,
+  RefreshControl,
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -49,12 +50,19 @@ export default function TrailDetailScreen() {
   const language = useSettingsStore((s) => s.language);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const isAdmin = useAuthStore((s) => s.isAdmin);
-  const { data: trail, isLoading } = useTrail(id);
+  const { data: trail, isLoading, refetch: refetchTrail } = useTrail(id);
   const [conditionModalVisible, setConditionModalVisible] = useState(false);
   const [reviewModalVisible, setReviewModalVisible] = useState(false);
   const uploadPhotoMutation = useUploadPhoto();
-  const { data: reviews = [] } = useTrailReviews(id);
-  const { data: activeCount } = useActiveHikerCount(id);
+  const { data: reviews = [], refetch: refetchReviews } = useTrailReviews(id);
+  const { data: activeCount, refetch: refetchCount } = useActiveHikerCount(id);
+
+  const [refreshing, setRefreshing] = useState(false);
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await Promise.all([refetchTrail(), refetchReviews(), refetchCount()]);
+    setRefreshing(false);
+  }, [refetchTrail, refetchReviews, refetchCount]);
 
   const [isSavedOffline, setIsSavedOffline] = useState(() =>
     trailCache.isTrailSavedOffline(id),
@@ -117,7 +125,17 @@ export default function TrailDetailScreen() {
 
   return (
     <View style={styles.container}>
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={Colors.primary}
+            colors={[Colors.primary]}
+          />
+        }
+      >
         <TrailPhotoCarousel coverUrl={trail.cover_image_url} media={trail.media} />
 
         {/* Back button overlay */}

@@ -1,9 +1,25 @@
 import api from './api';
 import { ActivityComment } from '../types/comment';
 
+export interface PaginatedComments {
+  data: ActivityComment[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}
+
 export const commentsService = {
-  getComments: async (activityId: string): Promise<ActivityComment[]> => {
-    const response = await api.get(`/comments/${activityId}`);
+  getComments: async (
+    activityId: string,
+    page = 1,
+    limit = 50,
+  ): Promise<PaginatedComments> => {
+    const response = await api.get(`/comments/${activityId}`, {
+      params: { page, limit },
+    });
     return response.data;
   },
 

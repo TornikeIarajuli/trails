@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { Stack, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -79,7 +80,7 @@ export default function NotificationsScreen() {
   const Colors = useColors();
   const styles = useMemo(() => createStyles(Colors), [Colors]);
 
-  const { data, isLoading } = useNotificationList(1);
+  const { data, isLoading, refetch, isRefetching } = useNotificationList(1);
   const markRead = useMarkRead();
   const markAllRead = useMarkAllRead();
 
@@ -143,6 +144,14 @@ export default function NotificationsScreen() {
               )}
               ItemSeparatorComponent={() => <View style={styles.separator} />}
               showsVerticalScrollIndicator={false}
+              refreshControl={
+                <RefreshControl
+                  refreshing={isRefetching}
+                  onRefresh={refetch}
+                  tintColor={Colors.primary}
+                  colors={[Colors.primary]}
+                />
+              }
             />
           </>
         )}
