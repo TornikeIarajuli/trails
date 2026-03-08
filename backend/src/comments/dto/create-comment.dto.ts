@@ -5,8 +5,8 @@ export class CreateCommentDto {
   @IsNotEmpty()
   activity_id: string;
 
-  @IsIn(['completion', 'photo', 'condition', 'review'])
-  activity_type: 'completion' | 'photo' | 'condition' | 'review';
+  @IsIn(['completion', 'photo', 'condition', 'review', 'event'])
+  activity_type: 'completion' | 'photo' | 'condition' | 'review' | 'event';
 
   @IsString()
   @IsNotEmpty()
