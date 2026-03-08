@@ -20,8 +20,9 @@ export function ShareButton({ trail, style }: ShareButtonProps) {
     parts.push(`Difficulty: ${trail.difficulty}`);
     parts.push(`Region: ${trail.region}`);
 
+    const deepLink = `mikiri-trails://trail/${trail.id}`;
     await Share.share({
-      message: `Check out this trail in Georgia!\n\n${parts.join(' | ')}`,
+      message: `Check out this trail in Georgia!\n\n${parts.join(' | ')}\n\n${deepLink}`,
       title: trail.name_en,
     });
   };
