@@ -1,10 +1,13 @@
 import React, { useMemo } from 'react';
 import { View, Text, ScrollView, StyleSheet } from 'react-native';
 import { Stack } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { useColors, ColorPalette } from '../../../constants/colors';
 import { useMyCompletions } from '../../../hooks/useCompletions';
+import { useMyBadges } from '../../../hooks/useBadges';
 import { LoadingSpinner } from '../../../components/ui/LoadingSpinner';
 import { TrailCompletion } from '../../../types/completion';
+import { BADGE_ICON_MAP, BADGE_CATEGORY_COLOR } from '../../../components/badges/badgeConstants';
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -79,6 +82,7 @@ export default function AnalyticsScreen() {
   const styles = useMemo(() => createStyles(Colors), [Colors]);
 
   const { data: completions, isLoading } = useMyCompletions();
+  const { data: userBadges } = useMyBadges();
 
   const stats = useMemo(() => {
     if (!completions) return null;
@@ -190,6 +194,35 @@ export default function AnalyticsScreen() {
                 </View>
               </View>
             )}
+
+            {/* Badges & Achievements */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>
+                Badges & Achievements ({userBadges?.length ?? 0})
+              </Text>
+              {!userBadges || userBadges.length === 0 ? (
+                <Text style={styles.emptyBadgeText}>Complete trails to earn badges!</Text>
+              ) : (
+                <View style={styles.badgeGrid}>
+                  {userBadges.map((ub) => {
+                    const badge = ub.badges;
+                    const iconName = BADGE_ICON_MAP[badge.icon] ?? 'ribbon';
+                    const color = BADGE_CATEGORY_COLOR[badge.category] ?? Colors.primary;
+                    return (
+                      <View key={ub.id} style={styles.badgeItem}>
+                        <View style={[styles.badgeIcon, { backgroundColor: color }]}>
+                          <Ionicons name={iconName as any} size={22} color="#fff" />
+                        </View>
+                        <Text style={styles.badgeName} numberOfLines={2}>{badge.name_en}</Text>
+                        <Text style={styles.badgeDate}>
+                          {new Date(ub.earned_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+                        </Text>
+                      </View>
+                    );
+                  })}
+                </View>
+              )}
+            </View>
 
             {stats.totalHikes === 0 && (
               <Text style={styles.emptyText}>Complete some trails to see your stats!</Text>
@@ -332,5 +365,39 @@ const createStyles = (Colors: ColorPalette) =>
       color: Colors.textLight,
       fontSize: 14,
       marginTop: 32,
+    },
+    badgeGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 12,
+    },
+    badgeItem: {
+      width: '22%',
+      alignItems: 'center',
+      gap: 4,
+    },
+    badgeIcon: {
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    badgeName: {
+      fontSize: 10,
+      fontWeight: '600',
+      color: Colors.text,
+      textAlign: 'center',
+    },
+    badgeDate: {
+      fontSize: 9,
+      color: Colors.textLight,
+      textAlign: 'center',
+    },
+    emptyBadgeText: {
+      fontSize: 13,
+      color: Colors.textLight,
+      textAlign: 'center',
+      paddingVertical: 8,
     },
   });
