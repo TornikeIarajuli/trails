@@ -21,10 +21,12 @@ function AnimatedIconButton({
   onPress,
   style,
   children,
+  accessibilityLabel,
 }: {
   onPress: () => void;
   style?: object;
   children: React.ReactNode;
+  accessibilityLabel?: string;
 }) {
   const scale = useSharedValue(1);
   const animStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
@@ -34,6 +36,8 @@ function AnimatedIconButton({
       onPressIn={() => { scale.value = withSpring(0.82, { damping: 12, stiffness: 300 }); }}
       onPressOut={() => { scale.value = withSpring(1, { damping: 12, stiffness: 300 }); }}
       onPress={onPress}
+      accessibilityLabel={accessibilityLabel}
+      accessibilityRole="button"
     >
       <Animated.View style={[style, animStyle]}>
         {children}
@@ -63,6 +67,7 @@ function Header() {
           <AnimatedIconButton
             style={styles.navIcon}
             onPress={() => router.push('/search')}
+            accessibilityLabel="Search"
           >
             <Ionicons name="search-outline" size={22} color={Colors.textSecondary} />
           </AnimatedIconButton>
@@ -73,6 +78,7 @@ function Header() {
                 key={tab.name}
                 onPress={() => router.navigate(tab.route as any)}
                 style={[styles.navIcon, isActive && styles.navIconActive]}
+                accessibilityLabel={`${tab.name.charAt(0).toUpperCase() + tab.name.slice(1)} tab`}
               >
                 <Ionicons
                   name={isActive ? tab.activeIcon : tab.icon}

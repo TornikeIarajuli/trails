@@ -142,13 +142,15 @@ export default function TrailDetailScreen() {
         <TouchableOpacity
           style={[styles.backButton, { top: insets.top + 8 }]}
           onPress={() => router.back()}
+          accessibilityLabel="Go back"
+          accessibilityRole="button"
         >
           <Ionicons name="arrow-back" size={24} color={Colors.text} />
         </TouchableOpacity>
 
         {/* Top-right overlay buttons */}
         <View style={[styles.topRightButtons, { top: insets.top + 8 }]}>
-          <TouchableOpacity style={styles.overlayButton} onPress={toggleOfflineSave}>
+          <TouchableOpacity style={styles.overlayButton} onPress={toggleOfflineSave} accessibilityLabel={isSavedOffline ? 'Remove offline save' : 'Save for offline'} accessibilityRole="button">
             <Ionicons
               name={isSavedOffline ? 'download' : 'download-outline'}
               size={20}
@@ -161,6 +163,8 @@ export default function TrailDetailScreen() {
             <TouchableOpacity
               style={styles.overlayButton}
               onPress={() => router.push(`/trail/${id}/edit`)}
+              accessibilityLabel="Edit trail"
+              accessibilityRole="button"
             >
               <Ionicons name="pencil" size={20} color={Colors.text} />
             </TouchableOpacity>

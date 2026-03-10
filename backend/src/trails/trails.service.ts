@@ -3,7 +3,8 @@ import { SupabaseService } from '../config/supabase.config';
 import { CreateTrailDto } from './dto/create-trail.dto';
 import { UpdateTrailDetailsDto } from './dto/update-trail-details.dto';
 import { TrailFilterDto, NearbyQueryDto } from './dto/trail-filter.dto';
-import { TtlCache } from '../common/ttl-cache';
+import { TtlCache, stableStringify } from '../common/ttl-cache';
+import { throwIfError } from '../common/supabase-error';
 
 const TRAIL_LIST_TTL = 5 * 60 * 1000; // 5 min — trail lists rarely change
 const TRAIL_DETAIL_TTL = 10 * 60 * 1000; // 10 min — trail details change even less
@@ -52,12 +53,12 @@ export class TrailsService {
       .select()
       .single();
 
-    if (error) throw error;
+    throwIfError(error);
     return data;
   }
 
   async findAll(filter: TrailFilterDto) {
-    const cacheKey = `trails:list:${JSON.stringify(filter)}`;
+    const cacheKey = `trails:list:${stableStringify(filter)}`;
     const cached = this.cache.get(cacheKey);
     if (cached) return cached;
 
@@ -99,7 +100,7 @@ export class TrailsService {
 
     const { data, error, count } = await query;
 
-    if (error) throw error;
+    throwIfError(error);
 
     const result = {
       data,
@@ -225,7 +226,7 @@ export class TrailsService {
       .select()
       .single();
 
-    if (error) throw error;
+    throwIfError(error);
     if (!data) throw new NotFoundException('Trail not found');
 
     // Invalidate caches for this trail and all list caches
@@ -244,7 +245,7 @@ export class TrailsService {
 
     const { error } = await admin.from('trails').delete().eq('id', id);
 
-    if (error) throw error;
+    throwIfError(error);
 
     this.cache.delete(`trails:detail:${id}`);
     this.cache.deleteByPrefix('trails:list:');
@@ -262,21 +263,17 @@ export class TrailsService {
       radius_m: radiusMeters,
     });
 
-    if (error) throw error;
+    throwIfError(error);
     return data;
   }
 
   async getRegions() {
     const admin = this.supabaseService.getAdminClient();
 
-    const { data, error } = await admin
-      .from('trails')
-      .select('region')
-      .eq('is_published', true);
+    const { data, error } = await admin.rpc('get_distinct_regions');
 
-    if (error) throw error;
+    throwIfError(error);
 
-    const regions = [...new Set(data?.map((t) => t.region))].sort();
-    return regions;
+    return (data ?? []).map((r: { region: string }) => r.region);
   }
 }

@@ -83,7 +83,7 @@ export function ReportConditionModal({
         <View style={styles.modal}>
           <View style={styles.header}>
             <Text style={styles.title}>Report Condition</Text>
-            <TouchableOpacity onPress={onClose}>
+            <TouchableOpacity onPress={onClose} accessibilityLabel="Close report form" accessibilityRole="button">
               <Ionicons name="close" size={24} color={Colors.text} />
             </TouchableOpacity>
           </View>

@@ -1,4 +1,5 @@
 import { TtlCache } from '../common/ttl-cache';
+import { throwIfError } from '../common/supabase-error';
 const LEADERBOARD_TTL = 15 * 60 * 1000;
 
 import { Injectable, NotFoundException } from '@nestjs/common';
@@ -73,7 +74,7 @@ export class UsersService {
       .select()
       .single();
 
-    if (error) throw error;
+    throwIfError(error);
     if (!profile) throw new NotFoundException('User not found');
 
     return profile;
@@ -93,7 +94,7 @@ export class UsersService {
       .order('total_trails_completed', { ascending: false })
       .limit(limit);
 
-    if (error) throw error;
+    throwIfError(error);
 
     const result = data?.map((user, index) => ({
       rank: index + 1,
@@ -151,7 +152,7 @@ export class UsersService {
 
     // 4. Delete auth user — cascades all DB rows via FK ON DELETE CASCADE
     const { error } = await admin.auth.admin.deleteUser(userId);
-    if (error) throw error;
+    throwIfError(error);
   }
 
   async heartbeat(userId: string) {
@@ -168,7 +169,7 @@ export class UsersService {
       .from('profiles')
       .update({ emergency_contact_user_id: contactUserId })
       .eq('id', userId);
-    if (error) throw error;
+    throwIfError(error);
 
     // Notify the contact that they've been chosen
     if (contactUserId) {
@@ -228,7 +229,7 @@ export class UsersService {
       .or(`username.ilike.%${query}%,full_name.ilike.%${query}%`)
       .limit(20);
 
-    if (error) throw error;
+    throwIfError(error);
     return data ?? [];
   }
 

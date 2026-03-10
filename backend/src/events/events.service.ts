@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { SupabaseService } from '../config/supabase.config';
 import { NotificationsService } from '../notifications/notifications.service';
+import { throwIfError } from '../common/supabase-error';
 
 @Injectable()
 export class EventsService {
@@ -34,7 +35,7 @@ export class EventsService {
     }
 
     const { data, error } = await query;
-    if (error) throw error;
+    throwIfError(error);
     return data ?? [];
   }
 
@@ -80,7 +81,7 @@ export class EventsService {
       .select()
       .single();
 
-    if (error) throw error;
+    throwIfError(error);
 
     // Auto-join organizer
     await admin
@@ -88,6 +89,35 @@ export class EventsService {
       .insert({ event_id: data.id, user_id: organizerId })
       .select();
 
+    return data;
+  }
+
+  async update(
+    userId: string,
+    eventId: string,
+    dto: { title?: string; description?: string; scheduled_at?: string; max_participants?: number },
+  ) {
+    const admin = this.supabaseService.getAdminClient();
+
+    const { data: event } = await admin
+      .from('events')
+      .select('organizer_id')
+      .eq('id', eventId)
+      .single();
+
+    if (!event) throw new NotFoundException('Event not found');
+    if (event.organizer_id !== userId) {
+      throw new BadRequestException('Only the organizer can edit this event');
+    }
+
+    const { data, error } = await admin
+      .from('events')
+      .update(dto)
+      .eq('id', eventId)
+      .select()
+      .single();
+
+    throwIfError(error);
     return data;
   }
 
@@ -106,7 +136,7 @@ export class EventsService {
     }
 
     const { error } = await admin.from('events').delete().eq('id', eventId);
-    if (error) throw error;
+    throwIfError(error);
     return { deleted: true };
   }
 
@@ -139,7 +169,7 @@ export class EventsService {
         { onConflict: 'event_id,user_id' },
       );
 
-    if (error) throw error;
+    throwIfError(error);
 
     // Notify the organizer (skip if the organizer is joining their own event)
     if (event.organizer_id && event.organizer_id !== userId) {
@@ -172,7 +202,7 @@ export class EventsService {
       .eq('event_id', eventId)
       .eq('user_id', userId);
 
-    if (error) throw error;
+    throwIfError(error);
     return { left: true };
   }
 }

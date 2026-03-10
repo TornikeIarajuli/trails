@@ -83,6 +83,8 @@ export default function PhotoGalleryScreen() {
         <TouchableOpacity
           style={styles.likeButton}
           onPress={() => toggleLikeMutation.mutate(item.id)}
+          accessibilityLabel={`Like photo, ${item.likes_count} likes`}
+          accessibilityRole="button"
         >
           <Ionicons name="heart-outline" size={16} color={Colors.textSecondary} />
           <Text style={styles.likeCount}>{item.likes_count}</Text>
@@ -101,7 +103,7 @@ export default function PhotoGalleryScreen() {
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
+        <TouchableOpacity onPress={() => router.back()} accessibilityLabel="Go back" accessibilityRole="button">
           <Ionicons name="arrow-back" size={24} color={Colors.text} />
         </TouchableOpacity>
         <Text style={styles.title}>Community Photos</Text>
@@ -133,6 +135,8 @@ export default function PhotoGalleryScreen() {
         <TouchableOpacity
           style={[styles.fab, { bottom: insets.bottom + 16 }]}
           onPress={handleAddPhoto}
+          accessibilityLabel="Add photo"
+          accessibilityRole="button"
         >
           <Ionicons name="camera" size={24} color="#fff" />
         </TouchableOpacity>

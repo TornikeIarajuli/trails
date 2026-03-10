@@ -8,6 +8,7 @@ import {
   BadRequestException,
   Req,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { MediaService, MediaType } from './media.service';
 import { AuthGuard } from '../common/guards/auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
@@ -19,6 +20,7 @@ export class MediaController {
   constructor(private mediaService: MediaService) {}
 
   @Post('trail/:trailId')
+  @Throttle({ default: { ttl: 60000, limit: 10 } })
   async uploadTrailMedia(
     @Param('trailId', ParseUUIDPipe) trailId: string,
     @Req() req: Request,
@@ -51,6 +53,7 @@ export class MediaController {
   }
 
   @Post('hike-photo/:trailId')
+  @Throttle({ default: { ttl: 60000, limit: 20 } })
   async uploadHikePhoto(
     @Param('trailId', ParseUUIDPipe) trailId: string,
     @CurrentUser('id') userId: string,
@@ -81,6 +84,7 @@ export class MediaController {
   }
 
   @Post('proof')
+  @Throttle({ default: { ttl: 60000, limit: 10 } })
   async uploadProofPhoto(@Req() req: Request) {
     const chunks: Buffer[] = [];
     for await (const chunk of req) {
@@ -99,6 +103,7 @@ export class MediaController {
   }
 
   @Post('avatar')
+  @Throttle({ default: { ttl: 60000, limit: 5 } })
   async uploadAvatar(@CurrentUser('id') userId: string, @Req() req: Request) {
     const chunks: Buffer[] = [];
     for await (const chunk of req) {

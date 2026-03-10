@@ -4,6 +4,7 @@ import {
   parseGeoPoint,
   parseGeoLineString,
 } from '../../utils/geo';
+import { GeoPoint, GeoLineString } from '../../types/geo';
 
 // ---------------------------------------------------------------------------
 // haversineDistance
@@ -98,25 +99,25 @@ describe('formatDistanceMeters', () => {
 // ---------------------------------------------------------------------------
 describe('parseGeoPoint', () => {
   it('parses a valid PostGIS GeoJSON Point — note [lng, lat] coordinate order', () => {
-    const geo = { type: 'Point', coordinates: [44.8337, 41.6941] };
+    const geo: GeoPoint = { type: 'Point', coordinates: [44.8337, 41.6941] };
     expect(parseGeoPoint(geo)).toEqual({ latitude: 41.6941, longitude: 44.8337 });
   });
 
   it('correctly swaps PostGIS [lng, lat] to {latitude, longitude}', () => {
-    const geo = { coordinates: [10.0, 20.0] }; // lng=10, lat=20
+    const geo: GeoPoint = { type: 'Point', coordinates: [10.0, 20.0] }; // lng=10, lat=20
     const result = parseGeoPoint(geo);
     expect(result?.latitude).toBe(20.0);
     expect(result?.longitude).toBe(10.0);
   });
 
   it('returns null when the coordinates property is absent', () => {
-    expect(parseGeoPoint({ type: 'Point' })).toBeNull();
-    expect(parseGeoPoint({})).toBeNull();
+    expect(parseGeoPoint({ type: 'Point' } as any)).toBeNull();
+    expect(parseGeoPoint({} as any)).toBeNull();
   });
 
   it('returns null when the coordinates array has fewer than 2 elements', () => {
-    expect(parseGeoPoint({ coordinates: [] })).toBeNull();
-    expect(parseGeoPoint({ coordinates: [44.8] })).toBeNull();
+    expect(parseGeoPoint({ coordinates: [] } as any)).toBeNull();
+    expect(parseGeoPoint({ coordinates: [44.8] } as any)).toBeNull();
   });
 
   it('returns null for null input', () => {
@@ -128,7 +129,7 @@ describe('parseGeoPoint', () => {
   });
 
   it('accepts a 3-element coordinate array (lng, lat, elevation)', () => {
-    const geo = { coordinates: [44.8, 41.6, 500] };
+    const geo = { type: 'Point', coordinates: [44.8, 41.6, 500] } as any;
     expect(parseGeoPoint(geo)).toEqual({ latitude: 41.6, longitude: 44.8 });
   });
 });
@@ -138,7 +139,7 @@ describe('parseGeoPoint', () => {
 // ---------------------------------------------------------------------------
 describe('parseGeoLineString', () => {
   it('parses a valid PostGIS GeoJSON LineString', () => {
-    const geo = {
+    const geo: GeoLineString = {
       type: 'LineString',
       coordinates: [
         [44.8337, 41.6941],
@@ -154,16 +155,16 @@ describe('parseGeoLineString', () => {
   });
 
   it('returns an empty array for an empty coordinates list', () => {
-    expect(parseGeoLineString({ coordinates: [] })).toEqual([]);
+    expect(parseGeoLineString({ coordinates: [] } as any)).toEqual([]);
   });
 
   it('returns an empty array when coordinates is not an array', () => {
-    expect(parseGeoLineString({ coordinates: 'bad-data' })).toEqual([]);
+    expect(parseGeoLineString({ coordinates: 'bad-data' } as any)).toEqual([]);
   });
 
   it('returns an empty array when the coordinates key is missing', () => {
-    expect(parseGeoLineString({ type: 'LineString' })).toEqual([]);
-    expect(parseGeoLineString({})).toEqual([]);
+    expect(parseGeoLineString({ type: 'LineString' } as any)).toEqual([]);
+    expect(parseGeoLineString({} as any)).toEqual([]);
   });
 
   it('returns an empty array for null or undefined input', () => {
@@ -172,14 +173,14 @@ describe('parseGeoLineString', () => {
   });
 
   it('maps each coordinate pair maintaining the correct lat/lng swap', () => {
-    const geo = { coordinates: [[10.0, 20.0], [30.0, 40.0]] };
+    const geo: GeoLineString = { type: 'LineString', coordinates: [[10.0, 20.0], [30.0, 40.0]] };
     const result = parseGeoLineString(geo);
     expect(result[0]).toEqual({ latitude: 20.0, longitude: 10.0 });
     expect(result[1]).toEqual({ latitude: 40.0, longitude: 30.0 });
   });
 
   it('handles a single-point LineString', () => {
-    const geo = { coordinates: [[44.8, 41.6]] };
+    const geo: GeoLineString = { type: 'LineString', coordinates: [[44.8, 41.6]] };
     const result = parseGeoLineString(geo);
     expect(result).toHaveLength(1);
     expect(result[0]).toEqual({ latitude: 41.6, longitude: 44.8 });

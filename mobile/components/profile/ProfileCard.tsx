@@ -95,7 +95,7 @@ export function ProfileCard({ profile }: ProfileCardProps) {
 
   return (
     <View style={styles.profileCard}>
-      <TouchableOpacity onPress={pickAvatar} disabled={avatarMutation.isPending}>
+      <TouchableOpacity onPress={pickAvatar} disabled={avatarMutation.isPending} accessibilityLabel="Change profile photo" accessibilityRole="button">
         <Avatar
           uri={profile.avatar_url ? `${profile.avatar_url}?t=${Date.now()}` : null}
           name={profile.full_name || profile.username}

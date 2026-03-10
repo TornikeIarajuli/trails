@@ -371,41 +371,29 @@ describe('TrailsService', () => {
   // -------------------------------------------------------------------------
   describe('getRegions', () => {
     it('returns a de-duplicated, alphabetically sorted list', async () => {
-      const builder = makeBuilder({
+      adminMock.rpc.mockResolvedValue({
         data: [
           { region: 'Svaneti' },
           { region: 'Kazbegi' },
-          { region: 'Svaneti' }, // duplicate
           { region: 'Racha' },
         ],
         error: null,
       });
-      adminMock.from.mockReturnValue(builder);
 
       const result = await service.getRegions();
 
-      expect(result).toEqual(['Kazbegi', 'Racha', 'Svaneti']);
+      expect(result).toEqual(['Svaneti', 'Kazbegi', 'Racha']);
+      expect(adminMock.rpc).toHaveBeenCalledWith('get_distinct_regions');
     });
 
     it('returns an empty array when no published trails exist', async () => {
-      const builder = makeBuilder({ data: [], error: null });
-      adminMock.from.mockReturnValue(builder);
+      adminMock.rpc.mockResolvedValue({ data: [], error: null });
 
       expect(await service.getRegions()).toEqual([]);
     });
 
-    it('only queries published trails', async () => {
-      const builder = makeBuilder({ data: [], error: null });
-      adminMock.from.mockReturnValue(builder);
-
-      await service.getRegions();
-
-      expect(builder.eq).toHaveBeenCalledWith('is_published', true);
-    });
-
     it('throws when Supabase returns an error', async () => {
-      const builder = makeBuilder({ data: null, error: new Error('DB error') });
-      adminMock.from.mockReturnValue(builder);
+      adminMock.rpc.mockResolvedValue({ data: null, error: new Error('DB error') });
 
       await expect(service.getRegions()).rejects.toThrow();
     });

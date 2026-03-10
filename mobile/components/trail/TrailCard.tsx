@@ -55,7 +55,7 @@ export function TrailCard({ trail, index = 0 }: TrailCardProps) {
         />
         <View style={styles.content}>
           {trail.status && trail.status !== 'open' && (
-            <View style={[styles.statusPill, { backgroundColor: STATUS_BG[trail.status] }]}>
+            <View style={[styles.statusPill, { backgroundColor: STATUS_BG[trail.status] }]} accessibilityLabel={`Trail status: ${STATUS_LABEL[trail.status]}`}>
               <Text style={[styles.statusText, { color: STATUS_COLOR[trail.status] }]}>
                 {STATUS_LABEL[trail.status]}
               </Text>

@@ -27,9 +27,11 @@ export function formatDistanceMeters(meters: number): string {
   return `${(meters / 1000).toFixed(1)}km`;
 }
 
+import { GeoPoint, GeoLineString } from '../types/geo';
+
 // Parse PostGIS GeoJSON Point → { latitude, longitude }
 export function parseGeoPoint(
-  geo: any,
+  geo: GeoPoint | null | undefined,
 ): { latitude: number; longitude: number } | null {
   if (!geo?.coordinates || geo.coordinates.length < 2) return null;
   // PostGIS returns [lng, lat]
@@ -38,10 +40,10 @@ export function parseGeoPoint(
 
 // Parse PostGIS GeoJSON LineString → array of { latitude, longitude }
 export function parseGeoLineString(
-  geo: any,
+  geo: GeoLineString | null | undefined,
 ): { latitude: number; longitude: number }[] {
   if (!geo?.coordinates || !Array.isArray(geo.coordinates)) return [];
-  return geo.coordinates.map((c: number[]) => ({
+  return geo.coordinates.map((c: [number, number]) => ({
     latitude: c[1],
     longitude: c[0],
   }));

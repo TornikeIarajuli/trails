@@ -33,7 +33,7 @@ export default function ShopScreen() {
       )}
       <View style={styles.info}>
         <Text style={styles.name} numberOfLines={2}>{item.name}</Text>
-        {item.price && <Text style={styles.price}>{item.price}</Text>}
+        {item.price != null && <Text style={styles.price}>{item.price}₾</Text>}
         {item.shop_name && <Text style={styles.shop}>{item.shop_name}</Text>}
       </View>
     </TouchableOpacity>

@@ -159,6 +159,8 @@ export default function CompletionDetailScreen() {
         <TouchableOpacity
           style={[styles.backIcon, { top: insets.top + 8 }]}
           onPress={() => router.back()}
+          accessibilityLabel="Go back"
+          accessibilityRole="button"
         >
           <Ionicons name="arrow-back" size={24} color={Colors.text} />
         </TouchableOpacity>
@@ -167,6 +169,8 @@ export default function CompletionDetailScreen() {
         <TouchableOpacity
           style={[styles.shareIcon, { top: insets.top + 8 }]}
           onPress={handleShare}
+          accessibilityLabel="Share completion"
+          accessibilityRole="button"
         >
           <Ionicons name="share-outline" size={22} color={Colors.text} />
         </TouchableOpacity>

@@ -8,6 +8,7 @@ import { SupabaseService } from '../config/supabase.config';
 import { CreateCheckpointDto } from './dto/create-checkpoint.dto';
 import { UpdateCheckpointDto } from './dto/update-checkpoint.dto';
 import { SubmitCheckpointCompletionDto } from './dto/submit-checkpoint-completion.dto';
+import { throwIfError } from '../common/supabase-error';
 
 @Injectable()
 export class CheckpointsService {
@@ -52,7 +53,7 @@ export class CheckpointsService {
       .select()
       .single();
 
-    if (error) throw error;
+    throwIfError(error);
     return data;
   }
 
@@ -65,7 +66,7 @@ export class CheckpointsService {
       .eq('trail_id', trailId)
       .order('sort_order', { ascending: true });
 
-    if (error) throw error;
+    throwIfError(error);
     return data;
   }
 
@@ -102,7 +103,7 @@ export class CheckpointsService {
       .select()
       .single();
 
-    if (error) throw error;
+    throwIfError(error);
     if (!data) throw new NotFoundException('Checkpoint not found');
 
     return data;
@@ -116,7 +117,7 @@ export class CheckpointsService {
       .delete()
       .eq('id', id);
 
-    if (error) throw error;
+    throwIfError(error);
     return { message: 'Checkpoint deleted successfully' };
   }
 
@@ -181,7 +182,7 @@ export class CheckpointsService {
       .select()
       .single();
 
-    if (error) throw error;
+    throwIfError(error);
 
     return {
       ...data,
@@ -229,7 +230,7 @@ export class CheckpointsService {
 
     const { data, error } = await query;
 
-    if (error) throw error;
+    throwIfError(error);
 
     if (trailId) {
       return data?.filter((d: any) => d.trail_checkpoints !== null) ?? [];

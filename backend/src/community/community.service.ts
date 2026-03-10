@@ -7,6 +7,7 @@ import { SupabaseService } from '../config/supabase.config';
 import { TrailsService } from '../trails/trails.service';
 import { ReportConditionDto } from './dto/report-condition.dto';
 import { UploadPhotoDto } from './dto/upload-photo.dto';
+import { throwIfError } from '../common/supabase-error';
 
 @Injectable()
 export class CommunityService {
@@ -38,7 +39,7 @@ export class CommunityService {
       )
       .single();
 
-    if (error) throw error;
+    throwIfError(error);
     this.trailsService.invalidateCache(dto.trail_id);
     return data;
   }
@@ -59,7 +60,7 @@ export class CommunityService {
       .gte('reported_at', new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString())
       .order('reported_at', { ascending: false });
 
-    if (error) throw error;
+    throwIfError(error);
     return data;
   }
 
@@ -81,7 +82,7 @@ export class CommunityService {
       .update({ is_active: false })
       .eq('id', conditionId);
 
-    if (error) throw error;
+    throwIfError(error);
     return { message: 'Condition report deactivated' };
   }
 
@@ -106,7 +107,7 @@ export class CommunityService {
       )
       .single();
 
-    if (error) throw error;
+    throwIfError(error);
     return data;
   }
 
@@ -127,7 +128,7 @@ export class CommunityService {
       .order('taken_at', { ascending: false })
       .range(offset, offset + limit - 1);
 
-    if (error) throw error;
+    throwIfError(error);
 
     return {
       data: data ?? [],
@@ -148,7 +149,7 @@ export class CommunityService {
       p_user_id: userId,
     });
 
-    if (error) throw error;
+    throwIfError(error);
     return data;
   }
 
@@ -170,7 +171,7 @@ export class CommunityService {
       .delete()
       .eq('id', photoId);
 
-    if (error) throw error;
+    throwIfError(error);
     return { message: 'Photo deleted' };
   }
 }

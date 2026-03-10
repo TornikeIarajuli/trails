@@ -80,6 +80,8 @@ export function CommentsSheet({ activityId, activityType, visible, onClose }: Co
             style={styles.deleteButton}
             onPress={() => handleDelete(item)}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            accessibilityLabel="Delete comment"
+            accessibilityRole="button"
           >
             <Ionicons name="trash-outline" size={16} color={Colors.error} />
           </TouchableOpacity>
@@ -100,7 +102,7 @@ export function CommentsSheet({ activityId, activityType, visible, onClose }: Co
           <View style={styles.handle} />
           <View style={styles.sheetHeader}>
             <Text style={styles.sheetTitle}>Comments</Text>
-            <TouchableOpacity onPress={onClose}>
+            <TouchableOpacity onPress={onClose} accessibilityLabel="Close comments" accessibilityRole="button">
               <Ionicons name="close" size={22} color={Colors.textSecondary} />
             </TouchableOpacity>
           </View>
@@ -140,6 +142,8 @@ export function CommentsSheet({ activityId, activityType, visible, onClose }: Co
                 style={[styles.sendButton, (!text.trim() || addComment.isPending) && styles.sendButtonDisabled]}
                 onPress={handleSend}
                 disabled={!text.trim() || addComment.isPending}
+                accessibilityLabel="Send comment"
+                accessibilityRole="button"
               >
                 {addComment.isPending ? (
                   <ActivityIndicator size="small" color={Colors.textOnPrimary} />

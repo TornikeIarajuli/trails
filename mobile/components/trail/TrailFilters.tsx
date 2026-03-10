@@ -47,7 +47,7 @@ export function TrailFilters({
           onChangeText={onSearchChange}
         />
         {search.length > 0 && (
-          <TouchableOpacity onPress={() => onSearchChange('')}>
+          <TouchableOpacity onPress={() => onSearchChange('')} accessibilityLabel="Clear search" accessibilityRole="button">
             <Ionicons name="close-circle" size={20} color={Colors.textLight} />
           </TouchableOpacity>
         )}

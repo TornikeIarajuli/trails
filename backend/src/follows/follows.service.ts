@@ -1,6 +1,7 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { SupabaseService } from '../config/supabase.config';
 import { NotificationsService } from '../notifications/notifications.service';
+import { throwIfError } from '../common/supabase-error';
 
 @Injectable()
 export class FollowsService {
@@ -37,7 +38,7 @@ export class FollowsService {
       .from('user_follows')
       .insert({ follower_id: followerId, following_id: followingId });
 
-    if (error) throw error;
+    throwIfError(error);
 
     // Send push notification to the followed user
     const { data: followerProfile } = await admin
@@ -91,7 +92,7 @@ export class FollowsService {
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
 
-    if (error) throw error;
+    throwIfError(error);
 
     return {
       data: data ?? [],
@@ -122,7 +123,7 @@ export class FollowsService {
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
 
-    if (error) throw error;
+    throwIfError(error);
 
     return {
       data: data ?? [],
@@ -143,14 +144,14 @@ export class FollowsService {
       .select('id', { count: 'exact', head: true })
       .eq('following_id', userId);
 
-    if (e1) throw e1;
+    throwIfError(e1);
 
     const { count: followingCount, error: e2 } = await admin
       .from('user_follows')
       .select('id', { count: 'exact', head: true })
       .eq('follower_id', userId);
 
-    if (e2) throw e2;
+    throwIfError(e2);
 
     return {
       followers_count: followersCount ?? 0,

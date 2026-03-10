@@ -9,6 +9,7 @@ import {
   UseGuards,
   ParseUUIDPipe,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { CommunityService } from './community.service';
 import { ReportConditionDto } from './dto/report-condition.dto';
 import { UploadPhotoDto } from './dto/upload-photo.dto';
@@ -23,6 +24,7 @@ export class CommunityController {
 
   @Post('conditions')
   @UseGuards(AuthGuard)
+  @Throttle({ default: { ttl: 60000, limit: 10 } })
   reportCondition(
     @CurrentUser('id') userId: string,
     @Body() dto: ReportConditionDto,
@@ -48,6 +50,7 @@ export class CommunityController {
 
   @Post('photos')
   @UseGuards(AuthGuard)
+  @Throttle({ default: { ttl: 60000, limit: 10 } })
   uploadPhoto(@CurrentUser('id') userId: string, @Body() dto: UploadPhotoDto) {
     return this.communityService.uploadPhoto(userId, dto);
   }
@@ -67,6 +70,7 @@ export class CommunityController {
 
   @Post('photos/:id/like')
   @UseGuards(AuthGuard)
+  @Throttle({ default: { ttl: 60000, limit: 30 } })
   toggleLike(
     @CurrentUser('id') userId: string,
     @Param('id', ParseUUIDPipe) id: string,

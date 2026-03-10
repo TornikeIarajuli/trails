@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { SupabaseService } from '../config/supabase.config';
 import { SubmitReviewDto } from './dto/submit-review.dto';
+import { throwIfError } from '../common/supabase-error';
 
 @Injectable()
 export class ReviewsService {
@@ -42,7 +43,7 @@ export class ReviewsService {
       )
       .single();
 
-    if (error) throw error;
+    throwIfError(error);
     return data;
   }
 
@@ -60,7 +61,7 @@ export class ReviewsService {
       .eq('trail_id', trailId)
       .order('created_at', { ascending: false });
 
-    if (error) throw error;
+    throwIfError(error);
     return data;
   }
 
@@ -97,7 +98,7 @@ export class ReviewsService {
       )
       .single();
 
-    if (error) throw error;
+    throwIfError(error);
     return data;
   }
 
@@ -119,7 +120,7 @@ export class ReviewsService {
       .delete()
       .eq('id', reviewId);
 
-    if (error) throw error;
+    throwIfError(error);
     return { message: 'Review deleted' };
   }
 }

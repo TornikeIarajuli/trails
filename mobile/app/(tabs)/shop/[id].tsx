@@ -50,7 +50,7 @@ export default function ProductDetailScreen() {
         <View style={styles.content}>
           <Text style={styles.name}>{product.name}</Text>
 
-          {product.price && <Text style={styles.price}>{product.price}</Text>}
+          {product.price != null && <Text style={styles.price}>{product.price}₾</Text>}
 
           {product.shop_name && (
             <View style={styles.shopBadge}>

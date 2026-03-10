@@ -1,4 +1,16 @@
 /**
+ * Produce a deterministic JSON string regardless of property insertion order.
+ * Ensures {a:1,b:2} and {b:2,a:1} yield the same cache key.
+ */
+export function stableStringify(obj: unknown): string {
+  if (obj === null || obj === undefined) return String(obj);
+  if (typeof obj !== 'object') return JSON.stringify(obj);
+  if (Array.isArray(obj)) return '[' + obj.map(stableStringify).join(',') + ']';
+  const sorted = Object.keys(obj as Record<string, unknown>).sort();
+  return '{' + sorted.map((k) => JSON.stringify(k) + ':' + stableStringify((obj as Record<string, unknown>)[k])).join(',') + '}';
+}
+
+/**
  * Simple in-process TTL cache. No external dependencies.
  * Entries expire after `ttlMs` milliseconds from the time they were set.
  */

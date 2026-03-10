@@ -129,7 +129,7 @@ describe('CommentsService', () => {
         comment: 'Nice!',
       });
 
-      expect(result.comment).toBe('Nice!');
+      expect(result!.comment).toBe('Nice!');
     });
   });
 

@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { SupabaseService } from '../config/supabase.config';
+import { throwIfError } from '../common/supabase-error';
 
 @Injectable()
 export class FeedService {
@@ -15,14 +16,14 @@ export class FeedService {
       p_offset: offset,
     });
 
-    if (error) throw error;
+    throwIfError(error);
 
     const { data: countData, error: countError } = await admin.rpc(
       'get_activity_feed_count',
       { p_user_id: userId },
     );
 
-    if (countError) throw countError;
+    throwIfError(countError);
     const total = countData ?? 0;
 
     return {

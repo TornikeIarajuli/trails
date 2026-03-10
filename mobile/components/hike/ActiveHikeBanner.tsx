@@ -35,7 +35,7 @@ export function ActiveHikeBanner() {
           >
             <Text style={styles.resumeText}>Resume</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.discardButton} onPress={endHike}>
+          <TouchableOpacity style={styles.discardButton} onPress={endHike} accessibilityLabel="Discard hike" accessibilityRole="button">
             <Ionicons name="close" size={18} color={Colors.textOnPrimary} />
           </TouchableOpacity>
         </View>

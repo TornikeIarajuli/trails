@@ -14,7 +14,7 @@ export function DifficultyBadge({ difficulty, size = 'sm' }: DifficultyBadgeProp
   const color = Colors.difficulty[difficulty];
 
   return (
-    <View style={[styles.badge, { backgroundColor: color + '20' }, size === 'md' && styles.md]}>
+    <View style={[styles.badge, { backgroundColor: color + '20' }, size === 'md' && styles.md]} accessibilityLabel={`Difficulty: ${difficulty}`} accessibilityRole="text">
       <Text style={[styles.text, { color }, size === 'md' && styles.mdText]}>
         {difficulty.toUpperCase()}
       </Text>

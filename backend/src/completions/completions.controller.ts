@@ -9,6 +9,7 @@ import {
   UseGuards,
   ParseUUIDPipe,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { CompletionsService } from './completions.service';
 import { SubmitCompletionDto } from './dto/submit-completion.dto';
 import { AuthGuard } from '../common/guards/auth.guard';
@@ -21,12 +22,14 @@ export class CompletionsController {
 
   @Post()
   @UseGuards(AuthGuard)
+  @Throttle({ default: { ttl: 60000, limit: 10 } })
   submit(@CurrentUser('id') userId: string, @Body() dto: SubmitCompletionDto) {
     return this.completionsService.submit(userId, dto);
   }
 
   @Post('record')
   @UseGuards(AuthGuard)
+  @Throttle({ default: { ttl: 60000, limit: 10 } })
   recordHike(
     @CurrentUser('id') userId: string,
     @Body('trail_id') trailId: string,

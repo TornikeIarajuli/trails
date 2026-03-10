@@ -8,6 +8,7 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { CommentsService } from './comments.service';
 import { CreateCommentDto } from './dto/create-comment.dto';
 import { AuthGuard } from '../common/guards/auth.guard';
@@ -32,6 +33,7 @@ export class CommentsController {
 
   @Post()
   @UseGuards(AuthGuard)
+  @Throttle({ default: { ttl: 60000, limit: 20 } })
   createComment(
     @CurrentUser('id') userId: string,
     @Body() dto: CreateCommentDto,
@@ -54,6 +56,7 @@ export class CommentsController {
 
   @Post('likes/toggle')
   @UseGuards(AuthGuard)
+  @Throttle({ default: { ttl: 60000, limit: 30 } })
   toggleLike(
     @CurrentUser('id') userId: string,
     @Body('activity_id') activityId: string,

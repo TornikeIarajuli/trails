@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { SupabaseService } from '../config/supabase.config';
+import { throwIfError } from '../common/supabase-error';
 
 @Injectable()
 export class BadgesService {
@@ -13,7 +14,7 @@ export class BadgesService {
       .select('*')
       .order('sort_order', { ascending: true });
 
-    if (error) throw error;
+    throwIfError(error);
     return data;
   }
 
@@ -32,7 +33,7 @@ export class BadgesService {
       .eq('user_id', userId)
       .order('earned_at', { ascending: false });
 
-    if (error) throw error;
+    throwIfError(error);
     return data;
   }
 
@@ -43,7 +44,7 @@ export class BadgesService {
       p_user_id: userId,
     });
 
-    if (error) throw error;
+    throwIfError(error);
     return data;
   }
 
@@ -54,7 +55,7 @@ export class BadgesService {
       p_user_id: userId,
     });
 
-    if (error) throw error;
+    throwIfError(error);
 
     // If new badges were awarded, fetch their details
     if (data && data.length > 0) {

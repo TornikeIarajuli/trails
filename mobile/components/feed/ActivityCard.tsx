@@ -220,6 +220,8 @@ export function ActivityCard({ item }: { item: FeedItem }) {
               })
             }
             disabled={toggleLike.isPending}
+            accessibilityLabel={liked ? 'Unlike' : 'Like'}
+            accessibilityRole="button"
           >
             <Ionicons
               name={liked ? 'heart' : 'heart-outline'}
@@ -231,7 +233,7 @@ export function ActivityCard({ item }: { item: FeedItem }) {
             )}
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.actionBtn} onPress={() => setShowComments(true)}>
+          <TouchableOpacity style={styles.actionBtn} onPress={() => setShowComments(true)} accessibilityLabel="Comments" accessibilityRole="button">
             <Ionicons name="chatbubble-outline" size={15} color={Colors.textSecondary} />
             {commentCount > 0 && (
               <Text style={styles.actionCount}>{commentCount}</Text>

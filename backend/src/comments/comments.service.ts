@@ -6,6 +6,7 @@ import {
 import { SupabaseService } from '../config/supabase.config';
 import { NotificationsService } from '../notifications/notifications.service';
 import { CreateCommentDto } from './dto/create-comment.dto';
+import { throwIfError } from '../common/supabase-error';
 
 @Injectable()
 export class CommentsService {
@@ -28,7 +29,7 @@ export class CommentsService {
       .order('created_at', { ascending: true })
       .range(offset, offset + limit - 1);
 
-    if (error) throw error;
+    throwIfError(error);
     return {
       data: data ?? [],
       pagination: {
@@ -56,10 +57,10 @@ export class CommentsService {
       )
       .single();
 
-    if (error) throw error;
+    throwIfError(error);
 
     // Fire-and-forget: notify the activity owner (skip if commenter is owner)
-    this.notifyActivityOwner(userId, dto.activity_id, dto.activity_type, data).catch(() => {});
+    this.notifyActivityOwner(userId, dto.activity_id, dto.activity_type, data!).catch(() => {});
 
     return data;
   }
@@ -119,7 +120,7 @@ export class CommentsService {
       .from('activity_comments')
       .delete()
       .eq('id', commentId);
-    if (error) throw error;
+    throwIfError(error);
     return { message: 'Deleted' };
   }
 
@@ -132,7 +133,7 @@ export class CommentsService {
       .select('id, user_id, created_at')
       .eq('activity_id', activityId);
 
-    if (error) throw error;
+    throwIfError(error);
     return data ?? [];
   }
 
@@ -144,7 +145,7 @@ export class CommentsService {
       p_user_id: userId,
     });
 
-    if (error) throw error;
+    throwIfError(error);
     return data; // { liked: boolean, count: number }
   }
 }

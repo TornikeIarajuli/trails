@@ -143,6 +143,8 @@ export default function HomeScreen() {
           <TouchableOpacity
             style={[styles.toggleButton, nearbyMode && styles.toggleButtonActive]}
             onPress={handleNearbyToggle}
+            accessibilityLabel={nearbyMode ? 'Disable nearby trails' : 'Find trails near me'}
+            accessibilityRole="button"
           >
             <Ionicons
               name={nearbyMode ? 'navigate' : 'navigate-outline'}
@@ -154,6 +156,8 @@ export default function HomeScreen() {
           <TouchableOpacity
             style={[styles.toggleButton, viewMode === 'list' && styles.toggleButtonActive]}
             onPress={() => setViewMode('list')}
+            accessibilityLabel="List view"
+            accessibilityRole="button"
           >
             <Ionicons
               name="list-outline"
@@ -164,6 +168,8 @@ export default function HomeScreen() {
           <TouchableOpacity
             style={[styles.toggleButton, viewMode === 'map' && styles.toggleButtonActive]}
             onPress={() => setViewMode('map')}
+            accessibilityLabel="Map view"
+            accessibilityRole="button"
           >
             <Ionicons
               name="map-outline"

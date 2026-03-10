@@ -28,7 +28,7 @@ export function ShareButton({ trail, style }: ShareButtonProps) {
   };
 
   return (
-    <TouchableOpacity style={[styles.button, style]} onPress={handleShare}>
+    <TouchableOpacity style={[styles.button, style]} onPress={handleShare} accessibilityLabel="Share trail" accessibilityRole="button">
       <Ionicons name="share-social-outline" size={20} color={Colors.text} />
     </TouchableOpacity>
   );

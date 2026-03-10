@@ -228,8 +228,8 @@ describe('UsersService', () => {
       const result = await service.getLeaderboard(20);
 
       expect(result).toHaveLength(2);
-      expect(result![0].rank).toBe(1);
-      expect(result![1].rank).toBe(2);
+      expect((result as any[])[0].rank).toBe(1);
+      expect((result as any[])[1].rank).toBe(2);
     });
 
     it('uses cache on second call', async () => {

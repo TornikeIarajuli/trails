@@ -20,8 +20,9 @@ export class CreateProductDto {
   image_url?: string;
 
   @IsOptional()
-  @IsString()
-  price?: string;
+  @Type(() => Number)
+  @IsNumber()
+  price?: number;
 
   @IsOptional()
   @IsString()

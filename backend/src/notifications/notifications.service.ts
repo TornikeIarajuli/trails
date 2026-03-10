@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { SupabaseService } from '../config/supabase.config';
+import { throwIfError } from '../common/supabase-error';
 
 @Injectable()
 export class NotificationsService {
@@ -21,7 +22,7 @@ export class NotificationsService {
       { onConflict: 'user_id,token' },
     );
 
-    if (error) throw error;
+    throwIfError(error);
     return { registered: true };
   }
 
@@ -131,7 +132,7 @@ export class NotificationsService {
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
 
-    if (error) throw error;
+    throwIfError(error);
 
     const unreadCount = data?.filter((n) => !n.read_at).length ?? 0;
     return { data: data ?? [], unreadCount, total: count ?? 0 };
@@ -144,7 +145,7 @@ export class NotificationsService {
       .update({ read_at: new Date().toISOString() })
       .eq('id', notificationId)
       .eq('user_id', userId);
-    if (error) throw error;
+    throwIfError(error);
     return { ok: true };
   }
 
@@ -155,7 +156,7 @@ export class NotificationsService {
       .update({ read_at: new Date().toISOString() })
       .eq('user_id', userId)
       .is('read_at', null);
-    if (error) throw error;
+    throwIfError(error);
     return { ok: true };
   }
 
@@ -196,7 +197,7 @@ export class NotificationsService {
       .upsert({ user_id: userId, ...prefs }, { onConflict: 'user_id' })
       .select()
       .single();
-    if (error) throw error;
+    throwIfError(error);
     return data;
   }
 }

@@ -26,6 +26,8 @@ export function BookmarkButton({ trailId, style }: BookmarkButtonProps) {
       style={[styles.button, style]}
       onPress={() => toggleBookmark.mutate(trailId)}
       disabled={toggleBookmark.isPending}
+      accessibilityLabel={isBookmarked ? 'Remove bookmark' : 'Bookmark trail'}
+      accessibilityRole="button"
     >
       <Ionicons
         name={isBookmarked ? 'heart' : 'heart-outline'}

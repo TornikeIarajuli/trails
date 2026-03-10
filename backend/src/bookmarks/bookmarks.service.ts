@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { SupabaseService } from '../config/supabase.config';
+import { throwIfError } from '../common/supabase-error';
 
 @Injectable()
 export class BookmarksService {
@@ -29,7 +30,7 @@ export class BookmarksService {
       .from('trail_bookmarks')
       .insert({ user_id: userId, trail_id: trailId });
 
-    if (error) throw error;
+    throwIfError(error);
     return { bookmarked: true };
   }
 
@@ -51,7 +52,7 @@ export class BookmarksService {
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
 
-    if (error) throw error;
+    throwIfError(error);
 
     return {
       data: data ?? [],

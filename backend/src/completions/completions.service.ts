@@ -7,6 +7,7 @@ import {
 import { SupabaseService } from '../config/supabase.config';
 import { NotificationsService } from '../notifications/notifications.service';
 import { SubmitCompletionDto } from './dto/submit-completion.dto';
+import { throwIfError } from '../common/supabase-error';
 
 @Injectable()
 export class CompletionsService {
@@ -76,13 +77,18 @@ export class CompletionsService {
       .select()
       .single();
 
-    if (error) throw error;
+    throwIfError(error);
 
     // Update user's completed trail count if auto-approved
     if (status === 'approved') {
-      await this.incrementUserCompletionCount(admin, userId);
-      // Check for new badges
-      await admin.rpc('check_and_award_badges', { p_user_id: userId });
+      try {
+        await this.incrementUserCompletionCount(admin, userId);
+        await admin.rpc('check_and_award_badges', { p_user_id: userId });
+      } catch (err) {
+        await admin.from('trail_completions').delete().eq('id', data.id);
+        try { await admin.rpc('decrement_trail_count', { p_user_id: userId }); } catch { /* best-effort */ }
+        throw err;
+      }
     }
 
     return {
@@ -160,16 +166,25 @@ export class CompletionsService {
       .select()
       .single();
 
-    if (error) throw error;
+    throwIfError(error);
 
-    await this.incrementUserCompletionCount(admin, userId);
-    const badgeResult = await admin.rpc('check_and_award_badges', {
-      p_user_id: userId,
-    });
+    // Post-insert steps: increment count + award badges.
+    // If any step fails, roll back the completion to avoid inconsistency.
+    let newBadgeIds: string[] = [];
+    try {
+      await this.incrementUserCompletionCount(admin, userId);
+      const badgeResult = await admin.rpc('check_and_award_badges', {
+        p_user_id: userId,
+      });
+      newBadgeIds = badgeResult.data ?? [];
+    } catch (err) {
+      // Rollback: delete the completion we just inserted
+      await admin.from('trail_completions').delete().eq('id', data.id);
+      try { await admin.rpc('decrement_trail_count', { p_user_id: userId }); } catch { /* best-effort */ }
+      throw err;
+    }
 
-    const newBadgeIds: string[] = badgeResult.data ?? [];
-
-    // Notify user about new badges
+    // Notify user about new badges (fire-and-forget, no rollback needed)
     if (newBadgeIds.length > 0) {
       const { data: newBadges } = await admin
         .from('badges')
@@ -211,7 +226,7 @@ export class CompletionsService {
       .delete()
       .eq('id', completionId);
 
-    if (error) throw error;
+    throwIfError(error);
 
     // Decrement count if the deleted completion was approved
     if (completion.status === 'approved') {
@@ -235,7 +250,7 @@ export class CompletionsService {
       .eq('user_id', userId)
       .order('completed_at', { ascending: false });
 
-    if (error) throw error;
+    throwIfError(error);
     return data;
   }
 
@@ -254,7 +269,7 @@ export class CompletionsService {
       .eq('status', 'approved')
       .order('completed_at', { ascending: false });
 
-    if (error) throw error;
+    throwIfError(error);
     return data;
   }
 
@@ -286,14 +301,24 @@ export class CompletionsService {
       .select()
       .single();
 
-    if (error) throw error;
+    throwIfError(error);
 
     // Update count if approving
     if (status === 'approved') {
-      await this.incrementUserCompletionCount(admin, completion.user_id);
-      await admin.rpc('check_and_award_badges', {
-        p_user_id: completion.user_id,
-      });
+      try {
+        await this.incrementUserCompletionCount(admin, completion.user_id);
+        await admin.rpc('check_and_award_badges', {
+          p_user_id: completion.user_id,
+        });
+      } catch (err) {
+        // Rollback: revert status back to pending
+        await admin
+          .from('trail_completions')
+          .update({ status: 'pending', reviewer_note: null })
+          .eq('id', completionId);
+        try { await admin.rpc('decrement_trail_count', { p_user_id: completion.user_id }); } catch { /* best-effort */ }
+        throw err;
+      }
     }
 
     return data;
@@ -307,7 +332,7 @@ export class CompletionsService {
         { trail_id: trailId, user_id: userId },
         { onConflict: 'trail_id,user_id' },
       );
-    if (error) throw error;
+    throwIfError(error);
     return { active: true };
   }
 
@@ -318,7 +343,7 @@ export class CompletionsService {
       .delete()
       .eq('trail_id', trailId)
       .eq('user_id', userId);
-    if (error) throw error;
+    throwIfError(error);
     return { active: false };
   }
 
@@ -328,7 +353,7 @@ export class CompletionsService {
       .from('active_hikes')
       .select('*', { count: 'exact', head: true })
       .eq('trail_id', trailId);
-    if (error) throw error;
+    throwIfError(error);
     return { count: count ?? 0 };
   }
 }

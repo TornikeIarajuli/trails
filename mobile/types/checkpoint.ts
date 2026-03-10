@@ -13,6 +13,8 @@ export type CheckpointType =
   | 'church'
   | 'tower';
 
+import { GeoPoint } from './geo';
+
 export interface Checkpoint {
   id: string;
   trail_id: string;
@@ -21,7 +23,7 @@ export interface Checkpoint {
   description_en: string | null;
   description_ka: string | null;
   type: CheckpointType;
-  coordinates: unknown;
+  coordinates: GeoPoint | null;
   elevation_m: number | null;
   photo_url: string | null;
   sort_order: number;

@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { SupabaseService } from '../config/supabase.config';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
+import { throwIfError } from '../common/supabase-error';
 
 @Injectable()
 export class ShopService {
@@ -17,7 +18,7 @@ export class ShopService {
       .order('sort_order', { ascending: true })
       .order('created_at', { ascending: false });
 
-    if (error) throw error;
+    throwIfError(error);
     return data;
   }
 
@@ -55,7 +56,7 @@ export class ShopService {
       .select()
       .single();
 
-    if (error) throw error;
+    throwIfError(error);
     return data;
   }
 
@@ -91,7 +92,7 @@ export class ShopService {
       .select()
       .single();
 
-    if (error) throw error;
+    throwIfError(error);
     if (!data) throw new NotFoundException('Product not found');
 
     return data;
@@ -102,7 +103,7 @@ export class ShopService {
 
     const { error } = await admin.from('products').delete().eq('id', id);
 
-    if (error) throw error;
+    throwIfError(error);
 
     return { message: 'Product deleted successfully' };
   }

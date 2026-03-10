@@ -370,7 +370,7 @@ export default function HikeScreen() {
 
       {/* Top bar */}
       <View style={[styles.topBar, { top: insets.top + 8 }]}>
-        <TouchableOpacity style={styles.iconButton} onPress={handleEndHike}>
+        <TouchableOpacity style={styles.iconButton} onPress={handleEndHike} accessibilityLabel="End hike" accessibilityRole="button">
           <Ionicons name="close" size={24} color={Colors.text} />
         </TouchableOpacity>
 
@@ -389,6 +389,8 @@ export default function HikeScreen() {
         <TouchableOpacity
           style={[styles.sosButton, { bottom: 200 + insets.bottom }]}
           onPress={handleSos}
+          accessibilityLabel="SOS emergency alert"
+          accessibilityRole="button"
         >
           <Text style={styles.sosText}>SOS</Text>
         </TouchableOpacity>
@@ -399,6 +401,8 @@ export default function HikeScreen() {
         style={[styles.photoButton, { bottom: 200 + insets.bottom }]}
         onPress={handlePhotoPress}
         disabled={uploading}
+        accessibilityLabel={uploading ? 'Uploading photo' : 'Take photo'}
+        accessibilityRole="button"
       >
         <Ionicons name={uploading ? 'hourglass-outline' : 'camera'} size={26} color="#fff" />
       </TouchableOpacity>

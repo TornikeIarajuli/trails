@@ -86,7 +86,7 @@ function ReviewItem({ review, trailId }: { review: Review; trailId: string }) {
         <View style={styles.reviewHeaderRight}>
           <StarRating rating={review.rating} />
           {isOwn && (
-            <TouchableOpacity onPress={handleDelete} hitSlop={8}>
+            <TouchableOpacity onPress={handleDelete} hitSlop={8} accessibilityLabel="Delete review" accessibilityRole="button">
               <Ionicons name="trash-outline" size={16} color={Colors.error} />
             </TouchableOpacity>
           )}

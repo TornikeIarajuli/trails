@@ -76,7 +76,7 @@ export function WriteReviewModal({ trailId, visible, onClose }: Props) {
 
           <View style={styles.header}>
             <Text style={styles.title}>Write a Review</Text>
-            <TouchableOpacity onPress={handleClose}>
+            <TouchableOpacity onPress={handleClose} accessibilityLabel="Close review form" accessibilityRole="button">
               <Ionicons name="close" size={24} color={Colors.textSecondary} />
             </TouchableOpacity>
           </View>
@@ -88,6 +88,8 @@ export function WriteReviewModal({ trailId, visible, onClose }: Props) {
                 key={star}
                 onPress={() => setRating(star)}
                 hitSlop={4}
+                accessibilityLabel={`Rate ${star} star${star !== 1 ? 's' : ''}`}
+                accessibilityRole="button"
               >
                 <Ionicons
                   name={star <= rating ? 'star' : 'star-outline'}

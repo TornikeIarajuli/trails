@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { SupabaseService } from '../config/supabase.config';
 import { randomUUID } from 'crypto';
+import { throwIfError } from '../common/supabase-error';
 
 export type MediaType = 'photo' | 'video';
 
@@ -106,7 +107,7 @@ export class MediaService {
       .select()
       .single();
 
-    if (dbError) throw dbError;
+    throwIfError(dbError);
 
     return media;
   }
@@ -207,7 +208,7 @@ export class MediaService {
       .select()
       .single();
 
-    if (dbError) throw dbError;
+    throwIfError(dbError);
 
     return photo;
   }
@@ -237,7 +238,7 @@ export class MediaService {
       .delete()
       .eq('id', mediaId);
 
-    if (error) throw error;
+    throwIfError(error);
 
     return { message: 'Media deleted successfully' };
   }

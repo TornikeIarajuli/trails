@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
   Delete,
   Body,
   Param,
@@ -11,6 +12,7 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { EventsService } from './events.service';
 import { AuthGuard } from '../common/guards/auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
@@ -31,6 +33,7 @@ export class EventsController {
 
   @Post()
   @UseGuards(AuthGuard)
+  @Throttle({ default: { ttl: 60000, limit: 10 } })
   create(
     @CurrentUser('id') userId: string,
     @Body()
@@ -45,6 +48,23 @@ export class EventsController {
     return this.eventsService.create(userId, dto);
   }
 
+  @Patch(':id')
+  @UseGuards(AuthGuard)
+  @Throttle({ default: { ttl: 60000, limit: 15 } })
+  update(
+    @CurrentUser('id') userId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body()
+    dto: {
+      title?: string;
+      description?: string;
+      scheduled_at?: string;
+      max_participants?: number;
+    },
+  ) {
+    return this.eventsService.update(userId, id, dto);
+  }
+
   @Delete(':id')
   @UseGuards(AuthGuard)
   delete(
@@ -56,6 +76,7 @@ export class EventsController {
 
   @Post(':id/join')
   @UseGuards(AuthGuard)
+  @Throttle({ default: { ttl: 60000, limit: 10 } })
   join(
     @CurrentUser('id') userId: string,
     @Param('id', ParseUUIDPipe) id: string,
