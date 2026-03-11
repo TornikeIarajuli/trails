@@ -16,6 +16,8 @@ import { Throttle } from '@nestjs/throttler';
 import { EventsService } from './events.service';
 import { AuthGuard } from '../common/guards/auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { CreateEventDto } from './dto/create-event.dto';
+import { UpdateEventDto } from './dto/update-event.dto';
 
 @Controller('events')
 export class EventsController {
@@ -36,14 +38,7 @@ export class EventsController {
   @Throttle({ default: { ttl: 60000, limit: 10 } })
   create(
     @CurrentUser('id') userId: string,
-    @Body()
-    dto: {
-      trail_id: string;
-      title: string;
-      description?: string;
-      scheduled_at: string;
-      max_participants?: number;
-    },
+    @Body() dto: CreateEventDto,
   ) {
     return this.eventsService.create(userId, dto);
   }
@@ -54,13 +49,7 @@ export class EventsController {
   update(
     @CurrentUser('id') userId: string,
     @Param('id', ParseUUIDPipe) id: string,
-    @Body()
-    dto: {
-      title?: string;
-      description?: string;
-      scheduled_at?: string;
-      max_participants?: number;
-    },
+    @Body() dto: UpdateEventDto,
   ) {
     return this.eventsService.update(userId, id, dto);
   }

@@ -1,4 +1,9 @@
-import { InternalServerErrorException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  InternalServerErrorException,
+  NotFoundException,
+} from '@nestjs/common';
 import { throwIfError } from './supabase-error';
 import { stableStringify } from './ttl-cache';
 
@@ -7,7 +12,7 @@ describe('throwIfError', () => {
     expect(() => throwIfError(null)).not.toThrow();
   });
 
-  it('throws InternalServerErrorException with message', () => {
+  it('throws InternalServerErrorException for unknown codes', () => {
     expect(() => throwIfError({ message: 'row not found' })).toThrow(
       InternalServerErrorException,
     );
@@ -16,9 +21,26 @@ describe('throwIfError', () => {
     );
   });
 
-  it('throws with default message when no message provided', () => {
-    expect(() => throwIfError({ code: 'PGRST116' })).toThrow(
-      'Database operation failed',
+  it('throws NotFoundException for PGRST116', () => {
+    expect(() => throwIfError({ code: 'PGRST116' })).toThrow(NotFoundException);
+    expect(() => throwIfError({ code: 'PGRST116' })).toThrow('Resource not found');
+  });
+
+  it('throws ConflictException for unique_violation (23505)', () => {
+    expect(() => throwIfError({ code: '23505', message: 'duplicate key' })).toThrow(
+      ConflictException,
+    );
+  });
+
+  it('throws BadRequestException for foreign_key_violation (23503)', () => {
+    expect(() => throwIfError({ code: '23503', message: 'fk error' })).toThrow(
+      BadRequestException,
+    );
+  });
+
+  it('throws BadRequestException for check_violation (23514)', () => {
+    expect(() => throwIfError({ code: '23514', message: 'check failed' })).toThrow(
+      BadRequestException,
     );
   });
 });

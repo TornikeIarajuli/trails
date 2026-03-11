@@ -81,12 +81,14 @@ export class TrailsService {
     }
 
     if (filter.region) {
-      query = query.ilike('region', `%${filter.region}%`);
+      const safeRegion = filter.region.replace(/[,.()"'\\]/g, '');
+      query = query.ilike('region', `%${safeRegion}%`);
     }
 
     if (filter.search) {
+      const safeSearch = filter.search.replace(/[,.()"'\\]/g, '');
       query = query.or(
-        `name_en.ilike.%${filter.search}%,name_ka.ilike.%${filter.search}%,description_en.ilike.%${filter.search}%`,
+        `name_en.ilike.%${safeSearch}%,name_ka.ilike.%${safeSearch}%,description_en.ilike.%${safeSearch}%`,
       );
     }
 

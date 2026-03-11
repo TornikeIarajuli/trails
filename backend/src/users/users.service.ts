@@ -223,10 +223,13 @@ export class UsersService {
   async searchUsers(query: string) {
     const admin = this.supabaseService.getAdminClient();
 
+    // Sanitize: strip PostgREST filter syntax characters to prevent filter injection
+    const sanitized = query.replace(/[,.()"'\\]/g, '');
+
     const { data, error } = await admin
       .from('profiles')
       .select('id, username, full_name, avatar_url')
-      .or(`username.ilike.%${query}%,full_name.ilike.%${query}%`)
+      .or(`username.ilike.%${sanitized}%,full_name.ilike.%${sanitized}%`)
       .limit(20);
 
     throwIfError(error);

@@ -11,6 +11,7 @@ import {
 import { Throttle } from '@nestjs/throttler';
 import { MediaService, MediaType } from './media.service';
 import { AuthGuard } from '../common/guards/auth.guard';
+import { AdminGuard } from '../common/guards/admin.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import type { Request } from 'express';
 
@@ -20,6 +21,7 @@ export class MediaController {
   constructor(private mediaService: MediaService) {}
 
   @Post('trail/:trailId')
+  @UseGuards(AdminGuard)
   @Throttle({ default: { ttl: 60000, limit: 10 } })
   async uploadTrailMedia(
     @Param('trailId', ParseUUIDPipe) trailId: string,
@@ -127,6 +129,7 @@ export class MediaController {
   }
 
   @Delete(':id')
+  @UseGuards(AdminGuard)
   deleteMedia(@Param('id', ParseUUIDPipe) id: string) {
     return this.mediaService.deleteMedia(id);
   }

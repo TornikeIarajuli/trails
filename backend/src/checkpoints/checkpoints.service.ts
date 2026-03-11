@@ -1,5 +1,6 @@
 import {
   Injectable,
+  Logger,
   NotFoundException,
   BadRequestException,
   ConflictException,
@@ -12,6 +13,7 @@ import { throwIfError } from '../common/supabase-error';
 
 @Injectable()
 export class CheckpointsService {
+  private readonly logger = new Logger(CheckpointsService.name);
   private readonly GPS_PROXIMITY_THRESHOLD_M = 200;
 
   constructor(private supabaseService: SupabaseService) {}
@@ -203,7 +205,7 @@ export class CheckpointsService {
     });
 
     if (error) {
-      console.error('Checkpoint distance calculation failed:', error);
+      this.logger.error('Checkpoint distance calculation failed', error?.message);
       return null;
     }
 

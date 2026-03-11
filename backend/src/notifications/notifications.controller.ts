@@ -15,6 +15,7 @@ import {
 import { NotificationsService } from './notifications.service';
 import { AuthGuard } from '../common/guards/auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { UpdateNotificationPreferencesDto } from './dto/update-preferences.dto';
 
 @Controller('notifications')
 export class NotificationsController {
@@ -74,7 +75,7 @@ export class NotificationsController {
   @UseGuards(AuthGuard)
   updatePreferences(
     @CurrentUser('id') userId: string,
-    @Body() prefs: Record<string, boolean>,
+    @Body() prefs: UpdateNotificationPreferencesDto,
   ) {
     return this.notificationsService.updatePreferences(userId, prefs);
   }

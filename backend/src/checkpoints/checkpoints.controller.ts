@@ -14,6 +14,7 @@ import { CreateCheckpointDto } from './dto/create-checkpoint.dto';
 import { UpdateCheckpointDto } from './dto/update-checkpoint.dto';
 import { SubmitCheckpointCompletionDto } from './dto/submit-checkpoint-completion.dto';
 import { AuthGuard } from '../common/guards/auth.guard';
+import { AdminGuard } from '../common/guards/admin.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 
 @Controller('checkpoints')
@@ -49,7 +50,7 @@ export class CheckpointsController {
   }
 
   @Post()
-  @UseGuards(AuthGuard)
+  @UseGuards(AdminGuard)
   create(@Body() dto: CreateCheckpointDto) {
     return this.checkpointsService.create(dto);
   }
@@ -64,7 +65,7 @@ export class CheckpointsController {
   }
 
   @Patch(':id')
-  @UseGuards(AuthGuard)
+  @UseGuards(AdminGuard)
   update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateCheckpointDto,
@@ -73,7 +74,7 @@ export class CheckpointsController {
   }
 
   @Delete(':id')
-  @UseGuards(AuthGuard)
+  @UseGuards(AdminGuard)
   remove(@Param('id', ParseUUIDPipe) id: string) {
     return this.checkpointsService.remove(id);
   }

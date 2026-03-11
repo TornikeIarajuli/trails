@@ -1,5 +1,6 @@
 import {
   Injectable,
+  Logger,
   NotFoundException,
   BadRequestException,
   ConflictException,
@@ -11,6 +12,7 @@ import { throwIfError } from '../common/supabase-error';
 
 @Injectable()
 export class CompletionsService {
+  private readonly logger = new Logger(CompletionsService.name);
   // Max distance in meters between proof photo GPS and trail endpoint
   private readonly GPS_PROXIMITY_THRESHOLD_M = 500;
 
@@ -114,7 +116,7 @@ export class CompletionsService {
     });
 
     if (error) {
-      console.error('GPS distance calculation failed:', error);
+      this.logger.error('GPS distance calculation failed', error?.message);
       return null;
     }
 

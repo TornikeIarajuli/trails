@@ -32,7 +32,9 @@ export class AdminGuard implements CanActivate {
       throw new UnauthorizedException('Invalid or expired token');
     }
 
-    if (user.user_metadata?.role !== 'admin') {
+    // Use app_metadata (not user_metadata) — only settable by service role,
+    // preventing users from self-assigning admin via signup metadata
+    if (user.app_metadata?.role !== 'admin') {
       throw new ForbiddenException('Admin access required');
     }
 

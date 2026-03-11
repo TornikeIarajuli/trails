@@ -2,14 +2,22 @@ import './instrument';
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
+import { LoggerService } from './common/logger.service';
 import express from 'express';
 import helmet from 'helmet';
 
 async function bootstrap() {
+  const logger = new LoggerService();
+
   const app = await NestFactory.create(AppModule, {
     rawBody: true,
     bodyParser: true,
+    logger,
   });
+
+  // Trust proxy headers (Render, Cloudflare, etc.) for correct IP-based rate limiting
+  const expressApp = app.getHttpAdapter().getInstance();
+  expressApp.set('trust proxy', 1);
 
   // Security headers (CSP, HSTS, X-Frame-Options, etc.)
   app.use(helmet());
@@ -38,6 +46,6 @@ async function bootstrap() {
 
   const port = process.env.PORT ?? 3000;
   await app.listen(port);
-  console.log(`Server running on http://localhost:${port}/api`);
+  logger.log(`Server running on http://localhost:${port}/api`, 'Bootstrap');
 }
 void bootstrap();

@@ -1,9 +1,11 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { SupabaseService } from '../config/supabase.config';
 import { throwIfError } from '../common/supabase-error';
 
 @Injectable()
 export class NotificationsService {
+  private readonly logger = new Logger(NotificationsService.name);
+
   constructor(private supabaseService: SupabaseService) {}
 
   async registerToken(userId: string, token: string, platform = 'expo') {
@@ -116,7 +118,7 @@ export class NotificationsService {
 
       return { sent: messages.length, result };
     } catch (err) {
-      console.error('Push notification failed:', err);
+      this.logger.error('Push notification failed', (err as Error).message);
       return { sent: 0, error: err.message };
     }
   }
