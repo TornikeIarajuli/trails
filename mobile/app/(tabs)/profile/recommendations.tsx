@@ -29,10 +29,14 @@ export default function RecommendationsScreen() {
 
   const { data, isLoading, refetch, isRefetching } = useRecommendations();
 
+  const allCompleted = data?.all_completed ?? false;
+  const totalCompleted = data
+    ? Object.values(data.user_stats).reduce((a, b) => a + b, 0)
+    : 0;
+
   const renderHeader = () => {
     if (!data) return null;
     const { target_difficulties, user_stats } = data;
-    const totalCompleted = Object.values(user_stats).reduce((a, b) => a + b, 0);
 
     return (
       <View style={styles.header}>
@@ -46,11 +50,13 @@ export default function RecommendationsScreen() {
             </View>
           ))}
         </View>
-        <Text style={styles.headerHint}>
-          {totalCompleted === 0
-            ? 'Start with these easy trails!'
-            : `Based on your ${totalCompleted} completed trail${totalCompleted > 1 ? 's' : ''}, we recommend ${target_difficulties.map((d) => DIFFICULTY_LABELS[d]).join(' & ')} trails:`}
-        </Text>
+        {allCompleted ? null : (
+          <Text style={styles.headerHint}>
+            {totalCompleted === 0
+              ? 'Start with these easy trails!'
+              : `Based on your ${totalCompleted} completed trail${totalCompleted > 1 ? 's' : ''}, we recommend ${target_difficulties.map((d) => DIFFICULTY_LABELS[d]).join(' & ')} trails:`}
+          </Text>
+        )}
       </View>
     );
   };
@@ -93,6 +99,24 @@ export default function RecommendationsScreen() {
     </TouchableOpacity>
   );
 
+  const emptyComponent = allCompleted ? (
+    <View style={styles.empty}>
+      <Ionicons name="trophy" size={48} color={Colors.primary} />
+      <Text style={styles.emptyTitle}>You've conquered them all!</Text>
+      <Text style={styles.emptyHint}>
+        You've completed every trail in the app. Check back when new trails are added!
+      </Text>
+    </View>
+  ) : (
+    <View style={styles.empty}>
+      <Ionicons name="compass-outline" size={48} color={Colors.textLight} />
+      <Text style={styles.emptyTitle}>No recommendations yet</Text>
+      <Text style={styles.emptyHint}>
+        Complete a few trails to get personalized suggestions
+      </Text>
+    </View>
+  );
+
   return (
     <>
       <Stack.Screen
@@ -118,13 +142,7 @@ export default function RecommendationsScreen() {
             refreshControl={
               <RefreshControl refreshing={isRefetching} onRefresh={refetch} />
             }
-            ListEmptyComponent={
-              <View style={styles.empty}>
-                <Ionicons name="compass-outline" size={48} color={Colors.textLight} />
-                <Text style={styles.emptyText}>No recommendations yet</Text>
-                <Text style={styles.emptyHint}>Complete a few trails to get personalized suggestions</Text>
-              </View>
-            }
+            ListEmptyComponent={emptyComponent}
           />
         )}
       </View>
@@ -176,6 +194,6 @@ const createStyles = (Colors: ColorPalette) =>
     metaText: { fontSize: 12, color: Colors.textSecondary },
     ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 3 },
     empty: { alignItems: 'center', paddingVertical: 60, gap: 8 },
-    emptyText: { fontSize: 16, color: Colors.textLight },
-    emptyHint: { fontSize: 13, color: Colors.textLight, textAlign: 'center', maxWidth: 260 },
+    emptyTitle: { fontSize: 18, fontWeight: '700', color: Colors.text },
+    emptyHint: { fontSize: 14, color: Colors.textLight, textAlign: 'center', maxWidth: 280, lineHeight: 20 },
   });

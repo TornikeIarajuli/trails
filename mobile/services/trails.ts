@@ -48,6 +48,7 @@ export const trailsService = {
     data: (Trail & { avg_rating: number | null; review_count: number })[];
     target_difficulties: string[];
     user_stats: Record<string, number>;
+    all_completed?: boolean;
   }> {
     const response = await api.get('/trails/recommendations', {
       params: { limit },

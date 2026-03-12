@@ -318,23 +318,35 @@ export class TrailsService {
     }
 
     // 3. Fetch matching trails the user hasn't completed
-    let query = admin
-      .from('trails')
-      .select(
-        'id, name_en, name_ka, difficulty, region, cover_image_url, distance_km, elevation_gain_m, estimated_hours, status, avg_rating:trail_reviews(rating)',
-      )
-      .eq('is_published', true)
-      .eq('status', 'open')
-      .in('difficulty', targetDifficulties)
-      .order('created_at', { ascending: false })
-      .limit(limit + completedIds.size); // fetch extra to filter out completed
+    const fetchTrails = async (difficulties: string[]) => {
+      const q = admin
+        .from('trails')
+        .select(
+          'id, name_en, name_ka, difficulty, region, cover_image_url, distance_km, elevation_gain_m, estimated_hours, status, avg_rating:trail_reviews(rating)',
+        )
+        .eq('is_published', true)
+        .in('difficulty', difficulties)
+        .order('created_at', { ascending: false })
+        .limit(limit + completedIds.size);
 
-    const { data: trails, error } = await query;
-    throwIfError(error);
+      const { data: trails, error: err } = await q;
+      throwIfError(err);
+      return (trails ?? []).filter((t: any) => !completedIds.has(t.id));
+    };
 
-    // Filter out already completed and compute avg rating
-    const result = (trails ?? [])
-      .filter((t: any) => !completedIds.has(t.id))
+    let filtered = await fetchTrails(targetDifficulties);
+
+    // If no trails left at target difficulties, widen to ALL difficulties
+    let allCompleted = false;
+    if (filtered.length === 0 && completedIds.size > 0) {
+      filtered = await fetchTrails(['easy', 'medium', 'hard', 'ultra']);
+      if (filtered.length === 0) {
+        allCompleted = true;
+      }
+    }
+
+    // Compute avg rating
+    const result = filtered
       .slice(0, limit)
       .map((t: any) => {
         const ratings = t.avg_rating ?? [];
@@ -353,6 +365,7 @@ export class TrailsService {
       data: result,
       target_difficulties: targetDifficulties,
       user_stats: counts,
+      all_completed: allCompleted,
     };
   }
 

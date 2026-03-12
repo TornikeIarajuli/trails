@@ -13,7 +13,13 @@ import { ProfileCard } from '../../../components/profile/ProfileCard';
 import { FollowCountsRow } from '../../../components/profile/FollowCountsRow';
 import { BadgesSection } from '../../../components/profile/BadgesSection';
 import { CompletionsSection } from '../../../components/profile/CompletionsSection';
-import { BookmarksSection } from '../../../components/profile/BookmarksSection';
+
+const NAV_ITEMS = [
+  { key: 'bookmarks', icon: 'bookmark-outline', label: 'Bookmarks', route: '/(tabs)/profile/bookmarks' },
+  { key: 'recommendations', icon: 'compass-outline', label: 'For You', route: '/(tabs)/profile/recommendations' },
+  { key: 'analytics', icon: 'bar-chart-outline', label: 'Analytics', route: '/(tabs)/profile/analytics' },
+  { key: 'settings', icon: 'settings-outline', label: 'Settings', route: '/(tabs)/profile/settings' },
+] as const;
 
 export default function ProfileScreen() {
   const Colors = useColors();
@@ -44,26 +50,29 @@ export default function ProfileScreen() {
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      <View style={styles.headerRow}>
-        <TouchableOpacity onPress={() => router.push('/(tabs)/profile/recommendations')}>
-          <Ionicons name="compass-outline" size={24} color={Colors.textSecondary} />
-        </TouchableOpacity>
-        <TouchableOpacity onPress={() => router.push('/(tabs)/profile/analytics' as any)}>
-          <Ionicons name="bar-chart-outline" size={24} color={Colors.textSecondary} />
-        </TouchableOpacity>
-        <TouchableOpacity onPress={() => router.push('/(tabs)/profile/settings')}>
-          <Ionicons name="settings-outline" size={24} color={Colors.textSecondary} />
-        </TouchableOpacity>
-      </View>
-
       {profile && (
         <>
           <ProfileCard profile={profile} />
           <FollowCountsRow userId={profile.id} />
           <StatsGrid stats={profile.stats} />
+
+          {/* Navigation cards */}
+          <View style={styles.navGrid}>
+            {NAV_ITEMS.map((item) => (
+              <TouchableOpacity
+                key={item.key}
+                style={styles.navCard}
+                activeOpacity={0.7}
+                onPress={() => router.push(item.route as any)}
+              >
+                <Ionicons name={item.icon as any} size={22} color={Colors.primary} />
+                <Text style={styles.navLabel}>{item.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
           <BadgesSection />
           <CompletionsSection />
-          <BookmarksSection />
         </>
       )}
     </ScrollView>
@@ -79,14 +88,26 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  headerRow: {
+  navGrid: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
-    alignItems: 'center',
-    gap: 8,
+    flexWrap: 'wrap',
+    gap: 10,
     paddingHorizontal: 16,
-    paddingTop: 8,
-    paddingBottom: 4,
+    marginBottom: 20,
+  },
+  navCard: {
+    flex: 1,
+    minWidth: '45%',
+    backgroundColor: Colors.surface,
+    borderRadius: 12,
+    paddingVertical: 16,
+    alignItems: 'center',
+    gap: 6,
+  },
+  navLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: Colors.text,
   },
   loginPrompt: {
     fontSize: 16,

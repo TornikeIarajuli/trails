@@ -18,6 +18,7 @@ export default function ProfileLayout() {
       <Stack.Screen name="index" />
       <Stack.Screen name="settings" />
       <Stack.Screen name="recommendations" />
+      <Stack.Screen name="bookmarks" />
       <Stack.Screen name="badges" />
       <Stack.Screen name="notifications" />
       <Stack.Screen name="notification-preferences" />
