@@ -269,6 +269,93 @@ export class TrailsService {
     return data;
   }
 
+  async getRecommendations(userId: string, limit = 10) {
+    const admin = this.supabaseService.getAdminClient();
+
+    // 1. Get user's completed trail IDs and difficulty distribution
+    const { data: completions } = await admin
+      .from('trail_completions')
+      .select('trail_id, trails:trail_id (difficulty)')
+      .eq('user_id', userId)
+      .eq('status', 'approved');
+
+    const completedIds = new Set(
+      (completions ?? []).map((c: any) => c.trail_id),
+    );
+
+    // Count completions per difficulty
+    const counts: Record<string, number> = { easy: 0, medium: 0, hard: 0, ultra: 0 };
+    (completions ?? []).forEach((c: any) => {
+      const diff = (c.trails as any)?.difficulty;
+      if (diff && diff in counts) counts[diff]++;
+    });
+
+    // 2. Determine target difficulties: current level + next level up
+    const PROGRESSION = ['easy', 'medium', 'hard', 'ultra'];
+    const targetDifficulties: string[] = [];
+
+    // Find highest difficulty with at least 1 completion
+    let highestIdx = -1;
+    for (let i = PROGRESSION.length - 1; i >= 0; i--) {
+      if (counts[PROGRESSION[i]] > 0) {
+        highestIdx = i;
+        break;
+      }
+    }
+
+    if (highestIdx === -1) {
+      // No completions — recommend easy trails
+      targetDifficulties.push('easy');
+    } else {
+      targetDifficulties.push(PROGRESSION[highestIdx]);
+      // If they've done 3+ at this level, suggest the next level up
+      if (
+        highestIdx < PROGRESSION.length - 1 &&
+        counts[PROGRESSION[highestIdx]] >= 3
+      ) {
+        targetDifficulties.push(PROGRESSION[highestIdx + 1]);
+      }
+    }
+
+    // 3. Fetch matching trails the user hasn't completed
+    let query = admin
+      .from('trails')
+      .select(
+        'id, name_en, name_ka, difficulty, region, cover_image_url, distance_km, elevation_gain_m, estimated_hours, status, avg_rating:trail_reviews(rating)',
+      )
+      .eq('is_published', true)
+      .eq('status', 'open')
+      .in('difficulty', targetDifficulties)
+      .order('created_at', { ascending: false })
+      .limit(limit + completedIds.size); // fetch extra to filter out completed
+
+    const { data: trails, error } = await query;
+    throwIfError(error);
+
+    // Filter out already completed and compute avg rating
+    const result = (trails ?? [])
+      .filter((t: any) => !completedIds.has(t.id))
+      .slice(0, limit)
+      .map((t: any) => {
+        const ratings = t.avg_rating ?? [];
+        const avg =
+          ratings.length > 0
+            ? Math.round(
+                (ratings.reduce((s: number, r: any) => s + r.rating, 0) /
+                  ratings.length) *
+                  10,
+              ) / 10
+            : null;
+        return { ...t, avg_rating: avg, review_count: ratings.length };
+      });
+
+    return {
+      data: result,
+      target_difficulties: targetDifficulties,
+      user_stats: counts,
+    };
+  }
+
   async getRegions() {
     const admin = this.supabaseService.getAdminClient();
 

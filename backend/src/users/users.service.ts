@@ -220,6 +220,71 @@ export class UsersService {
     return { sent: !!contactId };
   }
 
+  async exportUserData(userId: string) {
+    const admin = this.supabaseService.getAdminClient();
+
+    // Gather all user data in parallel
+    const [
+      profileResult,
+      completionsResult,
+      reviewsResult,
+      bookmarksResult,
+      photosResult,
+      conditionsResult,
+      commentsResult,
+      likesResult,
+      followersResult,
+      followingResult,
+      badgesResult,
+    ] = await Promise.all([
+      admin.from('profiles').select('*').eq('id', userId).single(),
+      admin
+        .from('trail_completions')
+        .select('*, trails:trail_id (name_en, difficulty, region)')
+        .eq('user_id', userId)
+        .order('completed_at', { ascending: false }),
+      admin
+        .from('trail_reviews')
+        .select('*, trails:trail_id (name_en)')
+        .eq('user_id', userId),
+      admin
+        .from('trail_bookmarks')
+        .select('*, trails:trail_id (name_en)')
+        .eq('user_id', userId),
+      admin.from('trail_photos').select('*').eq('user_id', userId),
+      admin.from('trail_conditions').select('*').eq('user_id', userId),
+      admin.from('activity_comments').select('*').eq('user_id', userId),
+      admin.from('activity_likes').select('*').eq('user_id', userId),
+      admin
+        .from('user_follows')
+        .select('following_id, profiles!user_follows_following_id_fkey (username)')
+        .eq('follower_id', userId),
+      admin
+        .from('user_follows')
+        .select('follower_id, profiles!user_follows_follower_id_fkey (username)')
+        .eq('following_id', userId),
+      admin
+        .from('user_badges')
+        .select('*, badges:badge_id (name_en, description_en)')
+        .eq('user_id', userId),
+    ]);
+
+    return {
+      exported_at: new Date().toISOString(),
+      profile: profileResult.data,
+      completions: completionsResult.data ?? [],
+      reviews: reviewsResult.data ?? [],
+      bookmarks: bookmarksResult.data ?? [],
+      photos: photosResult.data ?? [],
+      conditions: conditionsResult.data ?? [],
+      comments: commentsResult.data ?? [],
+      likes: likesResult.data ?? [],
+      following: followersResult.data ?? [],
+      followers: followingResult.data ?? [],
+      badges: badgesResult.data ?? [],
+    };
+  }
+
   async searchUsers(query: string) {
     const admin = this.supabaseService.getAdminClient();
 

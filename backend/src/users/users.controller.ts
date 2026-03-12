@@ -43,6 +43,12 @@ export class UsersController {
     return this.usersService.updateProfile(userId, dto);
   }
 
+  @Get('me/export')
+  @UseGuards(AuthGuard)
+  exportMyData(@CurrentUser('id') userId: string) {
+    return this.usersService.exportUserData(userId);
+  }
+
   @Get('search')
   @UseGuards(AuthGuard)
   searchUsers(@Query('q') q: string) {

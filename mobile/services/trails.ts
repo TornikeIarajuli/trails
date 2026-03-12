@@ -44,6 +44,17 @@ export const trailsService = {
     return response.data;
   },
 
+  async getRecommendations(limit?: number): Promise<{
+    data: (Trail & { avg_rating: number | null; review_count: number })[];
+    target_difficulties: string[];
+    user_stats: Record<string, number>;
+  }> {
+    const response = await api.get('/trails/recommendations', {
+      params: { limit },
+    });
+    return response.data;
+  },
+
   async getRegions(): Promise<string[]> {
     const response = await api.get('/trails/regions');
     return response.data;

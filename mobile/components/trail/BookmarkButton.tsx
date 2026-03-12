@@ -24,7 +24,7 @@ export function BookmarkButton({ trailId, style }: BookmarkButtonProps) {
   return (
     <TouchableOpacity
       style={[styles.button, style]}
-      onPress={() => toggleBookmark.mutate(trailId)}
+      onPress={() => toggleBookmark.mutate({ trailId })}
       disabled={toggleBookmark.isPending}
       accessibilityLabel={isBookmarked ? 'Remove bookmark' : 'Bookmark trail'}
       accessibilityRole="button"

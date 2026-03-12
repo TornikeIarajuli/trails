@@ -13,6 +13,9 @@ export const queryKeys = {
   nearbyTrails: (lat?: number, lng?: number, radiusKm?: number) =>
     ['nearbyTrails', lat, lng, radiusKm] as const,
 
+  // Recommendations
+  recommendations: () => ['recommendations'] as const,
+
   // Badges
   badges: {
     all: () => ['badges', 'all'] as const,

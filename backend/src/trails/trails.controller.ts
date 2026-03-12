@@ -17,6 +17,8 @@ import { CreateTrailDto } from './dto/create-trail.dto';
 import { UpdateTrailDetailsDto } from './dto/update-trail-details.dto';
 import { TrailFilterDto, NearbyQueryDto } from './dto/trail-filter.dto';
 import { AdminGuard } from '../common/guards/admin.guard';
+import { AuthGuard } from '../common/guards/auth.guard';
+import { CurrentUser } from '../common/decorators/current-user.decorator';
 
 @Controller('trails')
 export class TrailsController {
@@ -30,6 +32,18 @@ export class TrailsController {
   @Get('regions')
   getRegions() {
     return this.trailsService.getRegions();
+  }
+
+  @Get('recommendations')
+  @UseGuards(AuthGuard)
+  getRecommendations(
+    @CurrentUser('id') userId: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.trailsService.getRecommendations(
+      userId,
+      Math.min(parseInt(limit ?? '10') || 10, 30),
+    );
   }
 
   @Get('nearby')

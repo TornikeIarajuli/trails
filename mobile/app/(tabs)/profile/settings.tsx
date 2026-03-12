@@ -1,11 +1,17 @@
-import React, { useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Switch, Alert, ScrollView } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Switch, Alert, ScrollView, ActivityIndicator, Share } from 'react-native';
 import { Stack, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors, ColorPalette } from '../../../constants/colors';
-import { useSettingsStore } from '../../../store/settingsStore';
+import { useSettingsStore, GpsAccuracy } from '../../../store/settingsStore';
 import { logout } from '../../../hooks/useAuth';
 import { usersService } from '../../../services/users';
+
+const GPS_OPTIONS: { value: GpsAccuracy; label: string; hint: string }[] = [
+  { value: 'low', label: 'Battery Saver', hint: '~50m accuracy, 30s interval' },
+  { value: 'balanced', label: 'Balanced', hint: '~20m accuracy, 10s interval' },
+  { value: 'high', label: 'High Precision', hint: '~5m accuracy, 3s interval' },
+];
 
 export default function SettingsScreen() {
   const Colors = useColors();
@@ -15,6 +21,26 @@ export default function SettingsScreen() {
   const setLanguage = useSettingsStore((s) => s.setLanguage);
   const isDarkMode = useSettingsStore((s) => s.isDarkMode);
   const toggleDarkMode = useSettingsStore((s) => s.toggleDarkMode);
+  const gpsAccuracy = useSettingsStore((s) => s.gpsAccuracy);
+  const setGpsAccuracy = useSettingsStore((s) => s.setGpsAccuracy);
+
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handleExportData = async () => {
+    setIsExporting(true);
+    try {
+      const data = await usersService.exportMyData();
+      const json = JSON.stringify(data, null, 2);
+      await Share.share({
+        message: json,
+        title: 'My Trail Data Export',
+      });
+    } catch {
+      Alert.alert('Error', 'Failed to export your data. Please try again.');
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   const handleDeleteAccount = () => {
     Alert.alert(
@@ -101,6 +127,29 @@ export default function SettingsScreen() {
         </View>
 
         <View style={styles.section}>
+          <Text style={styles.sectionTitle}>GPS Accuracy</Text>
+          <Text style={styles.sectionHint}>
+            Higher accuracy uses more battery during hikes
+          </Text>
+          {GPS_OPTIONS.map((opt) => (
+            <TouchableOpacity
+              key={opt.value}
+              style={styles.radioRow}
+              onPress={() => setGpsAccuracy(opt.value)}
+              activeOpacity={0.7}
+            >
+              <View style={styles.radioOuter}>
+                {gpsAccuracy === opt.value && <View style={[styles.radioInner, { backgroundColor: Colors.primary }]} />}
+              </View>
+              <View style={styles.radioContent}>
+                <Text style={styles.radioLabel}>{opt.label}</Text>
+                <Text style={styles.radioHint}>{opt.hint}</Text>
+              </View>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        <View style={styles.section}>
           <Text style={styles.sectionTitle}>Notifications</Text>
           <TouchableOpacity
             style={styles.linkRow}
@@ -142,6 +191,26 @@ export default function SettingsScreen() {
               <Text style={styles.rowLabel}>Emergency Contact</Text>
             </View>
             <Ionicons name="chevron-forward" size={18} color={Colors.textLight} />
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Data & Privacy</Text>
+          <TouchableOpacity
+            style={styles.linkRow}
+            activeOpacity={0.7}
+            onPress={handleExportData}
+            disabled={isExporting}
+          >
+            <View style={styles.rowLeft}>
+              <Ionicons name="download-outline" size={20} color={Colors.text} />
+              <Text style={styles.rowLabel}>Export My Data</Text>
+            </View>
+            {isExporting ? (
+              <ActivityIndicator size="small" color={Colors.primary} />
+            ) : (
+              <Ionicons name="chevron-forward" size={18} color={Colors.textLight} />
+            )}
           </TouchableOpacity>
         </View>
 
@@ -215,6 +284,12 @@ const createStyles = (Colors: ColorPalette) =>
       letterSpacing: 0.8,
       marginBottom: 14,
     },
+    sectionHint: {
+      fontSize: 12,
+      color: Colors.textLight,
+      marginBottom: 12,
+      marginTop: -8,
+    },
     row: {
       flexDirection: 'row',
       justifyContent: 'space-between',
@@ -230,6 +305,29 @@ const createStyles = (Colors: ColorPalette) =>
       fontSize: 16,
       color: Colors.text,
     },
+    radioRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      paddingVertical: 8,
+    },
+    radioOuter: {
+      width: 22,
+      height: 22,
+      borderRadius: 11,
+      borderWidth: 2,
+      borderColor: Colors.border,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    radioInner: {
+      width: 12,
+      height: 12,
+      borderRadius: 6,
+    },
+    radioContent: { flex: 1 },
+    radioLabel: { fontSize: 15, color: Colors.text, fontWeight: '500' },
+    radioHint: { fontSize: 12, color: Colors.textLight, marginTop: 1 },
     actionRow: {
       flexDirection: 'row',
       alignItems: 'center',

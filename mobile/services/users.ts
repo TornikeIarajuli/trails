@@ -47,6 +47,11 @@ export const usersService = {
     return (response.data.emergency_contact_user_id as string | null) ?? null;
   },
 
+  async exportMyData(): Promise<Record<string, unknown>> {
+    const response = await api.get('/users/me/export');
+    return response.data;
+  },
+
   async deleteAccount(): Promise<void> {
     await api.delete('/users/me');
   },
