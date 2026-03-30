@@ -4,6 +4,7 @@ import {
   FlatList,
   StyleSheet,
   Text,
+  ScrollView,
   RefreshControl,
   TouchableOpacity,
   Platform,
@@ -118,9 +119,65 @@ export default function HomeScreen() {
         regions={nearbyMode ? [] : (regions ?? [])}
       />
 
-      {/* Toolbar: radius chips (nearby) or spacer + view toggles */}
-      <View style={styles.toolbar}>
-        {nearbyMode ? (
+      {/* Quick action chips */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.quickActions}
+        contentContainerStyle={styles.quickActionsContent}
+      >
+        <TouchableOpacity
+          style={[styles.quickChip, nearbyMode && styles.quickChipActive]}
+          onPress={handleNearbyToggle}
+          accessibilityLabel={nearbyMode ? 'Disable nearby trails' : 'Find trails near me'}
+          accessibilityRole="button"
+        >
+          <Ionicons
+            name={nearbyMode ? 'navigate' : 'navigate-outline'}
+            size={16}
+            color={nearbyMode ? Colors.accent : Colors.textSecondary}
+          />
+          <Text style={[styles.quickChipText, nearbyMode && styles.quickChipTextActive]}>Near Me</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.quickChip, viewMode === 'map' && styles.quickChipActive]}
+          onPress={() => setViewMode(viewMode === 'map' ? 'list' : 'map')}
+          accessibilityLabel={viewMode === 'map' ? 'Switch to list view' : 'Switch to map view'}
+          accessibilityRole="button"
+        >
+          <Ionicons
+            name={viewMode === 'map' ? 'map' : 'map-outline'}
+            size={16}
+            color={viewMode === 'map' ? Colors.primary : Colors.textSecondary}
+          />
+          <Text style={[styles.quickChipText, viewMode === 'map' && styles.quickChipTextActive]}>Map</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.quickChip}
+          onPress={() => router.push('/(tabs)/profile/bookmarks' as any)}
+          accessibilityLabel="My bookmarks"
+          accessibilityRole="button"
+        >
+          <Ionicons name="bookmark-outline" size={16} color={Colors.textSecondary} />
+          <Text style={styles.quickChipText}>Bookmarks</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.quickChip}
+          onPress={() => router.push('/(tabs)/profile/recommendations' as any)}
+          accessibilityLabel="Trail recommendations for you"
+          accessibilityRole="button"
+        >
+          <Ionicons name="compass-outline" size={16} color={Colors.textSecondary} />
+          <Text style={styles.quickChipText}>For You</Text>
+        </TouchableOpacity>
+      </ScrollView>
+
+      {/* Toolbar: radius chips when nearby mode is active */}
+      {nearbyMode && (
+        <View style={styles.toolbar}>
           <View style={styles.radiusChips}>
             {RADIUS_OPTIONS.map((r) => (
               <TouchableOpacity
@@ -134,51 +191,8 @@ export default function HomeScreen() {
               </TouchableOpacity>
             ))}
           </View>
-        ) : (
-          <View style={{ flex: 1 }} />
-        )}
-
-        <View style={styles.viewToggle}>
-          {/* Near Me button */}
-          <TouchableOpacity
-            style={[styles.toggleButton, nearbyMode && styles.toggleButtonActive]}
-            onPress={handleNearbyToggle}
-            accessibilityLabel={nearbyMode ? 'Disable nearby trails' : 'Find trails near me'}
-            accessibilityRole="button"
-          >
-            <Ionicons
-              name={nearbyMode ? 'navigate' : 'navigate-outline'}
-              size={18}
-              color={nearbyMode ? Colors.accent : Colors.textSecondary}
-            />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.toggleButton, viewMode === 'list' && styles.toggleButtonActive]}
-            onPress={() => setViewMode('list')}
-            accessibilityLabel="List view"
-            accessibilityRole="button"
-          >
-            <Ionicons
-              name="list-outline"
-              size={18}
-              color={viewMode === 'list' ? Colors.primary : Colors.textSecondary}
-            />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.toggleButton, viewMode === 'map' && styles.toggleButtonActive]}
-            onPress={() => setViewMode('map')}
-            accessibilityLabel="Map view"
-            accessibilityRole="button"
-          >
-            <Ionicons
-              name="map-outline"
-              size={18}
-              color={viewMode === 'map' ? Colors.primary : Colors.textSecondary}
-            />
-          </TouchableOpacity>
         </View>
-      </View>
+      )}
 
       {loading ? (
         <LoadingSpinner />
@@ -267,11 +281,43 @@ const createStyles = (Colors: ColorPalette) =>
       fontSize: 16,
       color: Colors.textLight,
     },
+    quickActions: {
+      flexGrow: 0,
+      paddingVertical: 6,
+    },
+    quickActionsContent: {
+      paddingHorizontal: 16,
+      gap: 8,
+      flexDirection: 'row',
+    },
+    quickChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+      borderRadius: 20,
+      backgroundColor: Colors.surface,
+      borderWidth: 1,
+      borderColor: Colors.border,
+    },
+    quickChipActive: {
+      backgroundColor: Colors.primary + '15',
+      borderColor: Colors.primary + '40',
+    },
+    quickChipText: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: Colors.textSecondary,
+    },
+    quickChipTextActive: {
+      color: Colors.primary,
+    },
     toolbar: {
       flexDirection: 'row',
       alignItems: 'center',
       paddingHorizontal: 16,
-      paddingVertical: 6,
+      paddingVertical: 4,
     },
     radiusChips: {
       flexDirection: 'row',
@@ -295,20 +341,6 @@ const createStyles = (Colors: ColorPalette) =>
     radiusChipTextActive: {
       color: Colors.accent,
       fontWeight: '700',
-    },
-    viewToggle: {
-      flexDirection: 'row',
-      gap: 4,
-    },
-    toggleButton: {
-      width: 34,
-      height: 34,
-      borderRadius: 8,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    toggleButtonActive: {
-      backgroundColor: Colors.primary + '15',
     },
     map: {
       flex: 1,
