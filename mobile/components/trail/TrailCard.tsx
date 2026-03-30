@@ -7,6 +7,7 @@ import Animated, {
   FadeInDown,
   useAnimatedStyle,
   useSharedValue,
+  useReducedMotion,
   withSpring,
 } from 'react-native-reanimated';
 import { Pressable } from 'react-native';
@@ -29,18 +30,20 @@ export const TrailCard = React.memo(function TrailCard({ trail, index = 0 }: Tra
   const language = useSettingsStore((s) => s.language);
   const name = localName(trail.name_en, trail.name_ka, language);
 
+  const reducedMotion = useReducedMotion();
   const scale = useSharedValue(1);
   const animatedStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
   const { data: activeCount } = useActiveHikerCount(trail.id);
 
   const delay = Math.min(index, 8) * 50;
+  const entering = reducedMotion ? undefined : FadeInDown.delay(delay).duration(280);
 
   return (
-    <Animated.View entering={FadeInDown.delay(delay).duration(280)} style={animatedStyle}>
+    <Animated.View entering={entering} style={animatedStyle}>
       <Pressable
         style={styles.card}
-        onPressIn={() => { scale.value = withSpring(0.97, { damping: 15 }); }}
-        onPressOut={() => { scale.value = withSpring(1, { damping: 15 }); }}
+        onPressIn={() => { if (!reducedMotion) scale.value = withSpring(0.97, { damping: 15 }); }}
+        onPressOut={() => { if (!reducedMotion) scale.value = withSpring(1, { damping: 15 }); }}
         onPress={() => router.push(`/trail/${trail.id}`)}
       >
         <Image

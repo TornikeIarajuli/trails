@@ -22,20 +22,25 @@ export default function LoginScreen() {
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [errorMsg, setErrorMsg] = useState('');
+  const [emailError, setEmailError] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  const [apiError, setApiError] = useState('');
   const login = useLogin();
 
   const handleLogin = () => {
-    setErrorMsg('');
-    if (!email || !password) {
-      setErrorMsg('Please fill in all fields');
-      return;
-    }
-    login.mutate({ email, password }, {
+    setEmailError('');
+    setPasswordError('');
+    setApiError('');
+    let valid = true;
+    if (!email.trim()) { setEmailError('Email is required'); valid = false; }
+    else if (!/\S+@\S+\.\S+/.test(email)) { setEmailError('Enter a valid email'); valid = false; }
+    if (!password) { setPasswordError('Password is required'); valid = false; }
+    if (!valid) return;
+    login.mutate({ email: email.trim(), password }, {
       onError: (error: any) => {
         const raw = error.response?.data?.message;
         const msg = Array.isArray(raw) ? raw.join(', ') : raw || 'Invalid email or password';
-        setErrorMsg(msg);
+        setApiError(msg);
       },
     });
   };
@@ -60,10 +65,10 @@ export default function LoginScreen() {
         </View>
 
         <View style={styles.form}>
-          {errorMsg ? (
+          {apiError ? (
             <View style={styles.errorBanner}>
               <Ionicons name="alert-circle" size={18} color={Colors.error} />
-              <Text style={styles.errorBannerText}>{errorMsg}</Text>
+              <Text style={styles.errorBannerText}>{apiError}</Text>
             </View>
           ) : null}
 
@@ -71,9 +76,10 @@ export default function LoginScreen() {
             label="Email"
             placeholder="your@email.com"
             value={email}
-            onChangeText={(t) => { setEmail(t); setErrorMsg(''); }}
+            onChangeText={(t) => { setEmail(t); setEmailError(''); setApiError(''); }}
             keyboardType="email-address"
             autoCapitalize="none"
+            error={emailError}
           />
 
           <View>
@@ -81,8 +87,9 @@ export default function LoginScreen() {
               label="Password"
               placeholder="Enter your password"
               value={password}
-              onChangeText={(t) => { setPassword(t); setErrorMsg(''); }}
+              onChangeText={(t) => { setPassword(t); setPasswordError(''); setApiError(''); }}
               secureTextEntry
+              error={passwordError}
             />
             <TouchableOpacity
               style={styles.forgotLink}

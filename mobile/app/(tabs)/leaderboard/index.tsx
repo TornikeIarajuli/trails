@@ -1,9 +1,11 @@
 import React, { useMemo } from 'react';
-import { View, FlatList, Text, StyleSheet, RefreshControl } from 'react-native';
+import { View, FlatList, Text, StyleSheet, TouchableOpacity, RefreshControl } from 'react-native';
+import { router } from 'expo-router';
 import { useColors, ColorPalette } from '../../../constants/colors';
 import { useLeaderboard } from '../../../hooks/useLeaderboard';
 import { LeaderboardRow } from '../../../components/leaderboard/LeaderboardRow';
 import { LoadingSpinner } from '../../../components/ui/LoadingSpinner';
+import { LeaderboardRowSkeleton } from '../../../components/ui/Skeleton';
 
 export default function LeaderboardScreen() {
   const Colors = useColors();
@@ -19,7 +21,9 @@ export default function LeaderboardScreen() {
       </View>
 
       {isLoading ? (
-        <LoadingSpinner />
+        <View style={styles.list}>
+          {Array.from({ length: 8 }).map((_, i) => <LeaderboardRowSkeleton key={i} />)}
+        </View>
       ) : (
         <FlatList
           data={data}
@@ -44,6 +48,12 @@ export default function LeaderboardScreen() {
           ListEmptyComponent={
             <View style={styles.empty}>
               <Text style={styles.emptyText}>No hikers yet. Be the first!</Text>
+              <TouchableOpacity
+                style={styles.emptyAction}
+                onPress={() => router.push('/(tabs)/home' as any)}
+              >
+                <Text style={styles.emptyActionText}>Browse trails</Text>
+              </TouchableOpacity>
             </View>
           }
         />
@@ -82,5 +92,20 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   emptyText: {
     fontSize: 16,
     color: Colors.textLight,
+    marginTop: 8,
+  },
+  emptyAction: {
+    marginTop: 16,
+    paddingHorizontal: 24,
+    paddingVertical: 10,
+    borderRadius: 20,
+    backgroundColor: Colors.primary + '15',
+    borderWidth: 1,
+    borderColor: Colors.primary + '40',
+  },
+  emptyActionText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.primary,
   },
 });

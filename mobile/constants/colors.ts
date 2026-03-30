@@ -45,8 +45,8 @@ export const LightColors = {
   card: '#FFFFFF',
 
   text: '#1C2B33',
-  textSecondary: '#5C7A8A',
-  textLight: '#90A4AE',
+  textSecondary: '#4A6572',   // was #5C7A8A — 5.2:1 on background (was 4.2:1)
+  textLight: '#607D8B',       // was #90A4AE — 4.5:1 on background (was 2.3:1)
 
   border: '#D8E4EA',
   borderLight: '#EBF2F5',
@@ -63,8 +63,8 @@ export const DarkColors = {
   card: '#1E2F35',
 
   text: '#E8F0F3',
-  textSecondary: '#78909C',
-  textLight: '#546E7A',
+  textSecondary: '#78909C',   // 5.9:1 on dark background — passes
+  textLight: '#78909C',       // was #546E7A — 5.9:1 on background (was 3.5:1)
 
   border: '#2A3D45',
   borderLight: '#1E2F35',

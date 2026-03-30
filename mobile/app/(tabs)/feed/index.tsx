@@ -11,7 +11,10 @@ import { useFeed } from '../../../hooks/useFeed';
 import { ActivityCard } from '../../../components/feed/ActivityCard';
 import { EmptyFeed } from '../../../components/feed/EmptyFeed';
 import { LoadingSpinner } from '../../../components/ui/LoadingSpinner';
+import { FeedItemSkeleton } from '../../../components/ui/Skeleton';
 import { FeedItem } from '../../../types/feed';
+
+const SKELETON_COUNT = 4;
 
 export default function FeedScreen() {
   const Colors = useColors();
@@ -29,7 +32,16 @@ export default function FeedScreen() {
 
   const items: FeedItem[] = data?.pages.flatMap((page) => page.data) ?? [];
 
-  if (isLoading) return <LoadingSpinner />;
+  if (isLoading) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.screenTitle}>Activity Feed</Text>
+        {Array.from({ length: SKELETON_COUNT }).map((_, i) => (
+          <FeedItemSkeleton key={i} />
+        ))}
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>

@@ -3,44 +3,70 @@ import { Tabs, usePathname, useSegments, router } from 'expo-router';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
+import Animated, { useSharedValue, useAnimatedStyle, useReducedMotion, withSpring } from 'react-native-reanimated';
 import { useColors, ColorPalette } from '../../constants/colors';
 import { useNetworkStatus } from '../../hooks/useNetworkStatus';
 
 type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
 
-const TAB_CONFIG: { name: string; route: string; icon: IoniconsName; activeIcon: IoniconsName }[] = [
-  { name: 'home', route: '/(tabs)/home', icon: 'compass-outline', activeIcon: 'compass' },
-  { name: 'feed', route: '/(tabs)/feed', icon: 'newspaper-outline', activeIcon: 'newspaper' },
-  { name: 'shop', route: '/(tabs)/shop', icon: 'bag-outline', activeIcon: 'bag' },
-  { name: 'leaderboard', route: '/(tabs)/leaderboard', icon: 'trophy-outline', activeIcon: 'trophy' },
-  { name: 'profile', route: '/(tabs)/profile', icon: 'person-outline', activeIcon: 'person' },
+const TAB_CONFIG: {
+  name: string;
+  label: string;
+  route: string;
+  icon: IoniconsName;
+  activeIcon: IoniconsName;
+}[] = [
+  { name: 'home', label: 'Explore', route: '/(tabs)/home', icon: 'compass-outline', activeIcon: 'compass' },
+  { name: 'feed', label: 'Feed', route: '/(tabs)/feed', icon: 'newspaper-outline', activeIcon: 'newspaper' },
+  { name: 'shop', label: 'Shop', route: '/(tabs)/shop', icon: 'bag-outline', activeIcon: 'bag' },
+  { name: 'leaderboard', label: 'Ranks', route: '/(tabs)/leaderboard', icon: 'trophy-outline', activeIcon: 'trophy' },
+  { name: 'profile', label: 'Profile', route: '/(tabs)/profile', icon: 'person-outline', activeIcon: 'person' },
 ];
 
-function AnimatedIconButton({
+function AnimatedTabButton({
   onPress,
-  style,
-  children,
-  accessibilityLabel,
+  isActive,
+  icon,
+  activeIcon,
+  label,
+  Colors,
 }: {
   onPress: () => void;
-  style?: object;
-  children: React.ReactNode;
-  accessibilityLabel?: string;
+  isActive: boolean;
+  icon: IoniconsName;
+  activeIcon: IoniconsName;
+  label: string;
+  Colors: ColorPalette;
 }) {
+  const reducedMotion = useReducedMotion();
   const scale = useSharedValue(1);
   const animStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
 
   return (
     <Pressable
-      onPressIn={() => { scale.value = withSpring(0.82, { damping: 12, stiffness: 300 }); }}
-      onPressOut={() => { scale.value = withSpring(1, { damping: 12, stiffness: 300 }); }}
+      onPressIn={() => { if (!reducedMotion) scale.value = withSpring(0.88, { damping: 12, stiffness: 300 }); }}
+      onPressOut={() => { if (!reducedMotion) scale.value = withSpring(1, { damping: 12, stiffness: 300 }); }}
       onPress={onPress}
-      accessibilityLabel={accessibilityLabel}
-      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityRole="tab"
+      accessibilityState={{ selected: isActive }}
+      style={{ flex: 1, alignItems: 'center' }}
     >
-      <Animated.View style={[style, animStyle]}>
-        {children}
+      <Animated.View style={[{ alignItems: 'center', gap: 2 }, animStyle]}>
+        <Ionicons
+          name={isActive ? activeIcon : icon}
+          size={22}
+          color={isActive ? Colors.primary : Colors.textSecondary}
+        />
+        <Text
+          style={{
+            fontSize: 10,
+            fontWeight: isActive ? '700' : '500',
+            color: isActive ? Colors.primary : Colors.textSecondary,
+          }}
+        >
+          {label}
+        </Text>
       </Animated.View>
     </Pressable>
   );
@@ -48,7 +74,6 @@ function AnimatedIconButton({
 
 function Header() {
   const insets = useSafeAreaInsets();
-  const pathname = usePathname();
   const Colors = useColors();
   const styles = useMemo(() => createStyles(Colors), [Colors]);
   const networkQuality = useNetworkStatus();
@@ -63,32 +88,14 @@ function Header() {
     <View>
       <View style={[styles.header, { paddingTop: insets.top + 6 }]}>
         <Text style={styles.appTitle}>Mikiri Trails</Text>
-        <View style={styles.navIcons}>
-          <AnimatedIconButton
-            style={styles.navIcon}
-            onPress={() => router.push('/search')}
-            accessibilityLabel="Search"
-          >
-            <Ionicons name="search-outline" size={22} color={Colors.textSecondary} />
-          </AnimatedIconButton>
-          {TAB_CONFIG.map((tab) => {
-            const isActive = pathname.includes(`/${tab.name}`);
-            return (
-              <AnimatedIconButton
-                key={tab.name}
-                onPress={() => router.navigate(tab.route as any)}
-                style={[styles.navIcon, isActive && styles.navIconActive]}
-                accessibilityLabel={`${tab.name.charAt(0).toUpperCase() + tab.name.slice(1)} tab`}
-              >
-                <Ionicons
-                  name={isActive ? tab.activeIcon : tab.icon}
-                  size={22}
-                  color={isActive ? Colors.primary : Colors.textSecondary}
-                />
-              </AnimatedIconButton>
-            );
-          })}
-        </View>
+        <Pressable
+          onPress={() => router.push('/search')}
+          accessibilityLabel="Search"
+          accessibilityRole="button"
+          style={styles.searchButton}
+        >
+          <Ionicons name="search-outline" size={20} color={Colors.textSecondary} />
+        </Pressable>
       </View>
       {bannerConfig && (
         <View style={[styles.offlineBanner, { backgroundColor: bannerConfig.color }]}>
@@ -100,11 +107,37 @@ function Header() {
   );
 }
 
+function BottomTabBar() {
+  const insets = useSafeAreaInsets();
+  const pathname = usePathname();
+  const Colors = useColors();
+  const styles = useMemo(() => createStyles(Colors), [Colors]);
+
+  return (
+    <View style={[styles.tabBar, { paddingBottom: Math.max(insets.bottom, 8) }]}>
+      {TAB_CONFIG.map((tab) => {
+        const isActive = pathname === '/' ? tab.name === 'home' : pathname.includes(`/${tab.name}`);
+        return (
+          <AnimatedTabButton
+            key={tab.name}
+            onPress={() => router.navigate(tab.route as any)}
+            isActive={isActive}
+            icon={tab.icon}
+            activeIcon={tab.activeIcon}
+            label={tab.label}
+            Colors={Colors}
+          />
+        );
+      })}
+    </View>
+  );
+}
+
 export default function TabsLayout() {
   const Colors = useColors();
   const styles = useMemo(() => createStyles(Colors), [Colors]);
   const segments = useSegments();
-  // Hide the tab header when inside a sub-screen (e.g. settings, notifications, trail detail)
+  // Hide header + bottom tabs when inside a sub-screen (e.g. settings, trail detail, hike)
   const isSubScreen = segments.length > 2;
 
   return (
@@ -120,6 +153,7 @@ export default function TabsLayout() {
         <Tabs.Screen name="leaderboard" />
         <Tabs.Screen name="profile" />
       </Tabs>
+      {!isSubScreen && <BottomTabBar />}
     </View>
   );
 }
@@ -144,20 +178,21 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     fontWeight: '800',
     color: Colors.primary,
   },
-  navIcons: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  navIcon: {
+  searchButton: {
     width: 36,
     height: 36,
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: Colors.background,
   },
-  navIconActive: {
-    backgroundColor: Colors.primary + '15',
+  tabBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.surface,
+    borderTopWidth: 1,
+    borderTopColor: Colors.borderLight,
+    paddingTop: 8,
   },
   offlineBanner: {
     flexDirection: 'row',

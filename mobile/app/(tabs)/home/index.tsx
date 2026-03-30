@@ -22,6 +22,7 @@ import { TrailFilters } from '../../../components/trail/TrailFilters';
 import { LoadingSpinner } from '../../../components/ui/LoadingSpinner';
 import { ActiveHikeBanner } from '../../../components/hike/ActiveHikeBanner';
 import { TrailDifficulty, Trail } from '../../../types/trail';
+import { TrailCardSkeleton } from '../../../components/ui/Skeleton';
 import { parseGeoPoint } from '../../../utils/geo';
 import { Config } from '../../../constants/config';
 
@@ -195,7 +196,9 @@ export default function HomeScreen() {
       )}
 
       {loading ? (
-        <LoadingSpinner />
+        <View style={styles.list}>
+          {Array.from({ length: 5 }).map((_, i) => <TrailCardSkeleton key={i} />)}
+        </View>
       ) : viewMode === 'list' ? (
         <FlatList
           data={trails as Trail[]}
@@ -225,9 +228,19 @@ export default function HomeScreen() {
           }
           ListEmptyComponent={
             <View style={styles.empty}>
+              <Ionicons name="map-outline" size={48} color={Colors.textLight} />
               <Text style={styles.emptyText}>
                 {nearbyMode ? `No trails within ${radius} km` : 'No trails found'}
               </Text>
+              {nearbyMode ? (
+                <TouchableOpacity style={styles.emptyAction} onPress={() => setRadius(25)}>
+                  <Text style={styles.emptyActionText}>Expand to 25 km</Text>
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity style={styles.emptyAction} onPress={() => { setDifficulty(null); setRegion(null); }}>
+                  <Text style={styles.emptyActionText}>Clear filters</Text>
+                </TouchableOpacity>
+              )}
             </View>
           }
         />
@@ -280,6 +293,21 @@ const createStyles = (Colors: ColorPalette) =>
     emptyText: {
       fontSize: 16,
       color: Colors.textLight,
+      marginTop: 12,
+    },
+    emptyAction: {
+      marginTop: 16,
+      paddingHorizontal: 24,
+      paddingVertical: 10,
+      borderRadius: 20,
+      backgroundColor: Colors.primary + '15',
+      borderWidth: 1,
+      borderColor: Colors.primary + '40',
+    },
+    emptyActionText: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: Colors.primary,
     },
     quickActions: {
       flexGrow: 0,
@@ -294,9 +322,10 @@ const createStyles = (Colors: ColorPalette) =>
       flexDirection: 'row',
       alignItems: 'center',
       gap: 6,
-      paddingHorizontal: 14,
-      paddingVertical: 8,
-      borderRadius: 20,
+      paddingHorizontal: 16,
+      paddingVertical: 11,   // 16px icon + 11*2 padding = 38px → with border = ~44px
+      minHeight: 44,
+      borderRadius: 22,
       backgroundColor: Colors.surface,
       borderWidth: 1,
       borderColor: Colors.border,
