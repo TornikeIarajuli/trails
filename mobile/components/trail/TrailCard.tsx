@@ -23,7 +23,7 @@ interface TrailCardProps {
   index?: number;
 }
 
-export function TrailCard({ trail, index = 0 }: TrailCardProps) {
+export const TrailCard = React.memo(function TrailCard({ trail, index = 0 }: TrailCardProps) {
   const Colors = useColors();
   const styles = useMemo(() => createStyles(Colors), [Colors]);
   const language = useSettingsStore((s) => s.language);
@@ -91,7 +91,7 @@ export function TrailCard({ trail, index = 0 }: TrailCardProps) {
       </Pressable>
     </Animated.View>
   );
-}
+});
 
 const STATUS_LABEL: Record<string, string> = {
   closed: 'Closed',

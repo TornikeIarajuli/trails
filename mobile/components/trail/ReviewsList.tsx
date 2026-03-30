@@ -37,7 +37,7 @@ function StarRating({ rating }: { rating: number }) {
   );
 }
 
-function ReviewItem({ review, trailId }: { review: Review; trailId: string }) {
+const ReviewItem = React.memo(function ReviewItem({ review, trailId }: { review: Review; trailId: string }) {
   const Colors = useColors();
   const styles = useMemo(() => createStyles(Colors), [Colors]);
   const userId = useAuthStore((s) => s.user?.id);
@@ -55,11 +55,11 @@ function ReviewItem({ review, trailId }: { review: Review; trailId: string }) {
     ]);
   };
 
-  const date = new Date(review.created_at).toLocaleDateString('en-US', {
+  const date = useMemo(() => new Date(review.created_at).toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
-  });
+  }), [review.created_at]);
 
   return (
     <View style={styles.reviewItem}>
@@ -97,7 +97,7 @@ function ReviewItem({ review, trailId }: { review: Review; trailId: string }) {
       )}
     </View>
   );
-}
+});
 
 export function ReviewsList({ reviews, trailId, onWriteReview }: Props) {
   const Colors = useColors();

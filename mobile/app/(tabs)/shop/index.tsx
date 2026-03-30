@@ -56,6 +56,10 @@ export default function ShopScreen() {
         numColumns={2}
         columnWrapperStyle={styles.row}
         contentContainerStyle={styles.list}
+        removeClippedSubviews
+        maxToRenderPerBatch={8}
+        windowSize={5}
+        initialNumToRender={8}
         refreshControl={
           <RefreshControl
             refreshing={isRefetching}

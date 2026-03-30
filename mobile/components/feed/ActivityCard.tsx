@@ -103,6 +103,13 @@ function PhotoCarousel({ urls, trailId, styles, Colors }: {
   );
 }
 
+const ACTION_CONFIG: Record<ActivityType, { verb: string; icon: string; color: string }> = {
+  completion: { verb: 'completed', icon: 'checkmark-circle', color: '#4CAF50' },
+  photo: { verb: 'uploaded a photo on', icon: 'camera', color: '#2196F3' },
+  condition: { verb: 'reported a condition on', icon: 'warning', color: '#FF9800' },
+  review: { verb: 'reviewed', icon: 'star', color: '#FFC107' },
+};
+
 export function ActivityCard({ item }: { item: FeedItem }) {
   const Colors = useColors();
   const styles = useMemo(() => createStyles(Colors), [Colors]);
@@ -113,13 +120,6 @@ export function ActivityCard({ item }: { item: FeedItem }) {
 
   const { liked, count: likeCount } = useLikes(item.activity_id);
   const toggleLike = useToggleLike();
-
-  const ACTION_CONFIG: Record<ActivityType, { verb: string; icon: string; color: string }> = {
-    completion: { verb: 'completed', icon: 'checkmark-circle', color: Colors.success },
-    photo: { verb: 'uploaded a photo on', icon: 'camera', color: '#2196F3' },
-    condition: { verb: 'reported a condition on', icon: 'warning', color: '#FF9800' },
-    review: { verb: 'reviewed', icon: 'star', color: '#FFC107' },
-  };
 
   const config = ACTION_CONFIG[item.activity_type];
 

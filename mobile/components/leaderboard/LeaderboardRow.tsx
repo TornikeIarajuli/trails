@@ -12,7 +12,7 @@ interface LeaderboardRowProps {
 
 const RANK_COLORS = ['#FFD700', '#C0C0C0', '#CD7F32'];
 
-export function LeaderboardRow({ entry, isTopThree }: LeaderboardRowProps) {
+export const LeaderboardRow = React.memo(function LeaderboardRow({ entry, isTopThree }: LeaderboardRowProps) {
   const Colors = useColors();
   const styles = useMemo(() => createStyles(Colors), [Colors]);
 
@@ -49,7 +49,7 @@ export function LeaderboardRow({ entry, isTopThree }: LeaderboardRowProps) {
       </View>
     </TouchableOpacity>
   );
-}
+});
 
 const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   row: {

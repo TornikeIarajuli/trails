@@ -29,6 +29,10 @@ export default function LeaderboardScreen() {
           )}
           contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}
+          removeClippedSubviews
+          maxToRenderPerBatch={10}
+          windowSize={5}
+          initialNumToRender={15}
           refreshControl={
             <RefreshControl
               refreshing={isRefetching}

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import {
   View,
   FlatList,
@@ -75,7 +75,7 @@ export default function HomeScreen() {
     });
   }, [data, nearbyData, nearbyMode]);
 
-  const handleNearbyToggle = async () => {
+  const handleNearbyToggle = useCallback(async () => {
     if (nearbyMode) {
       setNearbyMode(false);
       return;
@@ -101,7 +101,7 @@ export default function HomeScreen() {
         Alert.alert('Location error', 'Could not get your location. Please try again.');
       }
     }
-  };
+  }, [nearbyMode, userLocation]);
 
   const loading = nearbyMode ? nearbyLoading : isLoading;
 
