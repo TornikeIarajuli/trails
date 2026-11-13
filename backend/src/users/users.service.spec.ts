@@ -8,6 +8,8 @@ import {
 import { UsersService } from './users.service';
 import { SupabaseService } from '../config/supabase.config';
 import { NotificationsService } from '../notifications/notifications.service';
+import { TrailsService } from '../trails/trails.service';
+import type { RegionSummary } from '../trails/region-stats';
 
 // ---------------------------------------------------------------------------
 // Chainable query builder
@@ -49,6 +51,10 @@ const mockNotifications = {
   sendToUser: jest.fn().mockResolvedValue({ sent: 1 }),
 };
 
+const mockTrails = {
+  getRegionSummaries: jest.fn(),
+};
+
 describe('UsersService', () => {
   let service: UsersService;
 
@@ -58,6 +64,7 @@ describe('UsersService', () => {
         UsersService,
         { provide: SupabaseService, useValue: mockSupabase },
         { provide: NotificationsService, useValue: mockNotifications },
+        { provide: TrailsService, useValue: mockTrails },
       ],
     }).compile();
 
@@ -528,6 +535,77 @@ describe('UsersService', () => {
       expect(c.or).toHaveBeenCalledWith(
         'username.ilike.%abidneqx%,full_name.ilike.%abidneqx%',
       );
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // getRegionProgress
+  // -------------------------------------------------------------------------
+  describe('getRegionProgress', () => {
+    const summaries: RegionSummary[] = [
+      {
+        region: 'Khevsureti',
+        total: 14,
+        center: [45.1, 42.6],
+        trailIds: Array.from({ length: 14 }, (_, i) => `k${i}`),
+      },
+      { region: 'Racha', total: 2, center: null, trailIds: ['r0', 'r1'] },
+    ];
+
+    const completionsChain = (result: object) => {
+      const c: Record<string, jest.Mock> = {};
+      c.select = jest.fn().mockReturnValue(c);
+      c.eq = jest.fn().mockReturnValueOnce(c).mockResolvedValueOnce(result);
+      return c;
+    };
+
+    it('combines the cached region totals with one query for approved completions', async () => {
+      mockTrails.getRegionSummaries.mockResolvedValue(summaries);
+      const c = completionsChain({
+        data: [{ trail_id: 'k0' }, { trail_id: 'k5' }, { trail_id: 'k9' }],
+        error: null,
+      });
+      mockAdmin.from.mockReturnValue(c);
+
+      const result = await service.getRegionProgress('user-1');
+
+      expect(mockAdmin.from).toHaveBeenCalledTimes(1);
+      expect(mockAdmin.from).toHaveBeenCalledWith('trail_completions');
+      expect(c.select).toHaveBeenCalledWith('trail_id');
+      expect(c.eq).toHaveBeenCalledWith('user_id', 'user-1');
+      expect(c.eq).toHaveBeenCalledWith('status', 'approved');
+      expect(result.regions[0]).toEqual({
+        region: 'Khevsureti',
+        total: 14,
+        completed: 3,
+        center: [45.1, 42.6],
+        completed_trail_ids: ['k0', 'k5', 'k9'],
+      });
+      expect(result.totals).toEqual({
+        regions_total: 2,
+        regions_started: 1,
+        regions_completed: 0,
+        trails_total: 16,
+        trails_completed: 3,
+      });
+    });
+
+    it('fails when the completions cannot be read', async () => {
+      mockTrails.getRegionSummaries.mockResolvedValue(summaries);
+      mockAdmin.from.mockReturnValue(
+        completionsChain({
+          data: null,
+          error: { code: 'XX000', message: 'boom' },
+        }),
+      );
+      const errorLog = jest
+        .spyOn(Logger.prototype, 'error')
+        .mockImplementation(() => undefined);
+
+      await expect(service.getRegionProgress('user-1')).rejects.toThrow(
+        InternalServerErrorException,
+      );
+      errorLog.mockRestore();
     });
   });
 });

@@ -9,6 +9,8 @@ import {
 } from '@nestjs/common';
 import { SupabaseService } from '../config/supabase.config';
 import { NotificationsService } from '../notifications/notifications.service';
+import { TrailsService } from '../trails/trails.service';
+import { RegionProgressResponse, regionProgress } from '../trails/region-stats';
 
 export type SosOutcome = 'ok' | 'no_contact' | 'contact_unreachable';
 
@@ -19,7 +21,28 @@ export class UsersService {
   constructor(
     private supabaseService: SupabaseService,
     private notificationsService: NotificationsService,
+    private trailsService: TrailsService,
   ) {}
+
+  /** Completed vs. published trails per region, e.g. 3/14 in Khevsureti. */
+  async getRegionProgress(userId: string): Promise<RegionProgressResponse> {
+    const admin = this.supabaseService.getAdminClient();
+
+    const [summaries, completions] = await Promise.all([
+      this.trailsService.getRegionSummaries(),
+      admin
+        .from('trail_completions')
+        .select('trail_id')
+        .eq('user_id', userId)
+        .eq('status', 'approved'),
+    ]);
+
+    throwIfError(completions.error);
+    return regionProgress(
+      summaries,
+      (completions.data ?? []).map((c: { trail_id: string }) => c.trail_id),
+    );
+  }
 
   async getProfile(userId: string) {
     const admin = this.supabaseService.getAdminClient();

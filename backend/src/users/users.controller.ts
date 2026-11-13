@@ -53,6 +53,13 @@ export class UsersController {
     return this.usersService.exportUserData(userId);
   }
 
+  // Declared before ':id/regions' so "me" is not taken for a user id
+  @Get('me/regions')
+  @UseGuards(AuthGuard)
+  getMyRegions(@CurrentUser('id') userId: string) {
+    return this.usersService.getRegionProgress(userId);
+  }
+
   @Get('search')
   @UseGuards(AuthGuard)
   searchUsers(@Query() query: SearchUsersQueryDto) {
@@ -86,6 +93,11 @@ export class UsersController {
   @Throttle({ default: { ttl: 60000, limit: 3 } })
   triggerSos(@CurrentUser('id') userId: string, @Body() dto: SosDto) {
     return this.usersService.triggerSos(userId, dto.lat, dto.lng);
+  }
+
+  @Get(':id/regions')
+  getUserRegions(@Param('id', ParseUUIDPipe) id: string) {
+    return this.usersService.getRegionProgress(id);
   }
 
   @Get(':id')

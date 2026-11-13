@@ -5,9 +5,15 @@ import { UpdateTrailDetailsDto } from './dto/update-trail-details.dto';
 import { TrailFilterDto, NearbyQueryDto } from './dto/trail-filter.dto';
 import { TtlCache, stableStringify } from '../common/ttl-cache';
 import { throwIfError } from '../common/supabase-error';
+import { RegionSummary, RegionTrail, summarizeRegions } from './region-stats';
 
 const TRAIL_LIST_TTL = 5 * 60 * 1000; // 5 min — trail lists rarely change
 const TRAIL_DETAIL_TTL = 10 * 60 * 1000; // 10 min — trail details change even less
+const REGION_SUMMARY_TTL = 10 * 60 * 1000;
+const REGION_SUMMARY_KEY = 'trails:regions';
+// PostgREST returns at most this many rows per request by default
+const PAGE_SIZE = 1000;
+const MAX_PAGES = 50;
 // A few hundred trails plus their filtered lists
 const TRAIL_CACHE_MAX_ENTRIES = 1000;
 
@@ -237,15 +243,15 @@ export class TrailsService {
     throwIfError(error);
     if (!data) throw new NotFoundException('Trail not found');
 
-    // Invalidate caches for this trail and all list caches
-    this.cache.delete(`trails:detail:${id}`);
-    this.cache.deleteByPrefix('trails:list:');
+    this.invalidateCache(id);
     return data;
   }
 
+  /** Drops the trail's detail, every trail list and the per-region summary. */
   invalidateCache(id: string) {
     this.cache.delete(`trails:detail:${id}`);
     this.cache.deleteByPrefix('trails:list:');
+    this.cache.delete(REGION_SUMMARY_KEY);
   }
 
   async remove(id: string) {
@@ -255,9 +261,38 @@ export class TrailsService {
 
     throwIfError(error);
 
-    this.cache.delete(`trails:detail:${id}`);
-    this.cache.deleteByPrefix('trails:list:');
+    this.invalidateCache(id);
     return { message: 'Trail deleted successfully' };
+  }
+
+  /** Published trails per region with their trailhead centers (cached). */
+  async getRegionSummaries(): Promise<RegionSummary[]> {
+    const cached = this.cache.get(REGION_SUMMARY_KEY) as
+      | RegionSummary[]
+      | undefined;
+    if (cached) return cached;
+
+    const admin = this.supabaseService.getAdminClient();
+    const trails: RegionTrail[] = [];
+
+    for (let page = 0; page < MAX_PAGES; page++) {
+      const from = page * PAGE_SIZE;
+      const { data, error } = await admin
+        .from('trails')
+        .select('id, region, start_point')
+        .eq('is_published', true)
+        .order('id', { ascending: true })
+        .range(from, from + PAGE_SIZE - 1);
+
+      throwIfError(error);
+      const rows = (data ?? []) as RegionTrail[];
+      trails.push(...rows);
+      if (rows.length < PAGE_SIZE) break;
+    }
+
+    const summaries = summarizeRegions(trails);
+    this.cache.set(REGION_SUMMARY_KEY, summaries, REGION_SUMMARY_TTL);
+    return summaries;
   }
 
   async findNearby(query: NearbyQueryDto) {

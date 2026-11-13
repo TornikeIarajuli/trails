@@ -550,4 +550,97 @@ describe('TrailsService', () => {
       expect(adminMock.from.mock.calls.length).toBe(queriesForOneLoad * 2);
     });
   });
+
+  // -------------------------------------------------------------------------
+  // getRegionSummaries
+  // -------------------------------------------------------------------------
+  describe('getRegionSummaries', () => {
+    const point = (lng: number, lat: number) => ({
+      type: 'Point',
+      crs: { type: 'name', properties: { name: 'EPSG:4326' } },
+      coordinates: [lng, lat],
+    });
+    const rows = [
+      { id: 't1', region: 'Khevsureti', start_point: point(45, 42.5) },
+      { id: 't2', region: 'Khevsureti', start_point: point(45.2, 42.7) },
+      { id: 't3', region: 'Svaneti', start_point: null },
+    ];
+
+    it('groups the published trails by region', async () => {
+      const builder = makeBuilder({ data: rows, error: null });
+      adminMock.from.mockReturnValue(builder);
+
+      const result = await service.getRegionSummaries();
+
+      expect(builder.select).toHaveBeenCalledWith('id, region, start_point');
+      expect(builder.eq).toHaveBeenCalledWith('is_published', true);
+      expect(result).toEqual([
+        {
+          region: 'Khevsureti',
+          total: 2,
+          center: [45.1, 42.6],
+          trailIds: ['t1', 't2'],
+        },
+        { region: 'Svaneti', total: 1, center: null, trailIds: ['t3'] },
+      ]);
+    });
+
+    it('reads every page when there are more than 1000 trails', async () => {
+      const firstPage = Array.from({ length: 1000 }, (_, i) => ({
+        id: `a${i}`,
+        region: 'Svaneti',
+        start_point: null,
+      }));
+      const first = makeBuilder({ data: firstPage, error: null });
+      const second = makeBuilder({ data: rows, error: null });
+      adminMock.from.mockReturnValueOnce(first).mockReturnValueOnce(second);
+
+      const result = await service.getRegionSummaries();
+
+      expect(first.range).toHaveBeenCalledWith(0, 999);
+      expect(second.range).toHaveBeenCalledWith(1000, 1999);
+      expect(result.find((r) => r.region === 'Svaneti')?.total).toBe(1001);
+    });
+
+    it('is cached until a trail cache is invalidated', async () => {
+      adminMock.from.mockImplementation(() =>
+        makeBuilder({ data: rows, error: null }),
+      );
+
+      await service.getRegionSummaries();
+      await service.getRegionSummaries();
+      expect(adminMock.from).toHaveBeenCalledTimes(1);
+
+      service.invalidateCache('t1');
+      await service.getRegionSummaries();
+      expect(adminMock.from).toHaveBeenCalledTimes(2);
+    });
+
+    it('is dropped when a trail is updated or deleted', async () => {
+      adminMock.from.mockImplementation(() =>
+        makeBuilder({ data: rows, error: null }),
+      );
+
+      await service.getRegionSummaries();
+      await service.updateDetails('t1', { region: 'Tusheti' } as any);
+      await service.getRegionSummaries();
+      await service.remove('t2');
+      await service.getRegionSummaries();
+
+      const summaryQueries = adminMock.from.mock.results.filter(
+        (r) =>
+          (r.value as { select: jest.Mock }).select.mock.calls[0]?.[0] ===
+          'id, region, start_point',
+      );
+      expect(summaryQueries).toHaveLength(3);
+    });
+
+    it('throws when the trails cannot be read', async () => {
+      adminMock.from.mockReturnValue(
+        makeBuilder({ data: null, error: new Error('DB down') }),
+      );
+
+      await expect(service.getRegionSummaries()).rejects.toThrow();
+    });
+  });
 });
