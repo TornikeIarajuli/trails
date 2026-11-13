@@ -1,16 +1,52 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, QueryClient } from '@tanstack/react-query';
 import { completionsService } from '../services/completions';
 import { showError } from '../utils/showError';
 import { queryKeys } from '../utils/queryKeys';
 import { invalidateAfterHikeRecorded } from '../utils/hikeSync';
 import { buildRecordHikePayload } from '../utils/track';
-import { PendingCompletion } from '../types/completion';
+import { pastHikeToCompletion, upsertCompletion } from '../utils/pastHikes';
+import { PendingCompletion, TrailCompletion } from '../types/completion';
+import { TrailDetail } from '../types/trail';
 import api from '../services/api';
 
-export function useMyCompletions() {
+export function useMyCompletions(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: queryKeys.completions.mine(),
     queryFn: () => completionsService.getMyCompletions(),
+    enabled: options?.enabled ?? true,
+  });
+}
+
+/** Everything that shows whether the user has done a trail (no trail list carries a done mark). */
+function invalidateCompletionState(queryClient: QueryClient) {
+  queryClient.invalidateQueries({ queryKey: queryKeys.completions.root() });
+  // Profile, its totals and the per-region progress of My Georgia
+  queryClient.invalidateQueries({ queryKey: queryKeys.profile.root() });
+  queryClient.invalidateQueries({ queryKey: queryKeys.badges.root() });
+  queryClient.invalidateQueries({ queryKey: queryKeys.leaderboard(0).slice(0, 1) });
+  queryClient.invalidateQueries({ queryKey: queryKeys.recommendations() });
+}
+
+/**
+ * Marks a trail as done for a hike from before the app. No onError: the year
+ * picker shows the server's answer (for example a hike waiting for review).
+ */
+export function useLogPastHike() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ trailId, year }: { trailId: string; year: number }) =>
+      completionsService.logPastHike(trailId, year),
+    onSuccess: (result, { trailId }) => {
+      // A new completion is shown at once; an existing one is already in the list
+      if (!result.already_existed) {
+        const trail = queryClient.getQueryData<TrailDetail>(queryKeys.trail.detail(trailId));
+        queryClient.setQueryData<TrailCompletion[]>(queryKeys.completions.mine(), (list) =>
+          upsertCompletion(list, pastHikeToCompletion(result, trail)),
+        );
+      }
+      invalidateCompletionState(queryClient);
+    },
   });
 }
 
@@ -57,9 +93,12 @@ export function useDeleteCompletion() {
 
   return useMutation({
     mutationFn: (id: string) => completionsService.deleteCompletion(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.completions.root() });
-      queryClient.invalidateQueries({ queryKey: queryKeys.profile.root() });
+    onSuccess: (_result, id) => {
+      // Gone from the trail screen and the profile at once, not only after the refetch
+      queryClient.setQueryData<TrailCompletion[]>(queryKeys.completions.mine(), (list) =>
+        list?.filter((c) => c.id !== id),
+      );
+      invalidateCompletionState(queryClient);
     },
     onError: (err) => showError(err),
   });

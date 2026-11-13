@@ -50,3 +50,26 @@ describe('bestWeekStreak', () => {
     expect(bestWeekStreak(['2026-04-01T09:00:00Z', null, undefined, 'not a date', '2026-04-08T09:00:00Z'])).toBe(2);
   });
 });
+
+describe('bestWeekStreak with completions', () => {
+  const recorded = (completed_at: string) => ({ completed_at, source: 'hike' });
+  const past = (year: number) => ({ completed_at: `${year}-01-01T12:00:00.000Z`, source: 'past' });
+
+  it('reads the date of each completion', () => {
+    expect(bestWeekStreak([recorded('2026-03-02T09:00:00Z'), recorded('2026-03-10T09:00:00Z')])).toBe(2);
+  });
+
+  it('treats a completion without a source (older server) as recorded', () => {
+    expect(bestWeekStreak([{ completed_at: '2026-03-02T09:00:00Z' }, { completed_at: '2026-03-10T09:00:00Z' }])).toBe(2);
+  });
+
+  it('ignores past hikes: their date only stands for a year', () => {
+    expect(bestWeekStreak([past(2019), past(2020)])).toBe(0);
+  });
+
+  it('does not let a past hike extend or bridge a streak', () => {
+    // 1 Jan 2026 is a Thursday, in the same ISO week as 31 Dec 2025 and right after the week of 24 Dec
+    const entries = [recorded('2025-12-24T09:00:00Z'), past(2026), recorded('2026-01-07T09:00:00Z')];
+    expect(bestWeekStreak(entries)).toBe(1);
+  });
+});

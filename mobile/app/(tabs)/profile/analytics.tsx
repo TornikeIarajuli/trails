@@ -9,6 +9,7 @@ import { LoadingSpinner } from '../../../components/ui/LoadingSpinner';
 import { ErrorState } from '../../../components/ui/ErrorState';
 import { TrailCompletion } from '../../../types/completion';
 import { bestWeekStreak } from '../../../utils/weekStreak';
+import { isPastHike } from '../../../utils/pastHikes';
 import { BADGE_ICON_MAP, BADGE_CATEGORY_COLOR } from '../../../components/badges/badgeConstants';
 
 // ── helpers ──────────────────────────────────────────────────────────────────
@@ -40,6 +41,8 @@ function computeAnalytics(completions: TrailCompletion[]) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
     const label = getMonthLabel(d);
     const count = approved.filter((c) => {
+      // A past hike's date only stands for its year
+      if (isPastHike(c)) return false;
       const cd = new Date(c.completed_at);
       return cd.getFullYear() === d.getFullYear() && cd.getMonth() === d.getMonth();
     }).length;
@@ -54,8 +57,8 @@ function computeAnalytics(completions: TrailCompletion[]) {
     if (diff && diff in diffCounts) diffCounts[diff]++;
   });
 
-  // Best streak (consecutive ISO weeks with at least 1 hike, across year boundaries)
-  const bestStreak = bestWeekStreak(approved.map((c) => c.completed_at));
+  // Best streak (consecutive ISO weeks with at least 1 hike, across year boundaries; past hikes skipped)
+  const bestStreak = bestWeekStreak(approved);
 
   return { totalHikes, totalKm, totalElevation, totalSeconds, months, maxMonthCount, diffCounts, bestStreak };
 }

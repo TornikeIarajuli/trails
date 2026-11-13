@@ -32,7 +32,9 @@ import { BadgeUnlockModal } from '../../../components/badges/BadgeUnlockModal';
 import { useAllBadges } from '../../../hooks/useBadges';
 import { Badge } from '../../../types/badge';
 import { analytics } from '../../../utils/analytics';
-import { describeCompletionOutcome } from '../../../utils/verification';
+import { describeCompletionOutcome, describeReason } from '../../../utils/verification';
+import { VerificationReason } from '../../../types/completion';
+import { completionDateLabel, isPastHike, pastHikeYear } from '../../../utils/pastHikes';
 
 function formatElapsedTime(seconds: number): string {
   const h = Math.floor(seconds / 3600);
@@ -62,6 +64,7 @@ export default function CompletionDetailScreen() {
     coverage: coverageParam,
     required: requiredParam,
     already,
+    review,
   } = useLocalSearchParams<{
     id: string;
     newBadgeIds?: string;
@@ -71,6 +74,8 @@ export default function CompletionDetailScreen() {
     coverage?: string;
     required?: string;
     already?: string;
+    /** The hike did not verify on a trail marked done by a past hike: saved for review, mark kept. */
+    review?: string;
   }>();
   const insets = useSafeAreaInsets();
   const { data: completions, isFetching, dataUpdatedAt, errorUpdatedAt, refetch } = useMyCompletions();
@@ -78,8 +83,9 @@ export default function CompletionDetailScreen() {
   const { data: allBadges } = useAllBadges();
 
   const justFinished = fresh === '1';
+  const savedForReview = justFinished && review === '1';
 
-  const [showConfetti, setShowConfetti] = useState(justFinished && verifiedParam !== '0');
+  const [showConfetti, setShowConfetti] = useState(justFinished && !savedForReview && verifiedParam !== '0');
   const [showBadgeModal, setShowBadgeModal] = useState(false);
   const [newBadges, setNewBadges] = useState<Badge[]>([]);
 
@@ -143,7 +149,9 @@ export default function CompletionDetailScreen() {
   }
 
   const trail = completion.trails;
-  const hasActualTime = completion.elapsed_seconds != null;
+  // Marked as done for a year before the app: no date, time, verification or track of its own
+  const past = isPastHike(completion);
+  const hasActualTime = !past && completion.elapsed_seconds != null;
   const estimatedHours = trail?.estimated_hours ?? null;
   const hasEstimate = estimatedHours != null && estimatedHours > 0;
 
@@ -161,17 +169,34 @@ export default function CompletionDetailScreen() {
   });
   const isVerified = outcome.state === 'verified';
 
+  // Why the hike just recorded on a past-marked trail did not verify, in plain words
+  const coverage = toNumber(coverageParam);
+  const requiredCoverage = toNumber(requiredParam);
+  const reviewReason = savedForReview
+    ? describeReason(
+        reasonParam && reasonParam !== 'ok' ? (reasonParam as VerificationReason) : null,
+        coverage !== null ? coverage * 100 : null,
+        requiredCoverage !== null ? requiredCoverage * 100 : null,
+      )
+    : null;
+
   // Only the track of the hike that produced this completion (or, while that hike is
   // still waiting to upload, the latest hike on this trail) may be exported from here.
+  // A past completion has a track only when a recorded hike was filed under it.
   const exportPoints =
     lastHike &&
     lastHike.trailId === completion.trail_id &&
-    (!lastHike.completionId || lastHike.completionId === completion.id)
+    (lastHike.completionId === completion.id || (!past && !lastHike.completionId))
       ? lastHike.points
       : [];
 
   const handleShare = async () => {
-    const lines: string[] = [`🏔️ I completed ${trail?.name_en ?? 'a trail'}!`];
+    const pastYear = past ? pastHikeYear(completion) : null;
+    const lines: string[] = [
+      pastYear
+        ? `🏔️ I hiked ${trail?.name_en ?? 'a trail'} in ${pastYear}!`
+        : `🏔️ I completed ${trail?.name_en ?? 'a trail'}!`,
+    ];
     if (hasActualTime) lines.push(`⏱️ Time: ${formatElapsedTime(completion.elapsed_seconds!)}`);
     if (trail?.distance_km != null) lines.push(`📏 Distance: ${formatDistance(trail.distance_km)}`);
     if (trail?.elevation_gain_m != null) lines.push(`⬆️ Elevation: ${formatElevation(trail.elevation_gain_m)}`);
@@ -208,7 +233,8 @@ export default function CompletionDetailScreen() {
     }
   };
 
-  const outcomeColor = isVerified ? Colors.success : outcome.state === 'rejected' ? Colors.error : Colors.warning;
+  const outcomeColor =
+    past || isVerified ? Colors.success : outcome.state === 'rejected' ? Colors.error : Colors.warning;
 
   return (
     <View style={styles.container}>
@@ -265,23 +291,52 @@ export default function CompletionDetailScreen() {
           </View>
 
           {/* Completion date and whether it counts */}
-          <View style={[styles.dateRow, { backgroundColor: outcomeColor + '15' }]}>
-            <Ionicons
-              name={isVerified ? 'checkmark-circle' : outcome.state === 'rejected' ? 'close-circle' : 'alert-circle'}
-              size={20}
-              color={outcomeColor}
-            />
-            <View style={styles.dateTextWrap}>
-              <Text style={styles.dateText}>
-                {isVerified ? 'Completed' : 'Recorded'} on {formatDate(completion.completed_at)}
-              </Text>
-              <Text style={[styles.outcomeTitle, { color: outcomeColor }]}>{outcome.title}</Text>
+          {past ? (
+            <View style={[styles.dateRow, { backgroundColor: outcomeColor + '15' }]}>
+              <Ionicons name="checkmark-circle" size={20} color={outcomeColor} />
+              <View style={styles.dateTextWrap}>
+                <Text style={styles.dateText}>{completionDateLabel(completion)}</Text>
+                <Text style={[styles.outcomeTitle, { color: outcomeColor }]}>Marked as done by you</Text>
+              </View>
             </View>
-          </View>
+          ) : (
+            <View style={[styles.dateRow, { backgroundColor: outcomeColor + '15' }]}>
+              <Ionicons
+                name={isVerified ? 'checkmark-circle' : outcome.state === 'rejected' ? 'close-circle' : 'alert-circle'}
+                size={20}
+                color={outcomeColor}
+              />
+              <View style={styles.dateTextWrap}>
+                <Text style={styles.dateText}>
+                  {isVerified ? 'Completed' : 'Recorded'} on {formatDate(completion.completed_at)}
+                </Text>
+                <Text style={[styles.outcomeTitle, { color: outcomeColor }]}>{outcome.title}</Text>
+              </View>
+            </View>
+          )}
 
-          {outcome.detail && <Text style={styles.outcomeDetail}>{outcome.detail}</Text>}
+          {past ? (
+            <Text style={styles.outcomeDetail}>
+              It counts on your profile, in My Georgia and for badges. The leaderboard counts only hikes recorded with the app.
+            </Text>
+          ) : (
+            outcome.detail && <Text style={styles.outcomeDetail}>{outcome.detail}</Text>
+          )}
 
-          {justFinished && already === '1' && (
+          {savedForReview ? (
+            <Text style={styles.outcomeDetail}>
+              Your hike was saved and will be reviewed; the trail stays marked as done. {reviewReason}
+            </Text>
+          ) : (
+            past &&
+            completion.pending_hike_id && (
+              <Text style={styles.outcomeDetail}>
+                Your recorded hike on this trail is being reviewed. If it is approved, it replaces this mark.
+              </Text>
+            )
+          )}
+
+          {justFinished && !savedForReview && already === '1' && (
             <Text style={styles.outcomeDetail}>
               You had already completed this trail, so your earlier completion is the one shown here.
             </Text>

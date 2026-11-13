@@ -27,6 +27,7 @@ import { useBlockedUserIds } from '../../../hooks/useModeration';
 import { queryKeys } from '../../../utils/queryKeys';
 import { getErrorMessage, getErrorStatus } from '../../../utils/showError';
 import { useRegionProgress } from '../../../hooks/useRegionProgress';
+import { completionDateLabel, isPastHike } from '../../../utils/pastHikes';
 
 function formatDate(dateStr: string) {
   const d = new Date(dateStr);
@@ -82,7 +83,9 @@ function CompletionCard({ completion, Colors, styles }: { completion: TrailCompl
             <Text style={styles.detailText}>{trail.elevation_gain_m}m gain</Text>
           )}
         </View>
-        <Text style={styles.completedDate}>Completed {formatDate(completion.completed_at)}</Text>
+        <Text style={styles.completedDate}>
+          {isPastHike(completion) ? completionDateLabel(completion) : `Completed ${formatDate(completion.completed_at)}`}
+        </Text>
       </View>
     </TouchableOpacity>
   );

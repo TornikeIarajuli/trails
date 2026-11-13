@@ -1,5 +1,11 @@
 export type CompletionStatus = 'pending' | 'approved' | 'rejected';
 
+/**
+ * How a completion came about. `past` is a self-reported hike from before the app
+ * (only its year is known). Older API responses leave it out: treat that as `hike`.
+ */
+export type CompletionSource = 'hike' | 'photo' | 'past';
+
 export interface TrailCompletion {
   id: string;
   user_id: string;
@@ -8,6 +14,13 @@ export interface TrailCompletion {
   photo_lat: number | null;
   photo_lng: number | null;
   status: CompletionStatus;
+  source?: CompletionSource | null;
+  /**
+   * On a past completion: a hike recorded later on the trail that did not verify
+   * and waits for an admin. The trail stays done meanwhile; if the hike is approved
+   * the completion becomes a recorded one, if it is rejected it stays past.
+   */
+  pending_hike_id?: string | null;
   elapsed_seconds: number | null;
   reviewer_note: string | null;
   completed_at: string;
@@ -49,16 +62,39 @@ export interface HikeVerification {
 /**
  * Response of `POST /completions/record`. Only `id` is relied on: a backend that
  * predates track verification returns neither `verified` nor `verification`.
+ *
+ * On a trail already marked done by a past hike, a hike that does not verify comes
+ * back as that past completion (`source: 'past'`, `already_existed`, the new hike's
+ * id in `pending_hike_id`, the real reason in `verification.reason`): it was saved
+ * for review and the trail stays marked as done.
  */
 export interface RecordHikeResponse {
   id: string;
   user_id?: string;
   trail_id?: string;
   status?: CompletionStatus;
+  source?: CompletionSource | null;
+  pending_hike_id?: string | null;
   completed_at?: string;
   elapsed_seconds?: number | null;
   verified?: boolean;
   verification?: HikeVerification;
+  new_badge_ids?: string[];
+  already_existed?: boolean;
+}
+
+/**
+ * Response of `POST /completions/past`: the new completion (201), or with
+ * `already_existed` the completion the trail already had (200).
+ */
+export interface PastHikeResponse {
+  id: string;
+  user_id: string;
+  trail_id: string;
+  status: CompletionStatus;
+  source?: CompletionSource | null;
+  pending_hike_id?: string | null;
+  completed_at: string;
   new_badge_ids?: string[];
   already_existed?: boolean;
 }

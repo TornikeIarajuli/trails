@@ -1,3 +1,5 @@
+import type { CompletionSource } from './completion';
+
 export interface Profile {
   id: string;
   username: string;
@@ -6,6 +8,8 @@ export interface Profile {
   bio: string | null;
   contact_info: string | null;
   total_trails_completed: number;
+  /** Trails completed with a recorded hike: what the leaderboard counts. Newer servers only. */
+  ranked_trails_completed?: number;
   created_at: string;
   last_seen_at: string | null;
 }
@@ -25,6 +29,7 @@ export interface UserProfile extends Profile {
 export interface TrailCompletion {
   id: string;
   completed_at: string;
+  source?: CompletionSource | null;
   proof_photo_url: string | null;
   trails: {
     id: string;
@@ -46,7 +51,10 @@ export interface LeaderboardEntry {
   id: string;
   username: string;
   avatar_url: string | null;
+  /** On the leaderboard this is the ranked count: trails completed with a recorded hike. */
   total_trails_completed: number;
+  /** The same ranked count under an explicit name, from newer servers. */
+  ranked_trails_completed?: number;
   rank: number;
 }
 

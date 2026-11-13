@@ -100,6 +100,38 @@ describe('completionsService.recordHike', () => {
   });
 });
 
+describe('completionsService.logPastHike', () => {
+  it('calls POST /completions/past with the trail and the year', async () => {
+    mockPost.mockResolvedValueOnce(ok({ id: 'c1' }));
+    await completionsService.logPastHike('trail-42', 2019);
+    expect(mockPost).toHaveBeenCalledWith(
+      '/completions/past',
+      { trail_id: 'trail-42', year: 2019 },
+      { timeout: 60_000 },
+    );
+  });
+
+  it('returns the completion, including whether the trail was already done', async () => {
+    const created = {
+      id: 'c1',
+      user_id: 'u1',
+      trail_id: 'trail-42',
+      status: 'approved',
+      source: 'past',
+      completed_at: '2019-01-01T12:00:00.000Z',
+      new_badge_ids: ['b1'],
+      already_existed: false,
+    };
+    mockPost.mockResolvedValueOnce(ok(created));
+    expect(await completionsService.logPastHike('trail-42', 2019)).toEqual(created);
+  });
+
+  it('propagates a refusal (hike waiting for review)', async () => {
+    mockPost.mockRejectedValueOnce(new Error('Your hike on this trail is waiting for review.'));
+    await expect(completionsService.logPastHike('trail-42', 2019)).rejects.toThrow('waiting for review');
+  });
+});
+
 describe('completionsService.getMyCompletions', () => {
   it('calls GET /completions/me', async () => {
     mockGet.mockResolvedValueOnce(ok([]));

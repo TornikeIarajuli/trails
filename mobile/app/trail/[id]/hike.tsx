@@ -38,6 +38,7 @@ import { buildSmsUrl, buildSosSmsBody } from '../../../utils/links';
 import { getErrorMessage } from '../../../utils/showError';
 import { classifySyncFailure } from '../../../utils/syncQueue';
 import { MAX_FIX_ACCURACY_M, buildPendingCompletion, isWithinCheckinRange } from '../../../utils/track';
+import { recordKeptPastMark } from '../../../utils/pastHikes';
 import { RecordHikeResponse } from '../../../types/completion';
 
 // Isolated timer component — only this re-renders every second
@@ -342,17 +343,20 @@ export default function HikeScreen() {
       leaveScreen();
       return;
     }
+    // On a trail marked done by a past hike, a hike that did not verify comes back as
+    // that past completion: saved for review, not a success and not "already completed"
+    const keptPastMark = recordKeptPastMark(result);
     // A backend without track verification reports no `verified`: go by the status it stored
     const verified = result.verified ?? result.status !== 'pending';
     const params = [
       'fresh=1',
-      `verified=${verified ? '1' : '0'}`,
+      keptPastMark ? 'review=1' : `verified=${verified ? '1' : '0'}`,
       result.verification?.reason ? `reason=${encodeURIComponent(result.verification.reason)}` : null,
       typeof result.verification?.coverage === 'number' ? `coverage=${result.verification.coverage}` : null,
       typeof result.verification?.required_coverage === 'number'
         ? `required=${result.verification.required_coverage}`
         : null,
-      result.already_existed ? 'already=1' : null,
+      result.already_existed && !keptPastMark ? 'already=1' : null,
       result.new_badge_ids?.length
         ? `newBadgeIds=${encodeURIComponent(JSON.stringify(result.new_badge_ids))}`
         : null,

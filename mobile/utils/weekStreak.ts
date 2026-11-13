@@ -13,13 +13,24 @@ export function isoWeekIndex(date: Date): number {
   return Math.floor((day + 3) / 7);
 }
 
+type StreakEntry =
+  | string
+  | Date
+  | null
+  | undefined
+  | { completed_at: string; source?: string | null };
+
 /**
  * Longest run of consecutive ISO weeks that each contain at least one of the
- * given dates.
+ * given dates or completions. Past hikes (marked as done for a year before the
+ * app) are skipped: their stored date is only a placeholder for the year.
  */
-export function bestWeekStreak(dates: (string | Date | null | undefined)[]): number {
+export function bestWeekStreak(entries: StreakEntry[]): number {
   const weeks = new Set<number>();
-  for (const value of dates) {
+  for (const entry of entries) {
+    if (!entry) continue;
+    if (typeof entry === 'object' && !(entry instanceof Date) && entry.source === 'past') continue;
+    const value = typeof entry === 'object' && !(entry instanceof Date) ? entry.completed_at : entry;
     if (!value) continue;
     const date = value instanceof Date ? value : new Date(value);
     if (Number.isNaN(date.getTime())) continue;

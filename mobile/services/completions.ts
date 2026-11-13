@@ -1,6 +1,11 @@
 import api from './api';
 import { Config } from '../constants/config';
-import { RecordHikePayload, RecordHikeResponse, TrailCompletion } from '../types/completion';
+import {
+  PastHikeResponse,
+  RecordHikePayload,
+  RecordHikeResponse,
+  TrailCompletion,
+} from '../types/completion';
 
 export const completionsService = {
   async submit(data: {
@@ -28,6 +33,17 @@ export const completionsService = {
     const response = await api.post('/completions/record', payload, {
       timeout: Config.COLD_START_TIMEOUT_MS,
     });
+    return response.data;
+  },
+
+  /** Marks a trail as done for a hike from before the app; only the year is recorded. */
+  async logPastHike(trailId: string, year: number): Promise<PastHikeResponse> {
+    // Often the first request after the server has been idle; not worth failing over a slow wake-up
+    const response = await api.post(
+      '/completions/past',
+      { trail_id: trailId, year },
+      { timeout: Config.COLD_START_TIMEOUT_MS },
+    );
     return response.data;
   },
 

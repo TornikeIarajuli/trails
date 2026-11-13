@@ -44,7 +44,7 @@ export const LeaderboardRow = React.memo(function LeaderboardRow({ entry, isTopT
         {entry.username}
       </Text>
       <View style={styles.countContainer}>
-        <Text style={styles.count}>{entry.total_trails_completed}</Text>
+        <Text style={styles.count}>{entry.ranked_trails_completed ?? entry.total_trails_completed}</Text>
         <Text style={styles.countLabel}>trails</Text>
       </View>
     </TouchableOpacity>

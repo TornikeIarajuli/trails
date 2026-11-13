@@ -6,7 +6,7 @@ import { useColors, ColorPalette } from '../../constants/colors';
 import { useMyCompletions, useDeleteCompletion } from '../../hooks/useCompletions';
 import { DifficultyBadge } from '../trail/DifficultyBadge';
 import { TrailDifficulty } from '../../types/trail';
-import { formatDate } from '../../utils/formatters';
+import { completionDateLabel, isPastHike } from '../../utils/pastHikes';
 
 export function CompletionsSection() {
   const Colors = useColors();
@@ -16,13 +16,15 @@ export function CompletionsSection() {
 
   if (!completions || completions.length === 0) return null;
 
-  const handleDelete = (id: string, trailName: string) => {
+  const handleDelete = (id: string, trailName: string, past: boolean) => {
     Alert.alert(
-      'Delete Completion',
-      `Remove "${trailName}" from your history?`,
+      past ? 'Remove past hike' : 'Delete Completion',
+      past
+        ? `Remove "${trailName}" from your completed trails? You can mark it as done again later.`
+        : `Remove "${trailName}" from your history?`,
       [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Delete', style: 'destructive', onPress: () => deleteCompletion.mutate(id) },
+        { text: past ? 'Remove' : 'Delete', style: 'destructive', onPress: () => deleteCompletion.mutate(id) },
       ],
     );
   };
@@ -40,7 +42,7 @@ export function CompletionsSection() {
               <Text style={styles.name} numberOfLines={1}>
                 {c.trails?.name_en ?? 'Unknown Trail'}
               </Text>
-              <Text style={styles.sub}>{formatDate(c.completed_at)}</Text>
+              <Text style={styles.sub}>{completionDateLabel(c)}</Text>
             </View>
             {c.trails?.difficulty && (
               <DifficultyBadge difficulty={c.trails.difficulty as TrailDifficulty} />
@@ -48,7 +50,7 @@ export function CompletionsSection() {
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.deleteButton}
-            onPress={() => handleDelete(c.id, c.trails?.name_en ?? 'this trail')}
+            onPress={() => handleDelete(c.id, c.trails?.name_en ?? 'this trail', isPastHike(c))}
             accessibilityRole="button"
             accessibilityLabel={`Delete completion of ${c.trails?.name_en ?? 'this trail'}`}
           >

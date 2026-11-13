@@ -19,7 +19,7 @@ export default function LeaderboardScreen() {
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Leaderboard</Text>
-        <Text style={styles.subtitle}>Hikers with the most verified trail completions</Text>
+        <Text style={styles.subtitle}>Counts trails completed with hikes recorded in the app</Text>
       </View>
 
       {isLoading ? (

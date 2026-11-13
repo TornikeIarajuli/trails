@@ -44,6 +44,7 @@ import { localName } from '../../../utils/i18n';
 import { isRouteUnverified, UNVERIFIED_ROUTE_MESSAGE } from '../../../utils/trailReview';
 import { TrailProblemModal } from '../../../components/trail/TrailProblemModal';
 import { GearCard } from '../../../components/trail/GearCard';
+import { TrailCompletionStatus } from '../../../components/trail/TrailCompletionStatus';
 import { useGearPlan } from '../../../hooks/useGear';
 import { useGearStore, localDay, shouldShowPrehikeCheck } from '../../../store/gearStore';
 
@@ -335,6 +336,8 @@ export default function TrailDetailScreen() {
               <Text style={styles.activeHikersText}>🥾 {activeCount} hiker{activeCount !== 1 ? 's' : ''} currently on this trail</Text>
             </View>
           )}
+
+          <TrailCompletionStatus trailId={id} hikeActiveHere={resumingThisHike} />
 
           {/* Weather */}
           <WeatherCard
