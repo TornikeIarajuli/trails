@@ -7,12 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Updates from 'expo-updates';
 import { useColors, ColorPalette } from '../../constants/colors';
 import { useHikeStore } from '../../store/hikeStore';
-
-/** "Built in" for the update bundled with the APK, else the first characters of the update id. */
-export function describeRunningUpdate(updateId: string | null | undefined, isEmbedded: boolean): string {
-  if (isEmbedded || !updateId) return 'built-in';
-  return updateId.slice(0, 8);
-}
+import { describeRunningUpdate } from '../../utils/otaInfo';
 
 export function UpdateCheckButton() {
   const Colors = useColors();

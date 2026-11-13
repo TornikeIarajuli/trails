@@ -1,6 +1,4 @@
-jest.mock('expo-updates', () => ({ isEnabled: false, updateId: null, isEmbeddedLaunch: true, channel: null }));
-
-import { describeRunningUpdate } from '../../components/profile/UpdateCheckButton';
+import { describeRunningUpdate } from '../../utils/otaInfo';
 
 describe('describeRunningUpdate', () => {
   it('names the update bundled with the build "built-in"', () => {
