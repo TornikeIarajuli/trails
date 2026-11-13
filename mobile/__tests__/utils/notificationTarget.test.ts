@@ -5,10 +5,10 @@ describe('getNotificationTarget', () => {
     expect(getNotificationTarget('new_follower', { followerId: 'u2' })).toEqual({ kind: 'route', href: '/trail/user/u2' });
   });
 
-  it('opens the badges screen', () => {
+  it('opens the badges screen inside the Alerts tab', () => {
     expect(getNotificationTarget('badge_earned', { badgeIds: ['b1'] })).toEqual({
       kind: 'route',
-      href: '/(tabs)/profile/badges',
+      href: '/(tabs)/alerts/badges',
     });
   });
 
@@ -58,10 +58,8 @@ describe('getNotificationTarget', () => {
       kind: 'route',
       href: '/trail/t1',
     });
-    expect(getNotificationTarget('new_comment', { activityId: 'p1', activityType: 'photo' })).toEqual({
-      kind: 'route',
-      href: '/(tabs)/feed',
-    });
+    // Without a trail there is nothing to open that would not switch tabs
+    expect(getNotificationTarget('new_comment', { activityId: 'p1', activityType: 'photo' })).toEqual({ kind: 'none' });
   });
 
   it('returns the SOS location, accepting numbers or numeric strings', () => {

@@ -11,11 +11,12 @@ import {
   Linking,
   Platform,
 } from 'react-native';
-import { Stack, router } from 'expo-router';
+import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors, ColorPalette } from '../../../constants/colors';
 import { useMarkRead, useMarkAllRead } from '../../../hooks/useNotifications';
 import { useNotificationFeed } from '../../../hooks/useNotificationCenter';
+import { useAuthStore } from '../../../store/authStore';
 import { AppNotification } from '../../../services/notifications';
 import { ErrorState } from '../../../components/ui/ErrorState';
 import { getNotificationTarget, mapLinks } from '../../../utils/notificationTarget';
@@ -56,6 +57,11 @@ async function openInMaps(lat: number, lng: number) {
   Alert.alert('Could not open maps', `The location is ${lat.toFixed(5)}, ${lng.toFixed(5)}.`);
 }
 
+/**
+ * Opens what the notification is about on top of this list, so Back returns here:
+ * trail, event, profile and completion screens are pushed on the root stack, and
+ * the badges screen is part of this tab's stack. It never switches tabs.
+ */
 function openNotification(item: AppNotification) {
   const target = getNotificationTarget(item.type, item.data);
 
@@ -125,9 +131,28 @@ function NotificationRow({
   );
 }
 
-export default function NotificationsScreen() {
+function SignedOut({ styles, Colors }: { styles: ReturnType<typeof createStyles>; Colors: ColorPalette }) {
+  return (
+    <View style={styles.empty}>
+      <View style={styles.emptyIcon}>
+        <Ionicons name="notifications-outline" size={40} color={Colors.textLight} />
+      </View>
+      <Text style={styles.emptyTitle}>Log in to see your alerts</Text>
+      <TouchableOpacity
+        style={styles.loginButton}
+        onPress={() => router.push('/(auth)/login')}
+        accessibilityRole="button"
+      >
+        <Text style={styles.loginButtonText}>Log In</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+export default function AlertsScreen() {
   const Colors = useColors();
   const styles = useMemo(() => createStyles(Colors), [Colors]);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
 
   const {
     data,
@@ -139,7 +164,7 @@ export default function NotificationsScreen() {
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
-  } = useNotificationFeed();
+  } = useNotificationFeed(isAuthenticated);
   const markRead = useMarkRead();
   const markAllRead = useMarkAllRead();
 
@@ -160,7 +185,9 @@ export default function NotificationsScreen() {
   };
 
   let content: React.ReactNode;
-  if (isLoading) {
+  if (!isAuthenticated) {
+    content = <SignedOut styles={styles} Colors={Colors} />;
+  } else if (isLoading) {
     content = <ActivityIndicator style={{ marginTop: 60 }} color={Colors.primary} size="large" />;
   } else if (isError && notifications.length === 0) {
     content = (
@@ -199,13 +226,6 @@ export default function NotificationsScreen() {
             colors={[Colors.primary]}
           />
         }
-        ListHeaderComponent={
-          unreadCount > 0 ? (
-            <View style={styles.unreadBadge}>
-              <Text style={styles.unreadBadgeText}>{unreadCount} unread</Text>
-            </View>
-          ) : null
-        }
         ListFooterComponent={
           isFetchingNextPage ? (
             <ActivityIndicator style={styles.footerSpinner} color={Colors.primary} />
@@ -225,37 +245,29 @@ export default function NotificationsScreen() {
   }
 
   return (
-    <>
-      <Stack.Screen
-        options={{
-          headerShown: true,
-          title: 'Notifications',
-          headerStyle: { backgroundColor: Colors.background },
-          headerTintColor: Colors.text,
-          headerTitleStyle: { color: Colors.text },
-          headerShadowVisible: false,
-          headerRight: () =>
-            unreadCount > 0 ? (
-              <TouchableOpacity
-                onPress={() => markAllRead.mutate()}
-                disabled={markAllRead.isPending}
-                style={{ marginRight: 16 }}
-                activeOpacity={0.7}
-                accessibilityRole="button"
-              >
-                <Text style={{ color: Colors.accent, fontWeight: '600', fontSize: 14 }}>
-                  Mark all read
-                </Text>
-              </TouchableOpacity>
-            ) : null,
-        }}
-      />
-      <View style={styles.container}>
-        <View style={styles.list}>{content}</View>
+    <View style={styles.container}>
+      <View style={styles.titleRow}>
+        <Text style={styles.screenTitle}>Notifications</Text>
+        {isAuthenticated && unreadCount > 0 && (
+          <TouchableOpacity
+            onPress={() => markAllRead.mutate()}
+            disabled={markAllRead.isPending}
+            activeOpacity={0.7}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel={`Mark all ${unreadCount} as read`}
+          >
+            <Text style={styles.markAll}>Mark all read</Text>
+          </TouchableOpacity>
+        )}
+      </View>
 
+      <View style={styles.list}>{content}</View>
+
+      {isAuthenticated && (
         <TouchableOpacity
           style={styles.prefsLink}
-          onPress={() => router.push('/(tabs)/profile/notification-preferences')}
+          onPress={() => router.push('/(tabs)/alerts/preferences')}
           activeOpacity={0.7}
           accessibilityRole="button"
         >
@@ -263,8 +275,8 @@ export default function NotificationsScreen() {
           <Text style={styles.prefsLinkText}>Manage Preferences</Text>
           <Ionicons name="chevron-forward" size={16} color={Colors.textLight} />
         </TouchableOpacity>
-      </View>
-    </>
+      )}
+    </View>
   );
 }
 
@@ -274,23 +286,26 @@ const createStyles = (Colors: ColorPalette) =>
       flex: 1,
       backgroundColor: Colors.background,
     },
+    titleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 16,
+      paddingTop: 12,
+      paddingBottom: 8,
+    },
+    screenTitle: {
+      fontSize: 20,
+      fontWeight: '700',
+      color: Colors.text,
+    },
+    markAll: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: Colors.accent,
+    },
     list: {
       flex: 1,
-    },
-    unreadBadge: {
-      marginHorizontal: 16,
-      marginTop: 12,
-      marginBottom: 8,
-      alignSelf: 'flex-start',
-      backgroundColor: Colors.primary + '15',
-      paddingHorizontal: 10,
-      paddingVertical: 4,
-      borderRadius: 20,
-    },
-    unreadBadgeText: {
-      fontSize: 12,
-      fontWeight: '600',
-      color: Colors.primary,
     },
     row: {
       flexDirection: 'row',
@@ -381,6 +396,18 @@ const createStyles = (Colors: ColorPalette) =>
     emptySubtitle: {
       fontSize: 14,
       color: Colors.textSecondary,
+    },
+    loginButton: {
+      marginTop: 8,
+      backgroundColor: Colors.primary,
+      paddingHorizontal: 32,
+      paddingVertical: 12,
+      borderRadius: 12,
+    },
+    loginButtonText: {
+      color: Colors.textOnPrimary,
+      fontWeight: '600',
+      fontSize: 16,
     },
     prefsLink: {
       flexDirection: 'row',

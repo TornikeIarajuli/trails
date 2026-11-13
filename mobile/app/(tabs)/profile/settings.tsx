@@ -242,8 +242,10 @@ export default function SettingsScreen() {
           <Text style={styles.sectionTitle}>Notifications</Text>
           <TouchableOpacity
             style={styles.linkRow}
-            onPress={() => router.push('/(tabs)/profile/notifications')}
+            // The notification centre is the Alerts tab
+            onPress={() => router.navigate('/(tabs)/alerts')}
             activeOpacity={0.7}
+            accessibilityRole="button"
           >
             <View style={styles.rowLeft}>
               <Ionicons name="notifications-outline" size={20} color={Colors.text} />

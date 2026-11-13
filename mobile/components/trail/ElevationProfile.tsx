@@ -1,122 +1,148 @@
-import React, { useMemo } from 'react';
-import { View, Text, StyleSheet, Dimensions } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { View, Text, StyleSheet, LayoutChangeEvent } from 'react-native';
+import Svg, { Defs, Line, LinearGradient, Path, Stop } from 'react-native-svg';
 import { useColors, ColorPalette } from '../../constants/colors';
 import { Checkpoint } from '../../types/checkpoint';
+import {
+  checkpointProfile,
+  elevationScale,
+  elevationStats,
+  normaliseProfile,
+  smoothAreaPath,
+  smoothLinePath,
+  toChartPoints,
+} from '../../utils/elevationProfile';
 
 interface ElevationProfileProps {
+  /** `[distance_m, elevation_m]` pairs measured along the route, when available. */
+  profile?: [number, number][] | null;
   checkpoints: Checkpoint[];
   distanceKm: number | null;
+  elevationGainM?: number | null;
   height?: number;
 }
 
+const Y_AXIS_WIDTH = 52;
+
+function formatKm(metres: number): string {
+  const km = metres / 1000;
+  return `${km < 10 ? km.toFixed(1) : Math.round(km)} km`;
+}
+
 export function ElevationProfile({
+  profile,
   checkpoints,
   distanceKm,
+  elevationGainM,
   height = 120,
 }: ElevationProfileProps) {
   const Colors = useColors();
   const styles = useMemo(() => createStyles(Colors), [Colors]);
+  const [chartWidth, setChartWidth] = useState(0);
 
-  const elevationData = useMemo(() => {
-    const withElevation = checkpoints
-      .filter((cp) => cp.elevation_m !== null && cp.elevation_m !== undefined)
-      .sort((a, b) => a.sort_order - b.sort_order);
-
-    if (withElevation.length < 2) return null;
-
-    const elevations = withElevation.map((cp) => cp.elevation_m!);
-    const minElev = Math.min(...elevations);
-    const maxElev = Math.max(...elevations);
-    const range = maxElev - minElev || 1;
-
+  const data = useMemo(() => {
+    const measured = normaliseProfile(profile);
+    const points = measured.length >= 2 ? measured : checkpointProfile(checkpoints ?? [], distanceKm);
+    if (points.length < 2) return null;
     return {
-      points: withElevation,
-      elevations,
-      minElev,
-      maxElev,
-      range,
+      points,
+      fromRoute: measured.length >= 2,
+      scale: elevationScale(points),
+      stats: elevationStats(points),
     };
-  }, [checkpoints]);
+  }, [profile, checkpoints, distanceKm]);
 
-  if (!elevationData) return null;
+  const paths = useMemo(() => {
+    if (!data || chartWidth <= 0) return null;
+    const chartPoints = toChartPoints(data.points, data.scale, chartWidth, height);
+    return { line: smoothLinePath(chartPoints), area: smoothAreaPath(chartPoints, height) };
+  }, [data, chartWidth, height]);
 
-  const { elevations, minElev, maxElev, range } = elevationData;
-  const chartWidth = Dimensions.get('window').width - 80;
-  const chartHeight = height - 40;
+  if (!data) return null;
 
-  const getElevationColor = (elev: number, min: number, max: number): string => {
-    const ratio = max === min ? 0.5 : (elev - min) / (max - min);
-    if (ratio < 0.33) return Colors.primaryLight;
-    if (ratio < 0.66) return Colors.primary;
-    return Colors.primaryDark;
+  const { scale, stats, fromRoute } = data;
+  const middle = Math.round((scale.lo + scale.hi) / 2);
+  // The measured route's own length; checkpoints are spread over the trail's length
+  const totalDistance = fromRoute || !distanceKm ? stats.distance : distanceKm * 1000;
+  const ascent = elevationGainM ?? stats.ascent;
+
+  const onLayout = (e: LayoutChangeEvent) => {
+    const width = Math.floor(e.nativeEvent.layout.width);
+    if (width !== chartWidth) setChartWidth(width);
   };
 
   return (
-    <View style={styles.container}>
+    <View
+      style={styles.container}
+      accessible
+      accessibilityLabel={`Elevation profile: lowest point ${stats.min} metres, highest ${stats.max} metres, ${ascent} metres of ascent`}
+    >
       <Text style={styles.title}>Elevation Profile</Text>
-      <View style={styles.chartContainer}>
-        {/* Y-axis labels */}
-        <View style={styles.yAxis}>
-          <Text style={styles.axisLabel}>{maxElev}m</Text>
-          <Text style={styles.axisLabel}>{Math.round((maxElev + minElev) / 2)}m</Text>
-          <Text style={styles.axisLabel}>{minElev}m</Text>
+      <View style={styles.chartRow}>
+        <View style={[styles.yAxis, { height }]}>
+          <Text style={styles.axisLabel}>{Math.round(scale.hi)} m</Text>
+          <Text style={styles.axisLabel}>{middle} m</Text>
+          <Text style={styles.axisLabel}>{Math.round(scale.lo)} m</Text>
         </View>
 
-        {/* Chart area */}
-        <View style={[styles.chart, { height: chartHeight }]}>
-          {/* Background grid lines */}
-          <View style={[styles.gridLine, { top: 0 }]} />
-          <View style={[styles.gridLine, { top: chartHeight / 2 }]} />
-          <View style={[styles.gridLine, { top: chartHeight - 1 }]} />
-
-          {/* Elevation bars */}
-          <View style={styles.barsContainer}>
-            {elevations.map((elev, i) => {
-              const barHeight = ((elev - minElev) / range) * (chartHeight - 8) + 4;
-              const barWidth = Math.max(
-                chartWidth / elevations.length - 2,
-                3,
-              );
-
-              return (
-                <View
-                  key={i}
-                  style={[
-                    styles.bar,
-                    {
-                      height: barHeight,
-                      width: barWidth,
-                      backgroundColor: getElevationColor(elev, minElev, maxElev),
-                    },
-                  ]}
-                />
-              );
-            })}
-          </View>
+        <View style={[styles.chart, { height }]} onLayout={onLayout}>
+          {paths && (
+            <Svg width={chartWidth} height={height}>
+              <Defs>
+                <LinearGradient id="elevationFill" x1="0" y1="0" x2="0" y2="1">
+                  <Stop offset="0" stopColor={Colors.accent} stopOpacity={0.45} />
+                  <Stop offset="1" stopColor={Colors.accent} stopOpacity={0.05} />
+                </LinearGradient>
+              </Defs>
+              <Line x1={0} y1={0.5} x2={chartWidth} y2={0.5} stroke={Colors.borderLight} strokeWidth={1} />
+              <Line x1={0} y1={height / 2} x2={chartWidth} y2={height / 2} stroke={Colors.borderLight} strokeWidth={1} />
+              <Line x1={0} y1={height - 0.5} x2={chartWidth} y2={height - 0.5} stroke={Colors.borderLight} strokeWidth={1} />
+              <Path d={paths.area} fill="url(#elevationFill)" />
+              <Path
+                d={paths.line}
+                fill="none"
+                stroke={Colors.accent}
+                strokeWidth={2}
+                strokeLinejoin="round"
+                strokeLinecap="round"
+              />
+            </Svg>
+          )}
         </View>
       </View>
 
-      {/* Stats row */}
+      <View style={styles.xAxis}>
+        <Text style={styles.axisLabel}>0 km</Text>
+        <Text style={styles.axisLabel}>{formatKm(totalDistance)}</Text>
+      </View>
+
+      {!fromRoute && (
+        <Text style={styles.note}>Estimated from checkpoint elevations.</Text>
+      )}
+
       <View style={styles.statsRow}>
         <View style={styles.stat}>
           <Text style={styles.statLabel}>Min</Text>
-          <Text style={styles.statValue}>{minElev}m</Text>
+          <Text style={styles.statValue}>{stats.min} m</Text>
         </View>
         <View style={styles.stat}>
           <Text style={styles.statLabel}>Max</Text>
-          <Text style={styles.statValue}>{maxElev}m</Text>
+          <Text style={styles.statValue}>{stats.max} m</Text>
         </View>
         <View style={styles.stat}>
-          {/* Highest minus lowest checkpoint — not the cumulative climb, so not "gain" */}
-          <Text style={styles.statLabel}>Range</Text>
-          <Text style={styles.statValue}>{maxElev - minElev}m</Text>
+          <Text style={styles.statLabel}>Ascent</Text>
+          <Text style={styles.statValue}>{ascent} m</Text>
         </View>
-        {distanceKm != null && distanceKm > 0 && (
+        {fromRoute && (
           <View style={styles.stat}>
-            <Text style={styles.statLabel}>Distance</Text>
-            <Text style={styles.statValue}>{distanceKm}km</Text>
+            <Text style={styles.statLabel}>Descent</Text>
+            <Text style={styles.statValue}>{stats.descent} m</Text>
           </View>
         )}
+        <View style={styles.stat}>
+          <Text style={styles.statLabel}>Distance</Text>
+          <Text style={styles.statValue}>{formatKm(totalDistance)}</Text>
+        </View>
       </View>
     </View>
   );
@@ -133,11 +159,11 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     color: Colors.text,
     marginBottom: 12,
   },
-  chartContainer: {
+  chartRow: {
     flexDirection: 'row',
   },
   yAxis: {
-    width: 48,
+    width: Y_AXIS_WIDTH,
     justifyContent: 'space-between',
     paddingRight: 8,
   },
@@ -151,27 +177,18 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     backgroundColor: Colors.surface,
     borderRadius: 8,
     overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: Colors.borderLight,
   },
-  gridLine: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    height: 1,
-    backgroundColor: Colors.borderLight,
-  },
-  barsContainer: {
-    flex: 1,
+  xAxis: {
     flexDirection: 'row',
-    alignItems: 'flex-end',
-    justifyContent: 'space-evenly',
-    paddingHorizontal: 4,
-    paddingBottom: 2,
+    justifyContent: 'space-between',
+    marginLeft: Y_AXIS_WIDTH,
+    marginTop: 4,
   },
-  bar: {
-    borderTopLeftRadius: 2,
-    borderTopRightRadius: 2,
+  note: {
+    fontSize: 11,
+    color: Colors.textLight,
+    marginTop: 4,
+    marginLeft: Y_AXIS_WIDTH,
   },
   statsRow: {
     flexDirection: 'row',

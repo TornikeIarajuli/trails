@@ -282,8 +282,10 @@ export default function TrailDetailScreen() {
 
           {/* Elevation Profile */}
           <ElevationProfile
+            profile={trail.elevation_profile}
             checkpoints={checkpoints}
             distanceKm={trail.distance_km}
+            elevationGainM={trail.elevation_gain_m}
           />
 
           {/* Conditions Banner */}

@@ -124,6 +124,9 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     color: Colors.text,
   },
   chips: {
+    // Horizontal ScrollViews shrink by default; keep the chip rows at full height
+    flexGrow: 0,
+    flexShrink: 0,
     paddingHorizontal: 12,
     marginTop: 10,
   },

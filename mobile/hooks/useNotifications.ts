@@ -6,7 +6,7 @@ import { router } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { notificationsService } from '../services/notifications';
 import { useAuthStore } from '../store/authStore';
-import { getNotificationTarget, mapLinks } from '../utils/notificationTarget';
+import { ALERTS_TAB_HREF, getNotificationTarget, mapLinks } from '../utils/notificationTarget';
 import { queryKeys } from '../utils/queryKeys';
 import { storage } from '../utils/storage';
 
@@ -117,6 +117,21 @@ async function openInMaps(lat: number, lng: number) {
 }
 
 /**
+ * Shows the notification list (Alerts tab) and opens `href` on top of it, so Back
+ * from the target lands on the list. Screens of the Alerts stack (badges) get the
+ * list underneath through the stack's anchor; everything else is outside the tabs
+ * and is pushed on the root stack after switching to the Alerts tab.
+ */
+function openOverAlerts(href: string) {
+  if (href.startsWith(`${ALERTS_TAB_HREF}/`)) {
+    router.push(href as any, { withAnchor: true });
+    return;
+  }
+  router.navigate(ALERTS_TAB_HREF as any);
+  router.push(href as any);
+}
+
+/**
  * Opens what a tapped push notification is about. Uses the same mapping as the
  * notification list (utils/notificationTarget), so both lead to the same place.
  */
@@ -126,16 +141,14 @@ export function navigateFromNotification(data: unknown) {
 
   try {
     if (target.kind === 'route') {
-      // A Profile sub-screen opened on its own (cold start) would have nothing to go
-      // back to; the anchor puts the Profile home underneath it.
-      const options = target.href.startsWith('/(tabs)/profile/') ? { withAnchor: true } : undefined;
-      router.push(target.href as any, options);
+      openOverAlerts(target.href);
     } else if (target.kind === 'sos') {
       // Someone asked for help: show where they are, or failing that who they are
       if (target.lat !== null && target.lng !== null) {
         void openInMaps(target.lat, target.lng);
+        router.navigate(ALERTS_TAB_HREF as any);
       } else if (target.userId) {
-        router.push(`/trail/user/${target.userId}` as any);
+        openOverAlerts(`/trail/user/${target.userId}`);
       }
     }
   } catch {

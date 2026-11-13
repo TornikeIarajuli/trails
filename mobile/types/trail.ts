@@ -24,6 +24,8 @@ export interface Trail {
   status_note: string | null;
   created_at: string;
   start_point?: GeoPoint | null;
+  /** `[distance_m, elevation_m]` pairs sampled along the route (trail detail only); null when unmeasured. */
+  elevation_profile?: [number, number][] | null;
 }
 
 export interface TrailMedia {

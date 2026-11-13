@@ -7,7 +7,6 @@ import Animated, { useSharedValue, useAnimatedStyle, useReducedMotion, withSprin
 import { useColors, ColorPalette } from '../../constants/colors';
 import { useNetworkStatus } from '../../hooks/useNetworkStatus';
 import { useUnreadNotificationCount } from '../../hooks/useNotificationCenter';
-import { useAuthStore } from '../../store/authStore';
 
 type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -22,6 +21,7 @@ const TAB_CONFIG: {
   { name: 'feed', label: 'Feed', route: '/(tabs)/feed', icon: 'newspaper-outline', activeIcon: 'newspaper' },
   { name: 'shop', label: 'Shop', route: '/(tabs)/shop', icon: 'bag-outline', activeIcon: 'bag' },
   { name: 'leaderboard', label: 'Ranks', route: '/(tabs)/leaderboard', icon: 'trophy-outline', activeIcon: 'trophy' },
+  { name: 'alerts', label: 'Alerts', route: '/(tabs)/alerts', icon: 'notifications-outline', activeIcon: 'notifications' },
   { name: 'profile', label: 'Profile', route: '/(tabs)/profile', icon: 'person-outline', activeIcon: 'person' },
 ];
 
@@ -31,6 +31,7 @@ function AnimatedTabButton({
   icon,
   activeIcon,
   label,
+  badgeCount = 0,
   Colors,
 }: {
   onPress: () => void;
@@ -38,6 +39,7 @@ function AnimatedTabButton({
   icon: IoniconsName;
   activeIcon: IoniconsName;
   label: string;
+  badgeCount?: number;
   Colors: ColorPalette;
 }) {
   const reducedMotion = useReducedMotion();
@@ -49,17 +51,41 @@ function AnimatedTabButton({
       onPressIn={() => { if (!reducedMotion) scale.value = withSpring(0.88, { damping: 12, stiffness: 300 }); }}
       onPressOut={() => { if (!reducedMotion) scale.value = withSpring(1, { damping: 12, stiffness: 300 }); }}
       onPress={onPress}
-      accessibilityLabel={label}
+      accessibilityLabel={badgeCount > 0 ? `${label}, ${badgeCount} unread` : label}
       accessibilityRole="tab"
       accessibilityState={{ selected: isActive }}
       style={{ flex: 1, alignItems: 'center' }}
     >
       <Animated.View style={[{ alignItems: 'center', gap: 2 }, animStyle]}>
-        <Ionicons
-          name={isActive ? activeIcon : icon}
-          size={22}
-          color={isActive ? Colors.primary : Colors.textSecondary}
-        />
+        <View>
+          <Ionicons
+            name={isActive ? activeIcon : icon}
+            size={22}
+            color={isActive ? Colors.primary : Colors.textSecondary}
+          />
+          {badgeCount > 0 && (
+            <View
+              style={{
+                position: 'absolute',
+                top: -4,
+                right: -10,
+                minWidth: 18,
+                height: 18,
+                borderRadius: 9,
+                paddingHorizontal: 4,
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: Colors.error,
+                borderWidth: 1.5,
+                borderColor: Colors.surface,
+              }}
+            >
+              <Text style={{ fontSize: 10, fontWeight: '700', color: '#fff' }} maxFontSizeMultiplier={1.3}>
+                {badgeCount > 99 ? '99+' : badgeCount}
+              </Text>
+            </View>
+          )}
+        </View>
         <Text
           style={{
             fontSize: 10,
@@ -79,8 +105,6 @@ function Header() {
   const Colors = useColors();
   const styles = useMemo(() => createStyles(Colors), [Colors]);
   const networkQuality = useNetworkStatus();
-  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
-  const unreadCount = useUnreadNotificationCount();
 
   const bannerConfig = networkQuality === 'offline'
     ? { icon: 'cloud-offline-outline' as const, text: "You're offline — showing cached data", color: '#C62828' }
@@ -93,24 +117,6 @@ function Header() {
       <View style={[styles.header, { paddingTop: insets.top + 6 }]}>
         <Text style={styles.appTitle}>Mikiri Trails</Text>
         <View style={styles.headerActions}>
-          {isAuthenticated && (
-            <Pressable
-              // withAnchor: the screen lives in the Profile stack, which needs its home underneath
-              onPress={() => router.push('/(tabs)/profile/notifications' as any, { withAnchor: true })}
-              accessibilityLabel={
-                unreadCount > 0 ? `Notifications, ${unreadCount} unread` : 'Notifications'
-              }
-              accessibilityRole="button"
-              style={styles.searchButton}
-            >
-              <Ionicons name="notifications-outline" size={20} color={Colors.textSecondary} />
-              {unreadCount > 0 && (
-                <View style={styles.badge}>
-                  <Text style={styles.badgeText}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
-                </View>
-              )}
-            </Pressable>
-          )}
           <Pressable
             onPress={() => router.push('/search')}
             accessibilityLabel="Find hikers"
@@ -136,6 +142,7 @@ function BottomTabBar() {
   const pathname = usePathname();
   const Colors = useColors();
   const styles = useMemo(() => createStyles(Colors), [Colors]);
+  const unreadCount = useUnreadNotificationCount();
 
   return (
     <View style={[styles.tabBar, { paddingBottom: Math.max(insets.bottom, 8) }]}>
@@ -149,6 +156,7 @@ function BottomTabBar() {
             icon={tab.icon}
             activeIcon={tab.activeIcon}
             label={tab.label}
+            badgeCount={tab.name === 'alerts' ? unreadCount : 0}
             Colors={Colors}
           />
         );
@@ -170,11 +178,14 @@ export default function TabsLayout() {
       <Tabs
         tabBar={() => null}
         screenOptions={{ headerShown: false }}
+        // Android Back on a tab returns to the tab the user came from
+        backBehavior="history"
       >
         <Tabs.Screen name="home" />
         <Tabs.Screen name="feed" />
         <Tabs.Screen name="shop" />
         <Tabs.Screen name="leaderboard" />
+        <Tabs.Screen name="alerts" />
         <Tabs.Screen name="profile" />
       </Tabs>
       {!isSubScreen && <BottomTabBar />}
@@ -214,23 +225,6 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: Colors.background,
-  },
-  badge: {
-    position: 'absolute',
-    top: -4,
-    right: -4,
-    minWidth: 18,
-    height: 18,
-    borderRadius: 9,
-    paddingHorizontal: 4,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.error,
-  },
-  badgeText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#fff',
   },
   tabBar: {
     flexDirection: 'row',

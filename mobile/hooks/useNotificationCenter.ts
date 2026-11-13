@@ -4,11 +4,12 @@ import { useAuthStore } from '../store/authStore';
 import { queryKeys } from '../utils/queryKeys';
 
 /** The notification history, loaded page by page. */
-export function useNotificationFeed() {
+export function useNotificationFeed(enabled = true) {
   return useInfiniteQuery({
     queryKey: queryKeys.notifications.feed(),
     queryFn: ({ pageParam = 1 }) => notificationsService.getNotifications(pageParam),
     initialPageParam: 1,
+    enabled,
     // The endpoint reports only the grand total, so derive "is there more" from what is loaded
     getNextPageParam: (lastPage, allPages) => {
       const loaded = allPages.reduce((sum, page) => sum + (page.data?.length ?? 0), 0);
@@ -19,7 +20,7 @@ export function useNotificationFeed() {
   });
 }
 
-/** Unread count for the bell in the tabs header. */
+/** Unread count for the badge on the Alerts tab. */
 export function useUnreadNotificationCount(): number {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
 

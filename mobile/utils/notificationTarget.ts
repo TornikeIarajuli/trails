@@ -17,9 +17,15 @@ function eventHref(trailId: string | null, eventId: string): string {
   return `/trail/${trailId ?? 'event'}/event/${eventId}`;
 }
 
+/** The Alerts tab: notification taps open their target on top of it. */
+export const ALERTS_TAB_HREF = '/(tabs)/alerts';
+
 /**
  * Where tapping a notification should take the user, from its type and payload
  * (see the push payload contract). Unknown or incomplete payloads go nowhere.
+ * Targets are either outside the tabs (pushed on the root stack) or inside the
+ * Alerts tab's own stack, so opening one never switches to another tab and Back
+ * always returns to the notification list.
  */
 export function getNotificationTarget(
   type: string | null | undefined,
@@ -33,7 +39,7 @@ export function getNotificationTarget(
       return followerId ? { kind: 'route', href: `/trail/user/${followerId}` } : { kind: 'none' };
     }
     case 'badge_earned':
-      return { kind: 'route', href: '/(tabs)/profile/badges' };
+      return { kind: 'route', href: `${ALERTS_TAB_HREF}/badges` };
     case 'new_comment': {
       const activityId = text(d.activityId);
       const trailId = text(d.trailId);
@@ -41,7 +47,7 @@ export function getNotificationTarget(
       if (activityId && d.activityType === 'completion') {
         return { kind: 'route', href: `/trail/completion/${activityId}` };
       }
-      return { kind: 'route', href: trailId ? `/trail/${trailId}` : '/(tabs)/feed' };
+      return trailId ? { kind: 'route', href: `/trail/${trailId}` } : { kind: 'none' };
     }
     case 'event_invite':
     case 'event_update': {

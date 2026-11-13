@@ -409,14 +409,18 @@ const createStyles = (Colors: ColorPalette) =>
       fontWeight: '600',
       color: Colors.primary,
     },
+    // A horizontal ScrollView defaults to flexShrink: 1, so the list below squeezed
+    // this row and cut off the bottom of the chips; it must keep its full height.
     quickActions: {
       flexGrow: 0,
-      paddingVertical: 6,
+      flexShrink: 0,
     },
     quickActionsContent: {
       paddingHorizontal: 16,
+      paddingVertical: 6,
       gap: 8,
       flexDirection: 'row',
+      alignItems: 'center',
     },
     quickChip: {
       flexDirection: 'row',
