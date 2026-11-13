@@ -5,12 +5,15 @@ import {
   FlatList,
   TouchableOpacity,
   StyleSheet,
+  ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { useLocalSearchParams, Stack, router } from 'expo-router';
 import { useColors, ColorPalette } from '../../../constants/colors';
 import { Avatar } from '../../../components/ui/Avatar';
 import { LoadingSpinner } from '../../../components/ui/LoadingSpinner';
-import { useFollowers, useFollowing } from '../../../hooks/useFollows';
+import { ErrorState } from '../../../components/ui/ErrorState';
+import { useFollowList } from '../../../hooks/useFollows';
 import { FollowRow } from '../../../types/follow';
 
 type Tab = 'followers' | 'following';
@@ -50,11 +53,21 @@ export default function FollowersScreen() {
   }>();
   const [activeTab, setActiveTab] = useState<Tab>(initialTab || 'followers');
 
-  const { data: followersData, isLoading: loadingFollowers } = useFollowers(userId);
-  const { data: followingData, isLoading: loadingFollowing } = useFollowing(userId);
+  const followers = useFollowList('followers', userId);
+  const following = useFollowList('following', userId);
+  const active = activeTab === 'followers' ? followers : following;
 
-  const data = activeTab === 'followers' ? followersData : followingData;
-  const isLoading = activeTab === 'followers' ? loadingFollowers : loadingFollowing;
+  const rows = useMemo(() => {
+    const seen = new Set<string>();
+    return (active.data?.pages.flatMap((page) => page.data) ?? []).filter((row) => {
+      if (seen.has(row.id)) return false;
+      seen.add(row.id);
+      return true;
+    });
+  }, [active.data]);
+
+  const followersTotal = followers.data?.pages[0]?.pagination.total;
+  const followingTotal = following.data?.pages[0]?.pagination.total;
 
   return (
     <>
@@ -72,29 +85,56 @@ export default function FollowersScreen() {
           <TouchableOpacity
             style={[styles.tab, activeTab === 'followers' && styles.tabActive]}
             onPress={() => setActiveTab('followers')}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: activeTab === 'followers' }}
           >
             <Text style={[styles.tabText, activeTab === 'followers' && styles.tabTextActive]}>
-              Followers{followersData ? ` (${followersData.pagination.total})` : ''}
+              Followers{followersTotal != null ? ` (${followersTotal})` : ''}
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.tab, activeTab === 'following' && styles.tabActive]}
             onPress={() => setActiveTab('following')}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: activeTab === 'following' }}
           >
             <Text style={[styles.tabText, activeTab === 'following' && styles.tabTextActive]}>
-              Following{followingData ? ` (${followingData.pagination.total})` : ''}
+              Following{followingTotal != null ? ` (${followingTotal})` : ''}
             </Text>
           </TouchableOpacity>
         </View>
 
-        {isLoading ? (
+        {active.isLoading ? (
           <LoadingSpinner />
+        ) : active.isError && rows.length === 0 ? (
+          <ErrorState
+            error={active.error}
+            onRetry={() => active.refetch()}
+            retrying={active.isRefetching}
+          />
         ) : (
           <FlatList
-            data={data?.data ?? []}
-            keyExtractor={(item: any) => item.id}
+            data={rows}
+            keyExtractor={(item) => item.id}
             renderItem={({ item }) => <UserRow user={item} styles={styles} />}
             contentContainerStyle={styles.list}
+            onEndReached={() => {
+              if (active.hasNextPage && !active.isFetchingNextPage) active.fetchNextPage();
+            }}
+            onEndReachedThreshold={0.5}
+            refreshControl={
+              <RefreshControl
+                refreshing={active.isRefetching && !active.isFetchingNextPage}
+                onRefresh={() => active.refetch()}
+                tintColor={Colors.primary}
+                colors={[Colors.primary]}
+              />
+            }
+            ListFooterComponent={
+              active.isFetchingNextPage ? (
+                <ActivityIndicator style={styles.footer} color={Colors.primary} />
+              ) : null
+            }
             ListEmptyComponent={
               <View style={styles.empty}>
                 <Text style={styles.emptyText}>
@@ -164,6 +204,9 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     fontSize: 13,
     color: Colors.textSecondary,
     marginTop: 2,
+  },
+  footer: {
+    paddingVertical: 16,
   },
   empty: {
     alignItems: 'center',

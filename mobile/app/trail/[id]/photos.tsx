@@ -7,18 +7,27 @@ import {
   StyleSheet,
   Dimensions,
   Alert,
+  ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import * as ImagePicker from 'expo-image-picker';
 import { useColors, ColorPalette } from '../../../constants/colors';
-import { useTrailPhotos, useUploadPhoto, useTogglePhotoLike } from '../../../hooks/useCommunity';
+import {
+  useTrailPhotos,
+  useAddTrailPhoto,
+  useTogglePhotoLike,
+  useDeletePhoto,
+  useKnownPhotoLikes,
+} from '../../../hooks/useCommunity';
+import { useWithoutBlocked } from '../../../hooks/useModeration';
 import { useAuthStore } from '../../../store/authStore';
-import { mediaService } from '../../../services/media';
 import { Avatar } from '../../../components/ui/Avatar';
 import { LoadingSpinner } from '../../../components/ui/LoadingSpinner';
+import { ErrorState } from '../../../components/ui/ErrorState';
+import { ContentMenu } from '../../../components/moderation/ContentMenu';
 import { TrailPhoto } from '../../../types/community';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
@@ -30,115 +39,194 @@ export default function PhotoGalleryScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
-  const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } =
-    useTrailPhotos(id);
-  const uploadPhotoMutation = useUploadPhoto();
+  const userId = useAuthStore((s) => s.user?.id);
+  const {
+    data,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    isLoading,
+    isError,
+    error,
+    refetch,
+    isRefetching,
+  } = useTrailPhotos(id);
+  const { addPhoto, isUploading } = useAddTrailPhoto(id);
   const toggleLikeMutation = useTogglePhotoLike();
+  const deletePhotoMutation = useDeletePhoto();
+  const knownLikes = useKnownPhotoLikes();
 
-  const photos = useMemo(
-    () => data?.pages.flatMap((p) => p.data) ?? [],
-    [data],
-  );
+  const loadedPhotos = useMemo(() => {
+    const seen = new Set<string>();
+    return (data?.pages.flatMap((p) => p.data) ?? []).filter((photo) => {
+      if (seen.has(photo.id)) return false;
+      seen.add(photo.id);
+      return true;
+    });
+  }, [data]);
+  const photos = useWithoutBlocked(loadedPhotos, (photo) => photo.user_id);
 
-  const handleAddPhoto = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Permission needed', 'Please allow access to your photos');
+  const handleToggleLike = (photo: TrailPhoto) => {
+    if (!isAuthenticated) {
+      router.push('/(auth)/login');
       return;
     }
-
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      quality: 0.8,
-    });
-
-    if (!result.canceled && result.assets[0]) {
-      try {
-        const asset = result.assets[0];
-        const fileName = asset.uri.split('/').pop() || 'photo.jpg';
-        const ext = fileName.split('.').pop()?.toLowerCase();
-        const mimeType = ext === 'png' ? 'image/png' : 'image/jpeg';
-        const { url } = await mediaService.uploadHikePhoto(id, asset.uri, fileName, mimeType);
-        uploadPhotoMutation.mutate({ trail_id: id, url });
-      } catch {
-        Alert.alert('Error', 'Failed to upload photo');
-      }
-    }
+    toggleLikeMutation.mutate({ id: photo.id, trailId: id });
   };
 
-  const renderPhoto = ({ item }: { item: TrailPhoto }) => (
-    <View style={styles.photoCard}>
-      <Image source={{ uri: item.url }} style={styles.photo} cachePolicy="memory-disk" />
-      <View style={styles.photoFooter}>
-        <View style={styles.userRow}>
-          <Avatar
-            uri={item.profiles?.avatar_url}
-            name={item.profiles?.username}
-            size={20}
-          />
-          <Text style={styles.username} numberOfLines={1}>
-            {item.profiles?.username}
-          </Text>
-        </View>
-        <TouchableOpacity
-          style={styles.likeButton}
-          onPress={() => toggleLikeMutation.mutate(item.id)}
-          accessibilityLabel={`Like photo, ${item.likes_count} likes`}
-          accessibilityRole="button"
-        >
-          <Ionicons name="heart-outline" size={16} color={Colors.textSecondary} />
-          <Text style={styles.likeCount}>{item.likes_count}</Text>
-        </TouchableOpacity>
-      </View>
-      {item.caption && (
-        <Text style={styles.caption} numberOfLines={2}>
-          {item.caption}
-        </Text>
-      )}
-    </View>
-  );
+  const handleDelete = (photo: TrailPhoto) => {
+    Alert.alert('Delete photo', 'Remove this photo from the trail?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: () => deletePhotoMutation.mutate({ id: photo.id, trailId: id }),
+      },
+    ]);
+  };
 
-  if (isLoading) return <LoadingSpinner />;
+  const renderPhoto = ({ item }: { item: TrailPhoto }) => {
+    const liked = item.is_liked ?? knownLikes[item.id] ?? false;
+    const isOwn = !!userId && item.user_id === userId;
+    const likePending =
+      toggleLikeMutation.isPending && toggleLikeMutation.variables?.id === item.id;
+
+    return (
+      <View style={styles.photoCard}>
+        <Image source={{ uri: item.url }} style={styles.photo} cachePolicy="memory-disk" />
+        <View style={styles.photoFooter}>
+          <View style={styles.userRow}>
+            <Avatar
+              uri={item.profiles?.avatar_url}
+              name={item.profiles?.username}
+              size={20}
+            />
+            <Text style={styles.username} numberOfLines={1}>
+              {item.profiles?.username}
+            </Text>
+          </View>
+          <TouchableOpacity
+            style={styles.likeButton}
+            onPress={() => handleToggleLike(item)}
+            disabled={likePending}
+            hitSlop={8}
+            accessibilityLabel={`${liked ? 'Unlike' : 'Like'} photo, ${item.likes_count} likes`}
+            accessibilityRole="button"
+            accessibilityState={{ selected: liked }}
+          >
+            <Ionicons
+              name={liked ? 'heart' : 'heart-outline'}
+              size={16}
+              color={liked ? '#E53935' : Colors.textSecondary}
+            />
+            <Text style={[styles.likeCount, liked && styles.likeCountActive]}>
+              {item.likes_count}
+            </Text>
+          </TouchableOpacity>
+          {isOwn ? (
+            <TouchableOpacity
+              style={styles.cardAction}
+              onPress={() => handleDelete(item)}
+              disabled={deletePhotoMutation.isPending}
+              hitSlop={8}
+              accessibilityLabel="Delete photo"
+              accessibilityRole="button"
+            >
+              <Ionicons name="trash-outline" size={16} color={Colors.error} />
+            </TouchableOpacity>
+          ) : (
+            <ContentMenu
+              style={styles.cardAction}
+              targetType="photo"
+              targetId={item.id}
+              targetLabel="photo"
+              authorId={item.user_id}
+              authorName={item.profiles?.username}
+              iconSize={16}
+            />
+          )}
+        </View>
+        {item.caption && (
+          <Text style={styles.caption} numberOfLines={2}>
+            {item.caption}
+          </Text>
+        )}
+      </View>
+    );
+  };
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} accessibilityLabel="Go back" accessibilityRole="button">
+        <TouchableOpacity
+          onPress={() => router.back()}
+          hitSlop={8}
+          accessibilityLabel="Go back"
+          accessibilityRole="button"
+          testID="back-button"
+        >
           <Ionicons name="arrow-back" size={24} color={Colors.text} />
         </TouchableOpacity>
         <Text style={styles.title}>Community Photos</Text>
         <View style={{ width: 24 }} />
       </View>
 
-      <FlatList
-        data={photos}
-        keyExtractor={(item) => item.id}
-        renderItem={renderPhoto}
-        numColumns={2}
-        columnWrapperStyle={styles.row}
-        contentContainerStyle={styles.list}
-        showsVerticalScrollIndicator={false}
-        onEndReached={() => {
-          if (hasNextPage && !isFetchingNextPage) fetchNextPage();
-        }}
-        onEndReachedThreshold={0.5}
-        ListEmptyComponent={
-          <View style={styles.empty}>
-            <Ionicons name="images-outline" size={48} color={Colors.textLight} />
-            <Text style={styles.emptyText}>No photos yet</Text>
-            <Text style={styles.emptySubtext}>Be the first to share!</Text>
-          </View>
-        }
-      />
+      {isLoading ? (
+        <LoadingSpinner />
+      ) : isError && photos.length === 0 ? (
+        <ErrorState error={error} onRetry={() => refetch()} retrying={isRefetching} />
+      ) : (
+        <FlatList
+          data={photos}
+          keyExtractor={(item) => item.id}
+          renderItem={renderPhoto}
+          numColumns={2}
+          columnWrapperStyle={styles.row}
+          contentContainerStyle={styles.list}
+          showsVerticalScrollIndicator={false}
+          onEndReached={() => {
+            if (hasNextPage && !isFetchingNextPage) fetchNextPage();
+          }}
+          onEndReachedThreshold={0.5}
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefetching && !isFetchingNextPage}
+              onRefresh={() => refetch()}
+              tintColor={Colors.primary}
+              colors={[Colors.primary]}
+            />
+          }
+          ListFooterComponent={
+            isFetchingNextPage ? (
+              <ActivityIndicator style={styles.footerSpinner} color={Colors.primary} />
+            ) : null
+          }
+          ListEmptyComponent={
+            <View style={styles.empty}>
+              <Ionicons name="images-outline" size={48} color={Colors.textLight} />
+              <Text style={styles.emptyText}>No photos yet</Text>
+              <Text style={styles.emptySubtext}>
+                {isAuthenticated ? 'Be the first to share one!' : 'Log in to share the first one.'}
+              </Text>
+            </View>
+          }
+        />
+      )}
 
       {isAuthenticated && (
         <TouchableOpacity
-          style={[styles.fab, { bottom: insets.bottom + 16 }]}
-          onPress={handleAddPhoto}
-          accessibilityLabel="Add photo"
+          style={[styles.fab, { bottom: insets.bottom + 16 }, isUploading && styles.fabBusy]}
+          onPress={addPhoto}
+          disabled={isUploading}
+          accessibilityLabel={isUploading ? 'Uploading photo' : 'Add photo'}
           accessibilityRole="button"
+          accessibilityState={{ busy: isUploading, disabled: isUploading }}
         >
-          <Ionicons name="camera" size={24} color="#fff" />
+          {isUploading ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Ionicons name="camera" size={24} color="#fff" />
+          )}
         </TouchableOpacity>
       )}
     </View>
@@ -171,7 +259,7 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     marginBottom: 16,
   },
   photoCard: {
-    flex: 1,
+    width: PHOTO_SIZE,
     backgroundColor: Colors.surface,
     borderRadius: 12,
     overflow: 'hidden',
@@ -179,6 +267,7 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   photo: {
     width: '100%',
     height: PHOTO_SIZE,
+    backgroundColor: Colors.borderLight,
   },
   photoFooter: {
     flexDirection: 'row',
@@ -186,6 +275,7 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 8,
     paddingVertical: 6,
+    gap: 8,
   },
   userRow: {
     flexDirection: 'row',
@@ -208,11 +298,20 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     fontSize: 12,
     color: Colors.textSecondary,
   },
+  likeCountActive: {
+    color: '#E53935',
+  },
+  cardAction: {
+    paddingLeft: 2,
+  },
   caption: {
     fontSize: 12,
     color: Colors.textSecondary,
     paddingHorizontal: 8,
     paddingBottom: 8,
+  },
+  footerSpinner: {
+    paddingVertical: 16,
   },
   empty: {
     alignItems: 'center',
@@ -242,5 +341,8 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 4,
+  },
+  fabBusy: {
+    opacity: 0.8,
   },
 });

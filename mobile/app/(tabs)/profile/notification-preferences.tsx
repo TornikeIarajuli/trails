@@ -50,19 +50,11 @@ const PREF_ROWS: {
   },
   {
     key: 'event_invite',
-    label: 'Event Invites',
-    description: 'When someone invites you to a group hike',
+    label: 'Group Hikes',
+    description: 'When someone joins a group hike you organise, or a group hike you joined changes or is cancelled',
     icon: 'calendar',
     color: '#8B5CF6',
     bg: '#EDE9FE',
-  },
-  {
-    key: 'trail_condition',
-    label: 'Trail Conditions',
-    description: 'Updates about trail closures or conditions',
-    icon: 'warning',
-    color: '#D97706',
-    bg: '#FEF3C7',
   },
 ];
 

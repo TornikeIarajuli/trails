@@ -49,6 +49,8 @@ export function CompletionsSection() {
           <TouchableOpacity
             style={styles.deleteButton}
             onPress={() => handleDelete(c.id, c.trails?.name_en ?? 'this trail')}
+            accessibilityRole="button"
+            accessibilityLabel={`Delete completion of ${c.trails?.name_en ?? 'this trail'}`}
           >
             <Ionicons name="trash-outline" size={18} color={Colors.error} />
           </TouchableOpacity>

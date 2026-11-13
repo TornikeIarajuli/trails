@@ -5,18 +5,23 @@ import {
   FlatList,
   TouchableOpacity,
   StyleSheet,
+  RefreshControl,
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors, ColorPalette } from '../../../constants/colors';
 import { useTrailConditions } from '../../../hooks/useCommunity';
+import { useWithoutBlocked } from '../../../hooks/useModeration';
 import { useAuthStore } from '../../../store/authStore';
 import { ReportConditionModal } from '../../../components/community/ReportConditionModal';
 import { Avatar } from '../../../components/ui/Avatar';
 import { LoadingSpinner } from '../../../components/ui/LoadingSpinner';
+import { ErrorState } from '../../../components/ui/ErrorState';
+import { ContentMenu } from '../../../components/moderation/ContentMenu';
 import { TrailCondition } from '../../../types/community';
 import { formatDate } from '../../../utils/formatters';
+import { sortConditionsBySeverity } from '../../../utils/conditions';
 
 const SEVERITY_COLORS: Record<string, string> = {
   info: '#2196F3',
@@ -52,7 +57,10 @@ export default function ConditionsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
-  const { data: conditions, isLoading } = useTrailConditions(id);
+  const { data, isLoading, isError, error, refetch, isRefetching } = useTrailConditions(id);
+  const visible = useWithoutBlocked(data, (condition) => condition.user_id);
+  // Most severe first, so a recent "trail clear" never pushes an active "closed" out of sight
+  const conditions = useMemo(() => sortConditionsBySeverity(visible), [visible]);
   const [modalVisible, setModalVisible] = useState(false);
 
   const renderCondition = ({ item }: { item: TrailCondition }) => {
@@ -67,10 +75,20 @@ export default function ConditionsScreen() {
             <Ionicons name={icon as any} size={20} color={color} />
             <Text style={[styles.typeLabel, { color }]}>{label}</Text>
           </View>
-          <View style={[styles.severityBadge, { backgroundColor: color + '20' }]}>
-            <Text style={[styles.severityText, { color }]}>
-              {item.severity.charAt(0).toUpperCase() + item.severity.slice(1)}
-            </Text>
+          <View style={styles.cardHeaderRight}>
+            <View style={[styles.severityBadge, { backgroundColor: color + '20' }]}>
+              <Text style={[styles.severityText, { color }]}>
+                {item.severity.charAt(0).toUpperCase() + item.severity.slice(1)}
+              </Text>
+            </View>
+            <ContentMenu
+              targetType="condition"
+              targetId={item.id}
+              targetLabel="report"
+              authorId={item.user_id}
+              authorName={item.profiles?.username}
+              iconSize={16}
+            />
           </View>
         </View>
 
@@ -93,37 +111,88 @@ export default function ConditionsScreen() {
     );
   };
 
-  if (isLoading) return <LoadingSpinner />;
+  let body: React.ReactNode;
+  if (isLoading) {
+    body = <LoadingSpinner />;
+  } else if (isError && conditions.length === 0) {
+    // Never fall through to the empty state here: "no reports" would read as "safe"
+    body = (
+      <ErrorState
+        error={error}
+        title="Couldn't load trail conditions"
+        message="Recent reports for this trail could not be loaded, so conditions are unknown. Check your connection and try again."
+        onRetry={() => refetch()}
+        retrying={isRefetching}
+      />
+    );
+  } else {
+    body = (
+      <FlatList
+        data={conditions}
+        keyExtractor={(item) => item.id}
+        renderItem={renderCondition}
+        contentContainerStyle={styles.list}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefetching}
+            onRefresh={() => refetch()}
+            tintColor={Colors.primary}
+            colors={[Colors.primary]}
+          />
+        }
+        ListHeaderComponent={
+          conditions.length > 0 ? (
+            <Text style={styles.listHint}>Reports from the last 14 days, most serious first.</Text>
+          ) : null
+        }
+        ListEmptyComponent={
+          <View style={styles.empty}>
+            <Ionicons name="chatbox-ellipses-outline" size={48} color={Colors.textLight} />
+            <Text style={styles.emptyText}>No recent reports</Text>
+            <Text style={styles.emptySubtext}>
+              Nobody has reported conditions on this trail in the last 14 days. Check the weather
+              and local advice before you set off.
+            </Text>
+            {isAuthenticated && (
+              <TouchableOpacity
+                style={styles.emptyAction}
+                onPress={() => setModalVisible(true)}
+                accessibilityRole="button"
+              >
+                <Text style={styles.emptyActionText}>Report what you saw</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        }
+      />
+    );
+  }
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          hitSlop={8}
+          accessibilityLabel="Go back"
+          accessibilityRole="button"
+          testID="back-button"
+        >
           <Ionicons name="arrow-back" size={24} color={Colors.text} />
         </TouchableOpacity>
         <Text style={styles.title}>Trail Conditions</Text>
         <View style={{ width: 24 }} />
       </View>
 
-      <FlatList
-        data={conditions ?? []}
-        keyExtractor={(item) => item.id}
-        renderItem={renderCondition}
-        contentContainerStyle={styles.list}
-        showsVerticalScrollIndicator={false}
-        ListEmptyComponent={
-          <View style={styles.empty}>
-            <Ionicons name="checkmark-circle-outline" size={48} color={Colors.primaryLight} />
-            <Text style={styles.emptyText}>No conditions reported</Text>
-            <Text style={styles.emptySubtext}>Trail appears to be in good shape!</Text>
-          </View>
-        }
-      />
+      {body}
 
       {isAuthenticated && (
         <TouchableOpacity
           style={[styles.fab, { bottom: insets.bottom + 16 }]}
           onPress={() => setModalVisible(true)}
+          accessibilityLabel="Report a trail condition"
+          accessibilityRole="button"
         >
           <Ionicons name="flag" size={24} color="#fff" />
         </TouchableOpacity>
@@ -158,6 +227,12 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   list: {
     paddingHorizontal: 16,
     paddingBottom: 80,
+    flexGrow: 1,
+  },
+  listHint: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    marginBottom: 10,
   },
   card: {
     backgroundColor: Colors.surface,
@@ -171,6 +246,11 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 8,
+  },
+  cardHeaderRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
   },
   typeRow: {
     flexDirection: 'row',
@@ -218,6 +298,7 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   empty: {
     alignItems: 'center',
     paddingTop: 60,
+    paddingHorizontal: 24,
     gap: 8,
   },
   emptyText: {
@@ -227,7 +308,21 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   },
   emptySubtext: {
     fontSize: 14,
+    lineHeight: 20,
     color: Colors.textLight,
+    textAlign: 'center',
+  },
+  emptyAction: {
+    marginTop: 8,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 20,
+    backgroundColor: Colors.primary + '15',
+  },
+  emptyActionText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.primary,
   },
   fab: {
     position: 'absolute',

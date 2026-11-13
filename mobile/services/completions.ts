@@ -1,5 +1,6 @@
 import api from './api';
-import { TrailCompletion } from '../types/completion';
+import { Config } from '../constants/config';
+import { RecordHikePayload, RecordHikeResponse, TrailCompletion } from '../types/completion';
 
 export const completionsService = {
   async submit(data: {
@@ -22,10 +23,10 @@ export const completionsService = {
     return response.data;
   },
 
-  async recordHike(trailId: string, elapsedSeconds?: number): Promise<TrailCompletion> {
-    const response = await api.post('/completions/record', {
-      trail_id: trailId,
-      elapsed_seconds: elapsedSeconds,
+  async recordHike(payload: RecordHikePayload): Promise<RecordHikeResponse> {
+    // A finished hike is worth waiting for a waking server rather than falling back to the offline queue
+    const response = await api.post('/completions/record', payload, {
+      timeout: Config.COLD_START_TIMEOUT_MS,
     });
     return response.data;
   },

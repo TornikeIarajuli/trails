@@ -9,6 +9,7 @@ import {
   TouchableOpacity,
   Platform,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import { router } from 'expo-router';
@@ -19,15 +20,16 @@ import { useTrails, useRegions, useNearbyTrails } from '../../../hooks/useTrails
 import { useDebounce } from '../../../hooks/useDebounce';
 import { TrailCard } from '../../../components/trail/TrailCard';
 import { TrailFilters } from '../../../components/trail/TrailFilters';
-import { LoadingSpinner } from '../../../components/ui/LoadingSpinner';
+import { ErrorState } from '../../../components/ui/ErrorState';
 import { ActiveHikeBanner } from '../../../components/hike/ActiveHikeBanner';
-import { TrailDifficulty, Trail } from '../../../types/trail';
+import { TrailDifficulty, TrailSummary } from '../../../types/trail';
 import { TrailCardSkeleton } from '../../../components/ui/Skeleton';
-import { parseGeoPoint } from '../../../utils/geo';
+import { toLatLng } from '../../../utils/mapPoint';
 import { Config } from '../../../constants/config';
 
 const RADIUS_OPTIONS = [5, 15, 25] as const;
 type Radius = (typeof RADIUS_OPTIONS)[number];
+const KM_PER_DEGREE_LATITUDE = 111;
 
 export default function HomeScreen() {
   const Colors = useColors();
@@ -38,6 +40,7 @@ export default function HomeScreen() {
   const [region, setRegion] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
   const [nearbyMode, setNearbyMode] = useState(false);
+  const [locating, setLocating] = useState(false);
   const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const [radius, setRadius] = useState<Radius>(15);
   const [nearbyVersion, setNearbyVersion] = useState(0);
@@ -55,56 +58,121 @@ export default function HomeScreen() {
     [difficulty, region, debouncedSearch, viewMode],
   );
 
-  const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading, refetch, isRefetching } =
-    useTrails(params);
+  // The full list is not shown in Near Me mode, so it is not fetched there either
+  const trailsQuery = useTrails(params, !nearbyMode);
 
-  const { data: nearbyData, isLoading: nearbyLoading } = useNearbyTrails(
+  const nearbyQuery = useNearbyTrails(
     nearbyMode ? userLocation?.latitude : undefined,
     nearbyMode ? userLocation?.longitude : undefined,
     nearbyMode ? radius : undefined,
     nearbyMode ? nearbyVersion : undefined,
   );
 
-  const trails = useMemo(() => {
-    if (nearbyMode) return nearbyData ?? [];
-    const all = data?.pages.flatMap((page) => page.data) ?? [];
+  const listTrails = useMemo(() => {
+    const all = trailsQuery.data?.pages.flatMap((page) => page.data) ?? [];
     const seen = new Set<string>();
     return all.filter((t) => {
       if (seen.has(t.id)) return false;
       seen.add(t.id);
       return true;
     });
-  }, [data, nearbyData, nearbyMode]);
+  }, [trailsQuery.data]);
+
+  // The nearby endpoint takes no filters, so search and difficulty are applied here
+  const nearbyTrails = useMemo(() => {
+    const query = debouncedSearch.trim().toLowerCase();
+    return (nearbyQuery.data ?? []).filter(
+      (t) =>
+        (!difficulty || t.difficulty === difficulty) &&
+        (!query ||
+          t.name_en?.toLowerCase().includes(query) ||
+          !!t.name_ka?.toLowerCase().includes(query)),
+    );
+  }, [nearbyQuery.data, debouncedSearch, difficulty]);
+
+  const trails: TrailSummary[] = nearbyMode ? nearbyTrails : listTrails;
+  const activeQuery = nearbyMode ? nearbyQuery : trailsQuery;
+  const loading = activeQuery.isLoading;
+  const failed = activeQuery.isError && (nearbyMode ? !nearbyQuery.data : listTrails.length === 0);
+  const refreshing = activeQuery.isRefetching && !trailsQuery.isFetchingNextPage;
+  const nearbyFiltersActive = !!difficulty || debouncedSearch.trim().length > 0;
+  const listFiltersActive = nearbyFiltersActive || !!region;
+
+  const clearFilters = () => {
+    setSearch('');
+    setDifficulty(null);
+    setRegion(null);
+  };
 
   const handleNearbyToggle = useCallback(async () => {
+    if (locating) return;
     if (nearbyMode) {
       setNearbyMode(false);
       return;
     }
-    const { status } = await Location.requestForegroundPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Location needed', 'Please allow location access to find trails near you.');
-      return;
-    }
+    setLocating(true);
     try {
-      // Reuse cached location if available for instant re-enable;
-      // always fetch fresh to get updated position
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Location needed', 'Please allow location access to find trails near you.');
+        return;
+      }
       const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
       setUserLocation({ latitude: pos.coords.latitude, longitude: pos.coords.longitude });
       setNearbyVersion((v) => v + 1); // force React Query to treat this as a new request
       setNearbyMode(true);
     } catch {
-      // If fresh fetch fails but we have a cached location, reuse it
+      // If a fresh fix fails but we have an earlier one, reuse it
       if (userLocation) {
         setNearbyVersion((v) => v + 1);
         setNearbyMode(true);
       } else {
         Alert.alert('Location error', 'Could not get your location. Please try again.');
       }
+    } finally {
+      setLocating(false);
     }
-  }, [nearbyMode, userLocation]);
+  }, [locating, nearbyMode, userLocation]);
 
-  const loading = nearbyMode ? nearbyLoading : isLoading;
+  const renderEmpty = () => {
+    if (nearbyMode && (nearbyQuery.data?.length ?? 0) > 0) {
+      return (
+        <View style={styles.empty}>
+          <Ionicons name="funnel-outline" size={48} color={Colors.textLight} />
+          <Text style={styles.emptyText}>No nearby trails match your filters</Text>
+          <TouchableOpacity style={styles.emptyAction} onPress={clearFilters} accessibilityRole="button">
+            <Text style={styles.emptyActionText}>Clear filters</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+    if (nearbyMode) {
+      return (
+        <View style={styles.empty}>
+          <Ionicons name="map-outline" size={48} color={Colors.textLight} />
+          <Text style={styles.emptyText}>No trails within {radius} km</Text>
+          {radius < 25 && (
+            <TouchableOpacity style={styles.emptyAction} onPress={() => setRadius(25)} accessibilityRole="button">
+              <Text style={styles.emptyActionText}>Expand to 25 km</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      );
+    }
+    return (
+      <View style={styles.empty}>
+        <Ionicons name="map-outline" size={48} color={Colors.textLight} />
+        <Text style={styles.emptyText}>No trails found</Text>
+        {listFiltersActive && (
+          <TouchableOpacity style={styles.emptyAction} onPress={clearFilters} accessibilityRole="button">
+            <Text style={styles.emptyActionText}>Clear filters</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+    );
+  };
+
+  const nearbyDelta = ((radius * 2) / KM_PER_DEGREE_LATITUDE) * 1.3;
 
   return (
     <View style={styles.container}>
@@ -130,14 +198,26 @@ export default function HomeScreen() {
         <TouchableOpacity
           style={[styles.quickChip, nearbyMode && styles.quickChipActive]}
           onPress={handleNearbyToggle}
-          accessibilityLabel={nearbyMode ? 'Disable nearby trails' : 'Find trails near me'}
+          disabled={locating}
+          accessibilityLabel={
+            locating
+              ? 'Finding your location'
+              : nearbyMode
+                ? 'Disable nearby trails'
+                : 'Find trails near me'
+          }
           accessibilityRole="button"
+          accessibilityState={{ busy: locating, selected: nearbyMode }}
         >
-          <Ionicons
-            name={nearbyMode ? 'navigate' : 'navigate-outline'}
-            size={16}
-            color={nearbyMode ? Colors.accent : Colors.textSecondary}
-          />
+          {locating ? (
+            <ActivityIndicator size="small" color={Colors.textSecondary} />
+          ) : (
+            <Ionicons
+              name={nearbyMode ? 'navigate' : 'navigate-outline'}
+              size={16}
+              color={nearbyMode ? Colors.accent : Colors.textSecondary}
+            />
+          )}
           <Text style={[styles.quickChipText, nearbyMode && styles.quickChipTextActive]}>Near Me</Text>
         </TouchableOpacity>
 
@@ -146,6 +226,8 @@ export default function HomeScreen() {
           onPress={() => setViewMode(viewMode === 'map' ? 'list' : 'map')}
           accessibilityLabel={viewMode === 'map' ? 'Switch to list view' : 'Switch to map view'}
           accessibilityRole="button"
+          accessibilityState={{ selected: viewMode === 'map' }}
+          testID={viewMode === 'map' ? 'list-toggle' : 'map-toggle'}
         >
           <Ionicons
             name={viewMode === 'map' ? 'map' : 'map-outline'}
@@ -155,9 +237,12 @@ export default function HomeScreen() {
           <Text style={[styles.quickChipText, viewMode === 'map' && styles.quickChipTextActive]}>Map</Text>
         </TouchableOpacity>
 
+        {/* These screens live in the Profile tab's stack. `withAnchor` puts the Profile
+            home underneath them, so there is a back button and a way back to the tab bar
+            even when the Profile tab has not been opened yet. */}
         <TouchableOpacity
           style={styles.quickChip}
-          onPress={() => router.push('/(tabs)/profile/bookmarks' as any)}
+          onPress={() => router.push('/(tabs)/profile/bookmarks' as any, { withAnchor: true })}
           accessibilityLabel="My bookmarks"
           accessibilityRole="button"
         >
@@ -167,7 +252,7 @@ export default function HomeScreen() {
 
         <TouchableOpacity
           style={styles.quickChip}
-          onPress={() => router.push('/(tabs)/profile/recommendations' as any)}
+          onPress={() => router.push('/(tabs)/profile/recommendations' as any, { withAnchor: true })}
           accessibilityLabel="Trail recommendations for you"
           accessibilityRole="button"
         >
@@ -176,8 +261,15 @@ export default function HomeScreen() {
         </TouchableOpacity>
       </ScrollView>
 
+      {locating && (
+        <View style={styles.toolbar}>
+          <ActivityIndicator size="small" color={Colors.primary} />
+          <Text style={styles.locatingText}>Finding your location…</Text>
+        </View>
+      )}
+
       {/* Toolbar: radius chips when nearby mode is active */}
-      {nearbyMode && (
+      {nearbyMode && !locating && (
         <View style={styles.toolbar}>
           <View style={styles.radiusChips}>
             {RADIUS_OPTIONS.map((r) => (
@@ -185,6 +277,9 @@ export default function HomeScreen() {
                 key={r}
                 style={[styles.radiusChip, radius === r && styles.radiusChipActive]}
                 onPress={() => setRadius(r)}
+                accessibilityRole="button"
+                accessibilityLabel={`Within ${r} kilometres`}
+                accessibilityState={{ selected: radius === r }}
               >
                 <Text style={[styles.radiusChipText, radius === r && styles.radiusChipTextActive]}>
                   {r} km
@@ -199,10 +294,17 @@ export default function HomeScreen() {
         <View style={styles.list}>
           {Array.from({ length: 5 }).map((_, i) => <TrailCardSkeleton key={i} />)}
         </View>
+      ) : failed ? (
+        <ErrorState
+          error={activeQuery.error}
+          title="Couldn't load trails"
+          onRetry={() => activeQuery.refetch()}
+          retrying={activeQuery.isRefetching}
+        />
       ) : viewMode === 'list' ? (
         <FlatList
-          data={trails as Trail[]}
-          keyExtractor={(item: Trail) => item.id}
+          data={trails}
+          keyExtractor={(item) => item.id}
           renderItem={({ item, index }) => <TrailCard trail={item} index={index} />}
           contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}
@@ -210,52 +312,45 @@ export default function HomeScreen() {
           maxToRenderPerBatch={8}
           windowSize={5}
           initialNumToRender={8}
-          getItemLayout={(_data, index) => ({
-            length: 264,
-            offset: 264 * index,
-            index,
-          })}
           onEndReached={() => {
-            if (!nearbyMode && hasNextPage && !isFetchingNextPage) fetchNextPage();
+            if (!nearbyMode && trailsQuery.hasNextPage && !trailsQuery.isFetchingNextPage) {
+              trailsQuery.fetchNextPage();
+            }
           }}
           onEndReachedThreshold={0.5}
           refreshControl={
             <RefreshControl
-              refreshing={isRefetching}
-              onRefresh={refetch}
+              refreshing={refreshing}
+              onRefresh={() => activeQuery.refetch()}
               tintColor={Colors.primary}
+              colors={[Colors.primary]}
             />
           }
-          ListEmptyComponent={
-            <View style={styles.empty}>
-              <Ionicons name="map-outline" size={48} color={Colors.textLight} />
-              <Text style={styles.emptyText}>
-                {nearbyMode ? `No trails within ${radius} km` : 'No trails found'}
-              </Text>
-              {nearbyMode ? (
-                <TouchableOpacity style={styles.emptyAction} onPress={() => setRadius(25)}>
-                  <Text style={styles.emptyActionText}>Expand to 25 km</Text>
-                </TouchableOpacity>
-              ) : (
-                <TouchableOpacity style={styles.emptyAction} onPress={() => { setDifficulty(null); setRegion(null); }}>
-                  <Text style={styles.emptyActionText}>Clear filters</Text>
-                </TouchableOpacity>
-              )}
-            </View>
+          ListEmptyComponent={renderEmpty()}
+          ListFooterComponent={
+            !nearbyMode && trailsQuery.isFetchingNextPage ? (
+              <ActivityIndicator style={styles.footer} color={Colors.primary} />
+            ) : null
           }
         />
       ) : (
         <MapView
+          // Remount when the centre changes: `initialRegion` is only read once
+          key={
+            nearbyMode && userLocation
+              ? `near-${userLocation.latitude}-${userLocation.longitude}-${radius}`
+              : 'all'
+          }
           style={styles.map}
           provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
           initialRegion={
             nearbyMode && userLocation
-              ? { ...userLocation, latitudeDelta: 0.3, longitudeDelta: 0.3 }
+              ? { ...userLocation, latitudeDelta: nearbyDelta, longitudeDelta: nearbyDelta }
               : Config.DEFAULT_MAP_REGION
           }
         >
-          {(trails as Trail[]).map((trail) => {
-            const coord = trail.start_point ? parseGeoPoint(trail.start_point) : null;
+          {trails.map((trail) => {
+            const coord = toLatLng(trail.start_point);
             if (!coord) return null;
             return (
               <Marker
@@ -284,16 +379,21 @@ const createStyles = (Colors: ColorPalette) =>
       paddingTop: 12,
       paddingBottom: 20,
     },
+    footer: {
+      paddingVertical: 16,
+    },
     empty: {
       flex: 1,
       justifyContent: 'center',
       alignItems: 'center',
       paddingTop: 80,
+      paddingHorizontal: 32,
     },
     emptyText: {
       fontSize: 16,
       color: Colors.textLight,
       marginTop: 12,
+      textAlign: 'center',
     },
     emptyAction: {
       marginTop: 16,
@@ -345,8 +445,13 @@ const createStyles = (Colors: ColorPalette) =>
     toolbar: {
       flexDirection: 'row',
       alignItems: 'center',
+      gap: 8,
       paddingHorizontal: 16,
       paddingVertical: 4,
+    },
+    locatingText: {
+      fontSize: 13,
+      color: Colors.textSecondary,
     },
     radiusChips: {
       flexDirection: 'row',

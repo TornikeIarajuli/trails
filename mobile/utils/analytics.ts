@@ -2,15 +2,24 @@ import PostHog from 'posthog-react-native';
 
 // Singleton PostHog instance — initialized once in _layout.tsx via PostHogProvider.
 // Use the usePostHog() hook in components, or call these helpers for non-component code.
+//
+// A build without EXPO_PUBLIC_POSTHOG_KEY has no client at all: PostHog refuses
+// an empty key, so analytics is simply off and every helper below does nothing.
 
 let _client: PostHog | null = null;
+let _initialized = false;
 
-export function initAnalytics(): PostHog {
-  if (!_client) {
-    _client = new PostHog(process.env.EXPO_PUBLIC_POSTHOG_KEY ?? '', {
-      host: 'https://us.i.posthog.com',
-      disabled: !process.env.EXPO_PUBLIC_POSTHOG_KEY,
-    });
+export function initAnalytics(): PostHog | null {
+  if (_initialized) return _client;
+  _initialized = true;
+
+  const apiKey = (process.env.EXPO_PUBLIC_POSTHOG_KEY ?? '').trim();
+  if (!apiKey) return null;
+
+  try {
+    _client = new PostHog(apiKey, { host: 'https://us.i.posthog.com' });
+  } catch (error) {
+    console.warn('[analytics] PostHog could not be started', error);
   }
   return _client;
 }

@@ -1,3 +1,4 @@
+import type { AxiosRequestConfig } from 'axios';
 import api from './api';
 
 export interface AppNotification {
@@ -24,8 +25,10 @@ export const notificationsService = {
     return response.data;
   },
 
-  async removeToken(token: string): Promise<{ removed: boolean }> {
+  /** `config` lets sign-out send this with the token of the session that is being closed. */
+  async removeToken(token: string, config?: AxiosRequestConfig): Promise<{ removed: boolean }> {
     const response = await api.delete('/notifications/remove-token', {
+      ...config,
       data: { token },
     });
     return response.data;

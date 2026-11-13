@@ -20,7 +20,7 @@ export default function TermsOfServiceScreen() {
         }}
       />
       <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-        <Text style={styles.updated}>Last updated: March 2026</Text>
+        <Text style={styles.updated}>Last updated: November 2026</Text>
 
         <Section title="1. Acceptance of Terms" styles={styles}>
           By creating an account or using the Georgia Trails app, you agree to be bound by these Terms of Service. If you do not agree, please do not use the app.
@@ -46,7 +46,7 @@ export default function TermsOfServiceScreen() {
         </Section>
 
         <Section title="5. Trail Completions & Badges" styles={styles}>
-          Trail completions require a valid GPS-verified photo at or near the trail endpoint. We reserve the right to reject or remove completions that appear fraudulent.{'\n\n'}
+          A hike counts as a trail completion when the GPS track the app records during the hike follows enough of the trail's route. A hike that cannot be verified this way is kept as pending: it does not count towards badges or the leaderboard unless it is approved after a manual review. We reserve the right to reject or remove completions that appear fraudulent.{'\n\n'}
           Badges and rankings are earned through legitimate use of the app. Any attempt to manipulate the system may result in account suspension and removal of badges.
         </Section>
 
@@ -62,12 +62,12 @@ export default function TermsOfServiceScreen() {
         </Section>
 
         <Section title="8. Emergency SOS" styles={styles}>
-          The in-app SOS feature is provided as a convenience to initiate an emergency call. It does not guarantee connection to emergency services. Always have a backup method to contact emergency services and carry a fully charged device.
+          The SOS button sends a push notification with your current location to the emergency contact you have chosen in the app, who must be another user of the app. It does not contact emergency services or a rescue team. The alert only arrives if both phones have an internet connection and your contact has notifications turned on, so it may be delayed or never delivered. In an emergency, call 112 — the app offers a Call 112 button for this. Always have a backup way to call for help and carry a fully charged device.
         </Section>
 
         <Section title="9. Intellectual Property" styles={styles}>
           The Georgia Trails app, its design, logo, and original content are owned by GZA Trails and are protected by copyright and intellectual property laws. You may not copy, reproduce, or redistribute any part of the app without our written permission.{'\n\n'}
-          Trail data and map information may be sourced from third-party providers and is subject to their respective terms.
+          Trail data is not ours alone and stays under its own licences: trail routes and map data are derived from OpenStreetMap, © OpenStreetMap contributors, and are available under the Open Database License (ODbL); trail photos are credited to their authors and used under the licence stated for each photo (Settings → Data sources & photo credits); elevation data comes from NASA's Shuttle Radar Topography Mission (SRTM). Nothing in these Terms limits the rights those licences give you.
         </Section>
 
         <Section title="10. Limitation of Liability" styles={styles}>

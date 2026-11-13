@@ -7,10 +7,8 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
-  Linking,
-  Clipboard,
+  RefreshControl,
 } from 'react-native';
-import { Image } from 'expo-image';
 import { useLocalSearchParams, Stack, router } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
@@ -19,9 +17,15 @@ import { usersService } from '../../../services/users';
 import { Avatar } from '../../../components/ui/Avatar';
 import { StatsGrid } from '../../../components/profile/StatsGrid';
 import { LoadingSpinner } from '../../../components/ui/LoadingSpinner';
+import { ErrorState } from '../../../components/ui/ErrorState';
+import { TrailCover } from '../../../components/trail/TrailCover';
+import { ContentMenu } from '../../../components/moderation/ContentMenu';
 import { PublicProfile, TrailCompletion } from '../../../types/user';
 import { useAuthStore } from '../../../store/authStore';
 import { useIsFollowing, useToggleFollow, useFollowCounts } from '../../../hooks/useFollows';
+import { useBlockedUserIds } from '../../../hooks/useModeration';
+import { queryKeys } from '../../../utils/queryKeys';
+import { getErrorMessage, getErrorStatus } from '../../../utils/showError';
 
 function formatDate(dateStr: string) {
   const d = new Date(dateStr);
@@ -62,13 +66,7 @@ function CompletionCard({ completion, Colors, styles }: { completion: TrailCompl
       activeOpacity={0.7}
       onPress={() => router.push(`/trail/${trail.id}`)}
     >
-      {trail.cover_image_url ? (
-        <Image source={{ uri: trail.cover_image_url }} style={styles.trailImage} cachePolicy="memory-disk" />
-      ) : (
-        <View style={[styles.trailImage, styles.trailImagePlaceholder]}>
-          <Ionicons name="image-outline" size={24} color={Colors.textLight} />
-        </View>
-      )}
+      <TrailCover uri={trail.cover_image_url} style={styles.trailImage} iconSize={24} />
       <View style={styles.completionInfo}>
         <Text style={styles.trailName} numberOfLines={1}>{trail.name_en}</Text>
         <View style={styles.trailMeta}>
@@ -76,37 +74,16 @@ function CompletionCard({ completion, Colors, styles }: { completion: TrailCompl
           <Text style={styles.trailRegion}>{trail.region}</Text>
         </View>
         <View style={styles.trailDetails}>
-          {trail.distance_km && (
+          {trail.distance_km != null && trail.distance_km > 0 && (
             <Text style={styles.detailText}>{trail.distance_km} km</Text>
           )}
-          {trail.elevation_gain_m && (
+          {trail.elevation_gain_m != null && trail.elevation_gain_m > 0 && (
             <Text style={styles.detailText}>{trail.elevation_gain_m}m gain</Text>
           )}
         </View>
         <Text style={styles.completedDate}>Completed {formatDate(completion.completed_at)}</Text>
       </View>
     </TouchableOpacity>
-  );
-}
-
-function ProofPhotosGrid({ completions, Colors, styles }: { completions: TrailCompletion[]; Colors: ColorPalette; styles: any }) {
-  const photosWithTrail = completions.filter(c => c.proof_photo_url);
-  if (photosWithTrail.length === 0) return null;
-
-  return (
-    <View style={styles.section}>
-      <Text style={styles.sectionTitle}>Trail Photos</Text>
-      <View style={styles.photoGrid}>
-        {photosWithTrail.map((c) => (
-          <View key={c.id} style={styles.photoContainer}>
-            <Image source={{ uri: c.proof_photo_url! }} style={styles.proofPhoto} cachePolicy="memory-disk" />
-            <Text style={styles.photoCaption} numberOfLines={1}>
-              {c.trails?.name_en}
-            </Text>
-          </View>
-        ))}
-      </View>
-    </View>
   );
 }
 
@@ -174,7 +151,7 @@ function EmergencyContactButton({ userId, Colors, styles }: { userId: string; Co
   const queryClient = useQueryClient();
 
   const { data: myContactId } = useQuery<string | null>({
-    queryKey: ['myEmergencyContact'],
+    queryKey: queryKeys.emergencyContact(),
     queryFn: () => usersService.getMyEmergencyContactId(),
     enabled: !!currentUserId,
   });
@@ -182,7 +159,10 @@ function EmergencyContactButton({ userId, Colors, styles }: { userId: string; Co
   const setContact = useMutation({
     mutationFn: (contactId: string | null) => usersService.setEmergencyContact(contactId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['myEmergencyContact'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.emergencyContact() });
+    },
+    onError: (err) => {
+      Alert.alert('Error', getErrorMessage(err, 'Could not update your emergency contact.'));
     },
   });
 
@@ -203,7 +183,7 @@ function EmergencyContactButton({ userId, Colors, styles }: { userId: string; Co
     } else {
       Alert.alert(
         'Set Emergency Contact',
-        'They will be notified now and if you trigger an SOS during a hike.',
+        'They get a push notification now, and another one with your location if you send an SOS during a hike.',
         [
           { text: 'Cancel', style: 'cancel' },
           { text: 'Set', onPress: () => setContact.mutate(userId) },
@@ -241,32 +221,87 @@ export default function PublicProfileScreen() {
   const styles = useMemo(() => createStyles(Colors), [Colors]);
 
   const { id } = useLocalSearchParams<{ id: string }>();
+  const currentUserId = useAuthStore((s) => s.user?.id);
+  const blockedIds = useBlockedUserIds();
 
-  const { data: profile, isLoading } = useQuery<PublicProfile>({
-    queryKey: ['publicProfile', id],
+  const { data: profile, isLoading, error, refetch, isRefetching } = useQuery<PublicProfile>({
+    queryKey: queryKeys.follows.publicProfile(id),
     queryFn: () => usersService.getPublicProfile(id),
     enabled: !!id,
   });
 
-  if (isLoading || !profile) return <LoadingSpinner />;
+  const headerOptions = {
+    headerShown: true,
+    headerStyle: { backgroundColor: Colors.background },
+    headerTintColor: Colors.text,
+    headerTitleStyle: { color: Colors.text },
+    headerShadowVisible: false,
+  };
+
+  if (!profile) {
+    if (isLoading) return <LoadingSpinner />;
+    const gone = getErrorStatus(error) === 404;
+    return (
+      <>
+        <Stack.Screen options={{ ...headerOptions, title: 'Profile' }} />
+        <ErrorState
+          error={error}
+          title={gone ? 'This account no longer exists' : "Couldn't load this profile"}
+          message={gone ? 'It may have been deleted.' : undefined}
+          onRetry={gone ? undefined : () => refetch()}
+          retrying={isRefetching}
+        />
+      </>
+    );
+  }
+
+  const isBlocked = blockedIds.has(id);
+  const completions = profile.completions ?? [];
 
   return (
     <>
       <Stack.Screen
         options={{
-          headerShown: true,
+          ...headerOptions,
           title: profile.username,
-          headerStyle: { backgroundColor: Colors.background },
-          headerTintColor: Colors.text,
-          headerTitleStyle: { color: Colors.text },
-          headerShadowVisible: false,
+          headerRight:
+            currentUserId && currentUserId !== id
+              ? () => (
+                  <ContentMenu
+                    style={styles.headerMenu}
+                    targetType="user"
+                    targetId={id}
+                    targetLabel="profile"
+                    authorId={id}
+                    authorName={profile.username}
+                    iconSize={22}
+                    iconColor={Colors.text}
+                  />
+                )
+              : undefined,
         }}
       />
       <ScrollView
         style={styles.container}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefetching}
+            onRefresh={() => refetch()}
+            tintColor={Colors.primary}
+            colors={[Colors.primary]}
+          />
+        }
       >
+        {isBlocked && (
+          <View style={styles.blockedNotice}>
+            <Ionicons name="ban-outline" size={16} color={Colors.textSecondary} />
+            <Text style={styles.blockedText}>
+              You blocked this user, so their activity is hidden from you. Use the menu at the top to unblock them.
+            </Text>
+          </View>
+        )}
         {/* Profile Header */}
         <View style={styles.profileCard}>
           <Avatar
@@ -293,25 +328,6 @@ export default function PublicProfileScreen() {
             <Text style={styles.bioEmpty}>No bio yet</Text>
           )}
 
-          {profile.contact_info && (
-            <TouchableOpacity
-              style={styles.contactRow}
-              onPress={() =>
-                Alert.alert(
-                  'Contact',
-                  profile.contact_info!,
-                  [
-                    { text: 'Copy', onPress: () => Clipboard.setString(profile.contact_info!) },
-                    { text: 'Close', style: 'cancel' },
-                  ],
-                )
-              }
-            >
-              <Ionicons name="call-outline" size={14} color={Colors.primary} />
-              <Text style={styles.contactText}>{profile.contact_info}</Text>
-            </TouchableOpacity>
-          )}
-
           <FollowCounts userId={id} Colors={Colors} styles={styles} />
           <FollowButton userId={id} Colors={Colors} styles={styles} />
           <EmergencyContactButton userId={id} Colors={Colors} styles={styles} />
@@ -324,22 +340,19 @@ export default function PublicProfileScreen() {
         {/* Stats */}
         {profile.stats && <StatsGrid stats={profile.stats} />}
 
-        {/* Proof Photos */}
-        <ProofPhotosGrid completions={profile.completions} Colors={Colors} styles={styles} />
-
         {/* Completed Trails */}
-        {profile.completions.length > 0 && (
+        {completions.length > 0 && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>
-              Completed Trails ({profile.completions.length})
+              Completed Trails ({completions.length})
             </Text>
-            {profile.completions.map((completion) => (
+            {completions.map((completion) => (
               <CompletionCard key={completion.id} completion={completion} Colors={Colors} styles={styles} />
             ))}
           </View>
         )}
 
-        {profile.completions.length === 0 && (
+        {completions.length === 0 && (
           <View style={styles.emptyState}>
             <Ionicons name="footsteps-outline" size={48} color={Colors.borderLight} />
             <Text style={styles.emptyText}>No completed trails yet</Text>
@@ -415,20 +428,23 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     fontStyle: 'italic',
     marginTop: 10,
   },
-  contactRow: {
+  headerMenu: {
+    marginRight: 16,
+  },
+  blockedNotice: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
-    marginTop: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    backgroundColor: Colors.primary + '15',
-    borderRadius: 8,
+    gap: 8,
+    marginHorizontal: 16,
+    marginTop: 12,
+    padding: 12,
+    borderRadius: 10,
+    backgroundColor: Colors.borderLight,
   },
-  contactText: {
+  blockedText: {
+    flex: 1,
     fontSize: 13,
-    color: Colors.primary,
-    fontWeight: '500',
+    color: Colors.textSecondary,
   },
   countsRow: {
     flexDirection: 'row',
@@ -559,26 +575,6 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     fontSize: 11,
     color: Colors.textLight,
     marginTop: 4,
-  },
-  photoGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  photoContainer: {
-    width: '31%',
-  },
-  proofPhoto: {
-    width: '100%',
-    aspectRatio: 1,
-    borderRadius: 8,
-    backgroundColor: Colors.borderLight,
-  },
-  photoCaption: {
-    fontSize: 10,
-    color: Colors.textSecondary,
-    marginTop: 4,
-    textAlign: 'center',
   },
   emptyState: {
     alignItems: 'center',

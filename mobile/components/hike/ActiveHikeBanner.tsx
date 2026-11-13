@@ -1,11 +1,12 @@
 import React, { useMemo } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { SlideInDown } from 'react-native-reanimated';
 import { useColors, ColorPalette } from '../../constants/colors';
 import { useHikeStore } from '../../store/hikeStore';
 import { useTrail } from '../../hooks/useTrails';
+import { discardActiveHike } from '../../utils/hikeSession';
 
 export function ActiveHikeBanner() {
   const Colors = useColors();
@@ -13,13 +14,23 @@ export function ActiveHikeBanner() {
 
   const isActive = useHikeStore((s) => s.isActive);
   const trailId = useHikeStore((s) => s.trailId);
-  const endHike = useHikeStore((s) => s.endHike);
 
   const { data: trail } = useTrail(trailId ?? '');
 
   if (!isActive || !trailId) return null;
 
   const trailName = trail?.name_en ?? 'Unknown Trail';
+
+  const confirmDiscard = () => {
+    Alert.alert(
+      'Discard this hike?',
+      'Recording stops and the route recorded so far is deleted. It will not count as a completion.',
+      [
+        { text: 'Keep hiking', style: 'cancel' },
+        { text: 'Discard', style: 'destructive', onPress: discardActiveHike },
+      ],
+    );
+  };
 
   return (
     <Animated.View entering={SlideInDown.duration(300)}>
@@ -35,7 +46,7 @@ export function ActiveHikeBanner() {
           >
             <Text style={styles.resumeText}>Resume</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.discardButton} onPress={endHike} accessibilityLabel="Discard hike" accessibilityRole="button">
+          <TouchableOpacity style={styles.discardButton} onPress={confirmDiscard} accessibilityLabel="Discard hike" accessibilityRole="button">
             <Ionicons name="close" size={18} color={Colors.textOnPrimary} />
           </TouchableOpacity>
         </View>

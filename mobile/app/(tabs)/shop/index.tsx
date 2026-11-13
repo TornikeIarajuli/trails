@@ -12,37 +12,58 @@ import { router } from 'expo-router';
 import { useColors, ColorPalette } from '../../../constants/colors';
 import { useProducts } from '../../../hooks/useShop';
 import { Product } from '../../../types/product';
+import { formatPrice } from '../../../utils/formatters';
+import { ErrorState } from '../../../components/ui/ErrorState';
+import { LoadingSpinner } from '../../../components/ui/LoadingSpinner';
 
 export default function ShopScreen() {
   const Colors = useColors();
   const styles = useMemo(() => createStyles(Colors), [Colors]);
-  const { data: products, isLoading, refetch, isRefetching } = useProducts();
+  const { data: products, isLoading, isError, error, refetch, isRefetching } = useProducts();
 
-  const renderProduct = ({ item }: { item: Product }) => (
-    <TouchableOpacity
-      style={styles.card}
-      onPress={() => router.push(`/(tabs)/shop/${item.id}`)}
-      activeOpacity={0.7}
-    >
-      {item.image_url ? (
-        <Image source={{ uri: item.image_url }} style={styles.image} cachePolicy="memory-disk" />
-      ) : (
-        <View style={[styles.image, styles.placeholder]}>
-          <Text style={styles.placeholderText}>No Image</Text>
+  const renderProduct = ({ item }: { item: Product }) => {
+    const price = formatPrice(item.price);
+    return (
+      <TouchableOpacity
+        style={styles.card}
+        onPress={() => router.push(`/(tabs)/shop/${item.id}`)}
+        activeOpacity={0.7}
+        accessibilityRole="button"
+        accessibilityLabel={price ? `${item.name}, ${price}` : item.name}
+      >
+        {item.image_url ? (
+          <Image source={{ uri: item.image_url }} style={styles.image} cachePolicy="memory-disk" />
+        ) : (
+          <View style={[styles.image, styles.placeholder]}>
+            <Text style={styles.placeholderText}>No Image</Text>
+          </View>
+        )}
+        <View style={styles.info}>
+          <Text style={styles.name} numberOfLines={2}>{item.name}</Text>
+          {price ? <Text style={styles.price}>{price}</Text> : null}
+          {item.shop_name && <Text style={styles.shop}>{item.shop_name}</Text>}
         </View>
-      )}
-      <View style={styles.info}>
-        <Text style={styles.name} numberOfLines={2}>{item.name}</Text>
-        {item.price != null && <Text style={styles.price}>{item.price}₾</Text>}
-        {item.shop_name && <Text style={styles.shop}>{item.shop_name}</Text>}
-      </View>
-    </TouchableOpacity>
-  );
+      </TouchableOpacity>
+    );
+  };
 
   if (isLoading) {
     return (
       <View style={styles.container}>
-        <Text style={styles.emptyText}>Loading...</Text>
+        <LoadingSpinner />
+      </View>
+    );
+  }
+
+  if (isError && !products?.length) {
+    return (
+      <View style={styles.container}>
+        <ErrorState
+          error={error}
+          title="Couldn't load the shop"
+          onRetry={() => refetch()}
+          retrying={isRefetching}
+        />
       </View>
     );
   }

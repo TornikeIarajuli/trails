@@ -4,7 +4,7 @@ import { trailCache } from '../utils/trailCache';
 import { TrailDetail } from '../types/trail';
 import { queryKeys } from '../utils/queryKeys';
 
-export function useTrails(params?: TrailFilterParams) {
+export function useTrails(params?: TrailFilterParams, enabled = true) {
   return useInfiniteQuery({
     queryKey: queryKeys.trails(params),
     queryFn: ({ pageParam = 1 }) =>
@@ -14,6 +14,7 @@ export function useTrails(params?: TrailFilterParams) {
       return page < totalPages ? page + 1 : undefined;
     },
     initialPageParam: 1,
+    enabled,
   });
 }
 
@@ -27,7 +28,11 @@ export function useTrail(id: string) {
       return data;
     },
     enabled: !!id,
-    placeholderData: () => trailCache.getTrailDetail<TrailDetail>(id) ?? undefined,
+    // Seed from the offline copy as real (but stale) data rather than as placeholder:
+    // placeholder data disappears when the fetch fails, which is exactly when the
+    // offline copy is needed.
+    initialData: () => trailCache.getTrailDetail<TrailDetail>(id) ?? undefined,
+    initialDataUpdatedAt: 0,
   });
 }
 

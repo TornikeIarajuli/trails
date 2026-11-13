@@ -1,73 +1,90 @@
 import { create } from 'zustand';
-import { persist, createJSONStorage } from 'zustand/middleware';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { persist } from 'zustand/middleware';
 import { haversineDistance } from '../utils/geo';
+import {
+  HIKE_STORAGE_VERSION,
+  LastHike,
+  PersistedHikeState,
+  flushHikeStorage,
+  hikeStorage,
+  migrateHikeState,
+} from '../utils/hikeStorage';
+import {
+  GpsPoint,
+  MAX_TRACK_POINTS,
+  computeElapsedSeconds,
+  shouldRecordFix,
+  thinTrack,
+  toGpsPoint,
+} from '../utils/track';
+import { PendingCompletion } from '../types/completion';
 
-export interface GpsPoint {
-  lat: number;
-  lng: number;
-  timestamp: number;
-}
+export type { GpsPoint } from '../utils/track';
+export type { LastHike } from '../utils/hikeStorage';
+export type { PendingCompletion } from '../types/completion';
 
-export interface PendingSync {
-  trailId: string;
+interface HikeState extends PersistedHikeState {
+  /** Derived from the timing fields by `tick()`; never persisted. */
   elapsedSeconds: number;
-  completedAt: string;
-}
-
-interface HikeState {
-  isActive: boolean;
-  trailId: string | null;
-  startTime: number | null;
-  elapsedSeconds: number;
-  isPaused: boolean;
-  resumedAt: number | null;
-  baseElapsedSeconds: number;
-  visitedCheckpointIds: string[];
-  gpsPoints: GpsPoint[];
-  lastHikeGpsPoints: GpsPoint[];
-  distanceCoveredMeters: number;
-  pendingSync: PendingSync | null;
-  startHike: (trailId: string) => void;
-  endHike: () => void;
+  /** True once the saved state has been read back from storage. */
+  _hydrated: boolean;
+  /** `ownerId` is the signed-in user the hike belongs to. */
+  startHike: (trailId: string, ownerId?: string | null) => void;
+  /** Finishes the hike and keeps its track for export, tied to the completion (or queue entry) it produced. */
+  endHike: (result?: { completionId?: string | null; localId?: string | null }) => void;
+  /** Abandons the hike: its track is dropped and the last finished hike is left alone. */
+  discardHike: () => void;
   pauseHike: () => void;
   resumeHike: () => void;
   tick: () => void;
   markCheckpointVisited: (checkpointId: string) => void;
-  addGpsPoint: (lat: number, lng: number) => void;
-  clearLastHikeGps: () => void;
-  setPendingSync: (sync: PendingSync | null) => void;
+  /** Returns whether the fix was added to the track. */
+  addGpsPoint: (
+    lat: number,
+    lng: number,
+    fix?: { timestamp?: number; accuracy?: number | null },
+  ) => boolean;
+  enqueueCompletion: (completion: PendingCompletion) => void;
+  notePendingAttempt: (localId: string) => void;
+  removePendingCompletion: (localId: string) => void;
+  /** A queued completion reached the server: drop it and tie the saved track to its id. */
+  resolvePendingCompletion: (localId: string, completionId: string) => void;
 }
+
+const IDLE_HIKE = {
+  isActive: false,
+  trailId: null,
+  ownerId: null,
+  startTime: null,
+  elapsedSeconds: 0,
+  isPaused: false,
+  resumedAt: null,
+  baseElapsedSeconds: 0,
+  visitedCheckpointIds: [] as string[],
+  gpsPoints: [] as GpsPoint[],
+  distanceCoveredMeters: 0,
+};
 
 export const useHikeStore = create<HikeState>()(
   persist(
     (set, get) => ({
-      isActive: false,
-      trailId: null,
-      startTime: null,
-      elapsedSeconds: 0,
-      isPaused: false,
-      resumedAt: null,
-      baseElapsedSeconds: 0,
-      visitedCheckpointIds: [],
-      gpsPoints: [],
-      lastHikeGpsPoints: [],
-      distanceCoveredMeters: 0,
-      pendingSync: null,
+      ...IDLE_HIKE,
+      lastHike: null,
+      pendingCompletions: [],
+      _hydrated: false,
 
-      startHike: (trailId) =>
+      startHike: (trailId, ownerId) => {
+        const now = Date.now();
         set({
+          ...IDLE_HIKE,
           isActive: true,
           trailId,
-          startTime: Date.now(),
-          elapsedSeconds: 0,
-          isPaused: false,
-          resumedAt: Date.now(),
-          baseElapsedSeconds: 0,
-          visitedCheckpointIds: [],
-          gpsPoints: [],
-          distanceCoveredMeters: 0,
-        }),
+          ownerId: ownerId ?? null,
+          startTime: now,
+          resumedAt: now,
+        });
+        void flushHikeStorage();
+      },
 
       pauseHike: () => {
         const { resumedAt, baseElapsedSeconds } = get();
@@ -77,84 +94,147 @@ export const useHikeStore = create<HikeState>()(
           resumedAt: null,
           baseElapsedSeconds: baseElapsedSeconds + segment,
         });
+        void flushHikeStorage();
       },
 
-      resumeHike: () =>
-        set({
-          isPaused: false,
-          resumedAt: Date.now(),
-        }),
+      resumeHike: () => {
+        set({ isPaused: false, resumedAt: Date.now() });
+        void flushHikeStorage();
+      },
 
-      endHike: () => {
-        const { gpsPoints } = get();
-        set({
-          isActive: false,
-          trailId: null,
-          startTime: null,
-          elapsedSeconds: 0,
-          isPaused: false,
-          resumedAt: null,
-          baseElapsedSeconds: 0,
-          visitedCheckpointIds: [],
-          gpsPoints: [],
-          lastHikeGpsPoints: gpsPoints, // preserve for GPX export
-        });
+      endHike: (result) => {
+        const { trailId, gpsPoints, lastHike } = get();
+        const finished: LastHike | null = trailId
+          ? {
+              trailId,
+              completionId: result?.completionId ?? null,
+              localId: result?.localId ?? null,
+              points: gpsPoints,
+            }
+          : lastHike;
+        set({ ...IDLE_HIKE, lastHike: finished });
+        void flushHikeStorage();
+      },
+
+      discardHike: () => {
+        set({ ...IDLE_HIKE });
+        void flushHikeStorage();
       },
 
       tick: () => {
-        const { isPaused, resumedAt, baseElapsedSeconds } = get();
-        if (!isPaused && resumedAt) {
-          set({ elapsedSeconds: baseElapsedSeconds + Math.floor((Date.now() - resumedAt) / 1000) });
-        }
+        const state = get();
+        if (state.isPaused || !state.resumedAt) return;
+        const elapsedSeconds = computeElapsedSeconds(state);
+        if (elapsedSeconds !== state.elapsedSeconds) set({ elapsedSeconds });
       },
 
-      markCheckpointVisited: (checkpointId) =>
+      markCheckpointVisited: (checkpointId) => {
+        if (get().visitedCheckpointIds.includes(checkpointId)) return;
         set((state) => ({
           visitedCheckpointIds: [...state.visitedCheckpointIds, checkpointId],
-        })),
-
-      addGpsPoint: (lat, lng) => {
-        const { isPaused } = get();
-        if (isPaused) return;
-        set((state) => {
-          const point = { lat, lng, timestamp: Date.now() };
-          // Keep only last 500 points (~40 min at 5s interval) to prevent memory leak
-          const points = state.gpsPoints.length >= 500
-            ? [...state.gpsPoints.slice(-499), point]
-            : [...state.gpsPoints, point];
-          // Accumulate distance from last point
-          const lastPoint = state.gpsPoints[state.gpsPoints.length - 1];
-          const addedMeters = lastPoint
-            ? haversineDistance(lastPoint.lat, lastPoint.lng, lat, lng)
-            : 0;
-          return {
-            gpsPoints: points,
-            distanceCoveredMeters: state.distanceCoveredMeters + addedMeters,
-          };
-        });
+        }));
+        void flushHikeStorage();
       },
 
-      clearLastHikeGps: () => set({ lastHikeGpsPoints: [] }),
+      addGpsPoint: (lat, lng, fix) => {
+        const state = get();
+        if (!state.isActive || state.isPaused) return false;
 
-      setPendingSync: (sync) => set({ pendingSync: sync }),
+        const candidate = {
+          lat,
+          lng,
+          timestamp: fix?.timestamp ?? Date.now(),
+          accuracy: fix?.accuracy,
+        };
+        const previous = state.gpsPoints[state.gpsPoints.length - 1];
+        if (!shouldRecordFix(previous, candidate)) return false;
+
+        const point = toGpsPoint(candidate);
+        const addedMeters = previous
+          ? haversineDistance(previous.lat, previous.lng, point.lat, point.lng)
+          : 0;
+        set({
+          gpsPoints: [...thinTrack(state.gpsPoints, MAX_TRACK_POINTS), point],
+          distanceCoveredMeters: state.distanceCoveredMeters + addedMeters,
+        });
+        return true;
+      },
+
+      enqueueCompletion: (completion) => {
+        set((state) => ({ pendingCompletions: [...state.pendingCompletions, completion] }));
+        void flushHikeStorage();
+      },
+
+      notePendingAttempt: (localId) => {
+        set((state) => ({
+          pendingCompletions: state.pendingCompletions.map((entry) =>
+            entry.localId === localId ? { ...entry, attempts: entry.attempts + 1 } : entry,
+          ),
+        }));
+        void flushHikeStorage();
+      },
+
+      removePendingCompletion: (localId) => {
+        set((state) => ({
+          pendingCompletions: state.pendingCompletions.filter((entry) => entry.localId !== localId),
+        }));
+        void flushHikeStorage();
+      },
+
+      resolvePendingCompletion: (localId, completionId) => {
+        set((state) => ({
+          pendingCompletions: state.pendingCompletions.filter((entry) => entry.localId !== localId),
+          lastHike:
+            state.lastHike && state.lastHike.localId === localId
+              ? { ...state.lastHike, completionId }
+              : state.lastHike,
+        }));
+        void flushHikeStorage();
+      },
     }),
     {
       name: 'hike-store',
-      storage: createJSONStorage(() => AsyncStorage),
-      partialize: (state) => ({
+      version: HIKE_STORAGE_VERSION,
+      storage: hikeStorage,
+      migrate: migrateHikeState,
+      partialize: (state): PersistedHikeState => ({
         isActive: state.isActive,
         trailId: state.trailId,
+        ownerId: state.ownerId,
         startTime: state.startTime,
-        elapsedSeconds: state.elapsedSeconds,
         isPaused: state.isPaused,
         resumedAt: state.resumedAt,
         baseElapsedSeconds: state.baseElapsedSeconds,
         visitedCheckpointIds: state.visitedCheckpointIds,
-        gpsPoints: state.gpsPoints,
-        lastHikeGpsPoints: state.lastHikeGpsPoints,
         distanceCoveredMeters: state.distanceCoveredMeters,
-        pendingSync: state.pendingSync,
+        gpsPoints: state.gpsPoints,
+        lastHike: state.lastHike,
+        pendingCompletions: state.pendingCompletions,
       }),
+      merge: (persisted, current) => {
+        const restored = { ...current, ...(persisted as Partial<PersistedHikeState> | undefined) };
+        return { ...restored, elapsedSeconds: computeElapsedSeconds(restored) };
+      },
+      onRehydrateStorage: () => () => {
+        useHikeStore.setState({ _hydrated: true });
+      },
     },
   ),
 );
+
+/**
+ * Resolves once the saved state has been loaded. Anything written to the store
+ * before that would be overwritten by it, so code that can run at process start
+ * (the background location task) waits for this first.
+ */
+export function whenHikeStoreHydrated(): Promise<void> {
+  if (useHikeStore.getState()._hydrated) return Promise.resolve();
+  return new Promise((resolve) => {
+    const unsubscribe = useHikeStore.subscribe((state) => {
+      if (state._hydrated) {
+        unsubscribe();
+        resolve();
+      }
+    });
+  });
+}

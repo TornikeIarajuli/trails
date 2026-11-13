@@ -1,14 +1,16 @@
-import React, { useMemo, useRef, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, NativeSyntheticEvent, NativeScrollEvent, useWindowDimensions } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors, ColorPalette } from '../../constants/colors';
 import { Avatar } from '../ui/Avatar';
-import { FeedItem, ActivityType } from '../../types/feed';
+import { FeedItem } from '../../types/feed';
 import { useComments } from '../../hooks/useComments';
 import { useLikes, useToggleLike } from '../../hooks/useLikes';
+import { hasLikeSummary } from '../../utils/feedCache';
 import { CommentsSheet } from './CommentsSheet';
+import { ContentMenu } from '../moderation/ContentMenu';
 
 function getRelativeTime(dateStr: string): string {
   const now = Date.now();
@@ -39,25 +41,23 @@ function getConditionLabel(conditionType: string): string {
   return labels[conditionType] || conditionType;
 }
 
-function PhotoCarousel({ urls, trailId, styles, Colors }: {
+function PhotoCarousel({ urls, onPress, styles, Colors }: {
   urls: string[];
-  trailId: string;
+  onPress: () => void;
   styles: ReturnType<typeof createStyles>;
   Colors: ColorPalette;
 }) {
   const [page, setPage] = useState(0);
-  const { width } = useWindowDimensions();
-  // Card padding: 14 outer + 12 gap + 44 avatar = 70; body width = width - 70 - 28 (screen padding approx)
-  const photoWidth = width - 100;
+  // Measured rather than derived from the screen width, so each page is exactly as wide as the card body
+  const [width, setWidth] = useState(0);
 
   const onScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const newPage = Math.round(e.nativeEvent.contentOffset.x / photoWidth);
-    setPage(newPage);
+    if (width > 0) setPage(Math.round(e.nativeEvent.contentOffset.x / width));
   };
 
   if (urls.length === 1) {
     return (
-      <TouchableOpacity activeOpacity={0.8} onPress={() => {}}>
+      <TouchableOpacity activeOpacity={0.8} onPress={onPress} accessibilityRole="button" accessibilityLabel="Open trail">
         <Image
           source={{ uri: urls[0] }}
           placeholder={{ blurhash: 'L76F~B?bWD%M~qxuxEtS%MNFWqxt' }}
@@ -71,26 +71,33 @@ function PhotoCarousel({ urls, trailId, styles, Colors }: {
   }
 
   return (
-    <View style={styles.carouselWrapper}>
-      <ScrollView
-        horizontal
-        pagingEnabled
-        showsHorizontalScrollIndicator={false}
-        onMomentumScrollEnd={onScroll}
-        style={{ width: photoWidth }}
+    <View style={styles.carouselContainer}>
+      <View
+        style={styles.carouselWrapper}
+        onLayout={(e) => setWidth(e.nativeEvent.layout.width)}
       >
-        {urls.map((url, i) => (
-          <Image
-            key={i}
-            source={{ uri: url }}
-            placeholder={{ blurhash: 'L76F~B?bWD%M~qxuxEtS%MNFWqxt' }}
-            contentFit="cover"
-            transition={300}
-            cachePolicy="memory-disk"
-            style={[styles.photo, { width: photoWidth }]}
-          />
-        ))}
-      </ScrollView>
+        {width > 0 && (
+          <ScrollView
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            onMomentumScrollEnd={onScroll}
+          >
+            {urls.map((url, i) => (
+              <TouchableOpacity key={i} activeOpacity={0.8} onPress={onPress} accessibilityRole="button" accessibilityLabel="Open trail">
+                <Image
+                  source={{ uri: url }}
+                  placeholder={{ blurhash: 'L76F~B?bWD%M~qxuxEtS%MNFWqxt' }}
+                  contentFit="cover"
+                  transition={300}
+                  cachePolicy="memory-disk"
+                  style={[styles.carouselPhoto, { width }]}
+                />
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        )}
+      </View>
       <View style={styles.dotsRow}>
         {urls.map((_, i) => (
           <View
@@ -103,31 +110,59 @@ function PhotoCarousel({ urls, trailId, styles, Colors }: {
   );
 }
 
-const ACTION_CONFIG: Record<ActivityType, { verb: string; icon: string; color: string }> = {
+const ACTION_CONFIG: Record<string, { verb: string; icon: string; color: string }> = {
   completion: { verb: 'completed', icon: 'checkmark-circle', color: '#4CAF50' },
   photo: { verb: 'uploaded a photo on', icon: 'camera', color: '#2196F3' },
   condition: { verb: 'reported a condition on', icon: 'warning', color: '#FF9800' },
   review: { verb: 'reviewed', icon: 'star', color: '#FFC107' },
 };
+const UNKNOWN_ACTION = { verb: 'was active on', icon: 'ellipse', color: '#9E9E9E' };
 
-export function ActivityCard({ item }: { item: FeedItem }) {
+const REPORT_LABEL: Record<string, string> = {
+  completion: 'hike',
+  photo: 'photo',
+  condition: 'condition report',
+  review: 'review',
+};
+
+export const ActivityCard = React.memo(function ActivityCard({ item }: { item: FeedItem }) {
   const Colors = useColors();
   const styles = useMemo(() => createStyles(Colors), [Colors]);
   const [showComments, setShowComments] = useState(false);
+  // The sheet is mounted on first use (not per card), then kept so it can animate out
+  const [commentsOpened, setCommentsOpened] = useState(false);
 
-  const { data: comments } = useComments(item.activity_id);
-  const commentCount = comments?.length ?? 0;
+  // Current API versions put the counts on the feed item. Only when they are
+  // missing (older backend) fall back to one request per card.
+  const feedHasLikes = hasLikeSummary(item);
+  const feedHasCommentCount = typeof item.comment_count === 'number';
 
-  const { liked, count: likeCount } = useLikes(item.activity_id);
+  const likesFallback = useLikes(item.activity_id, !feedHasLikes);
+  const liked = feedHasLikes ? item.liked_by_me : likesFallback.liked;
+  const likeCount = feedHasLikes ? item.like_count : likesFallback.count;
+
+  const { data: fallbackComments } = useComments(item.activity_id, 1, 50, !feedHasCommentCount);
+  const commentCount = feedHasCommentCount ? item.comment_count ?? 0 : fallbackComments?.length ?? 0;
+
   const toggleLike = useToggleLike();
 
-  const config = ACTION_CONFIG[item.activity_type];
+  const config = ACTION_CONFIG[item.activity_type] ?? UNKNOWN_ACTION;
+  const openTrail = () => router.push(`/trail/${item.trail_id}`);
+  const openUser = () => router.push(`/trail/user/${item.user_id}`);
+  const stars = Math.min(5, Math.max(0, parseInt(item.extra_text ?? '', 10) || 0));
+
+  const openComments = () => {
+    setCommentsOpened(true);
+    setShowComments(true);
+  };
 
   return (
     <View style={styles.card}>
       <TouchableOpacity
         style={styles.avatarContainer}
-        onPress={() => router.push(`/trail/user/${item.user_id}`)}
+        onPress={openUser}
+        accessibilityRole="button"
+        accessibilityLabel={`View ${item.user_username}'s profile`}
       >
         <Avatar
           uri={item.user_avatar_url}
@@ -139,17 +174,11 @@ export function ActivityCard({ item }: { item: FeedItem }) {
       <View style={styles.body}>
         <View style={styles.headerRow}>
           <Text style={styles.headerText} numberOfLines={2}>
-            <Text
-              style={styles.username}
-              onPress={() => router.push(`/trail/user/${item.user_id}`)}
-            >
+            <Text style={styles.username} onPress={openUser}>
               {item.user_username}
             </Text>
             {' '}{config.verb}{' '}
-            <Text
-              style={styles.trailName}
-              onPress={() => router.push(`/trail/${item.trail_id}`)}
-            >
+            <Text style={styles.trailName} onPress={openTrail}>
               {item.trail_name_en}
             </Text>
           </Text>
@@ -166,9 +195,9 @@ export function ActivityCard({ item }: { item: FeedItem }) {
           </View>
         )}
 
-        {item.activity_type === 'review' && item.extra_text && (
-          <View style={styles.ratingRow}>
-            {Array.from({ length: parseInt(item.extra_text) || 0 }).map((_, i) => (
+        {item.activity_type === 'review' && stars > 0 && (
+          <View style={styles.ratingRow} accessibilityLabel={`${stars} out of 5 stars`}>
+            {Array.from({ length: stars }).map((_, i) => (
               <Ionicons key={i} name="star" size={14} color="#FFC107" />
             ))}
           </View>
@@ -176,37 +205,11 @@ export function ActivityCard({ item }: { item: FeedItem }) {
 
         {/* Photos — carousel if multiple, single if one */}
         {item.activity_type === 'completion' && item.photo_urls && item.photo_urls.length > 0 ? (
-          <View style={styles.carouselContainer}>
-            <PhotoCarousel urls={item.photo_urls} trailId={item.trail_id} styles={styles} Colors={Colors} />
-          </View>
+          <PhotoCarousel urls={item.photo_urls} onPress={openTrail} styles={styles} Colors={Colors} />
         ) : item.photo_url ? (
-          <TouchableOpacity
-            activeOpacity={0.8}
-            onPress={() => router.push(`/trail/${item.trail_id}`)}
-          >
-            <Image
-              source={{ uri: item.photo_url }}
-              placeholder={{ blurhash: 'L76F~B?bWD%M~qxuxEtS%MNFWqxt' }}
-              contentFit="cover"
-              transition={300}
-              cachePolicy="memory-disk"
-              style={styles.photo}
-            />
-          </TouchableOpacity>
+          <PhotoCarousel urls={[item.photo_url]} onPress={openTrail} styles={styles} Colors={Colors} />
         ) : item.trail_cover_image_url && item.activity_type === 'completion' ? (
-          <TouchableOpacity
-            activeOpacity={0.8}
-            onPress={() => router.push(`/trail/${item.trail_id}`)}
-          >
-            <Image
-              source={{ uri: item.trail_cover_image_url }}
-              placeholder={{ blurhash: 'L76F~B?bWD%M~qxuxEtS%MNFWqxt' }}
-              contentFit="cover"
-              transition={300}
-              cachePolicy="memory-disk"
-              style={styles.photo}
-            />
-          </TouchableOpacity>
+          <PhotoCarousel urls={[item.trail_cover_image_url]} onPress={openTrail} styles={styles} Colors={Colors} />
         ) : null}
 
         {/* Actions row: like + comment */}
@@ -220,8 +223,10 @@ export function ActivityCard({ item }: { item: FeedItem }) {
               })
             }
             disabled={toggleLike.isPending}
+            hitSlop={8}
             accessibilityLabel={liked ? 'Unlike' : 'Like'}
             accessibilityRole="button"
+            accessibilityState={{ selected: liked }}
           >
             <Ionicons
               name={liked ? 'heart' : 'heart-outline'}
@@ -233,24 +238,42 @@ export function ActivityCard({ item }: { item: FeedItem }) {
             )}
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.actionBtn} onPress={() => setShowComments(true)} accessibilityLabel="Comments" accessibilityRole="button">
+          <TouchableOpacity
+            style={styles.actionBtn}
+            onPress={openComments}
+            hitSlop={8}
+            accessibilityLabel={commentCount > 0 ? `Comments, ${commentCount}` : 'Comments'}
+            accessibilityRole="button"
+          >
             <Ionicons name="chatbubble-outline" size={15} color={Colors.textSecondary} />
             {commentCount > 0 && (
               <Text style={styles.actionCount}>{commentCount}</Text>
             )}
           </TouchableOpacity>
+
+          <ContentMenu
+            style={styles.menuBtn}
+            targetType={item.activity_type}
+            targetId={item.activity_id}
+            targetLabel={REPORT_LABEL[item.activity_type] ?? 'post'}
+            authorId={item.user_id}
+            authorName={item.user_username}
+            iconSize={16}
+          />
         </View>
       </View>
 
-      <CommentsSheet
-        activityId={item.activity_id}
-        activityType={item.activity_type}
-        visible={showComments}
-        onClose={() => setShowComments(false)}
-      />
+      {commentsOpened && (
+        <CommentsSheet
+          activityId={item.activity_id}
+          activityType={item.activity_type}
+          visible={showComments}
+          onClose={() => setShowComments(false)}
+        />
+      )}
     </View>
   );
-}
+});
 
 const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   card: {
@@ -329,6 +352,11 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   carouselWrapper: {
     overflow: 'hidden',
     borderRadius: 10,
+    height: 180,
+    backgroundColor: Colors.borderLight,
+  },
+  carouselPhoto: {
+    height: 180,
   },
   dotsRow: {
     flexDirection: 'row',
@@ -359,5 +387,8 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   },
   likedCount: {
     color: '#E53935',
+  },
+  menuBtn: {
+    marginLeft: 'auto',
   },
 });

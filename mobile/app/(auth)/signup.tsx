@@ -14,6 +14,7 @@ import { useColors, ColorPalette } from '../../constants/colors';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
 import { useSignup } from '../../hooks/useAuth';
+import { validatePassword } from '../../utils/passwordRules';
 
 function friendlyAuthError(msg: string): string {
   const m = msg.toLowerCase();
@@ -63,12 +64,9 @@ export default function SignupScreen() {
       setErrorMsg('Username must be at least 3 characters.');
       return;
     }
-    if (password.length < 8) {
-      setErrorMsg('Password must be at least 8 characters.');
-      return;
-    }
-    if (!/[A-Z]/.test(password) || !/[a-z]/.test(password) || !/\d/.test(password)) {
-      setErrorMsg('Password must contain an uppercase letter, a lowercase letter, and a number.');
+    const passwordProblem = validatePassword(password);
+    if (passwordProblem) {
+      setErrorMsg(passwordProblem);
       return;
     }
     signup.mutate(

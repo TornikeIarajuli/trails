@@ -42,15 +42,19 @@ describe('usersService.deleteAccount', () => {
 
 describe('usersService.sendSos', () => {
   it('calls POST /users/me/sos with lat and lng', async () => {
-    mockPost.mockResolvedValueOnce(ok(undefined));
+    mockPost.mockResolvedValueOnce(ok({ sent: true, reason: 'ok', devices: 1 }));
     await usersService.sendSos(41.69, 44.83);
     expect(mockPost).toHaveBeenCalledWith('/users/me/sos', { lat: 41.69, lng: 44.83 });
   });
 
-  it('returns void on success', async () => {
-    mockPost.mockResolvedValueOnce(ok(undefined));
-    const result = await usersService.sendSos(0, 0);
-    expect(result).toBeUndefined();
+  it('returns whether the contact was actually reached', async () => {
+    mockPost.mockResolvedValueOnce(ok({ sent: true, reason: 'ok', devices: 2 }));
+    expect(await usersService.sendSos(0, 0)).toEqual({ sent: true, reason: 'ok', devices: 2 });
+  });
+
+  it('passes on a 2xx that did not reach anyone', async () => {
+    mockPost.mockResolvedValueOnce(ok({ sent: false, reason: 'no_contact', devices: 0 }));
+    expect(await usersService.sendSos(41.69, 44.83)).toEqual({ sent: false, reason: 'no_contact', devices: 0 });
   });
 
   it('propagates a network error', async () => {

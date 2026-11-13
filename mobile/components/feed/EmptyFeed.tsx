@@ -10,14 +10,15 @@ export function EmptyFeed() {
 
   return (
     <View style={styles.container}>
-      <Ionicons name="newspaper-outline" size={56} color={Colors.borderLight} />
+      <Ionicons name="newspaper-outline" size={56} color={Colors.textLight} />
       <Text style={styles.title}>Your feed is empty</Text>
       <Text style={styles.subtitle}>
-        Follow other hikers to see their trail completions, photos, and reports here.
+        Your hikes, photos and trail reports show up here, along with those of the hikers you follow.
       </Text>
       <TouchableOpacity
         style={styles.button}
         onPress={() => router.push('/search')}
+        accessibilityRole="button"
       >
         <Ionicons name="search-outline" size={18} color="#fff" />
         <Text style={styles.buttonText}>Find Hikers</Text>

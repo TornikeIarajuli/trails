@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors, ColorPalette } from '../../constants/colors';
+import { pickMostSevereCondition } from '../../utils/conditions';
 
 interface ConditionItem {
   id: string;
@@ -13,6 +14,8 @@ interface ConditionItem {
 
 interface ConditionsBannerProps {
   conditions: ConditionItem[];
+  /** Number of active reports in total, when `conditions` is only a sample of them. */
+  totalCount?: number;
   onPress: () => void;
 }
 
@@ -39,34 +42,40 @@ const CONDITION_LABELS: Record<string, string> = {
   closed: 'Closed',
 };
 
-export function ConditionsBanner({ conditions, onPress }: ConditionsBannerProps) {
+export function ConditionsBanner({ conditions, totalCount, onPress }: ConditionsBannerProps) {
   const Colors = useColors();
   const styles = useMemo(() => createStyles(Colors), [Colors]);
 
-  if (conditions.length === 0) return null;
+  // The most severe report leads: a fresh "trail clear" must not hide an older "closed"
+  const top = pickMostSevereCondition(conditions);
+  if (!top) return null;
 
-  const latest = conditions[0];
-  const color = SEVERITY_COLORS[latest.severity] ?? SEVERITY_COLORS.info;
-  const icon = SEVERITY_ICONS[latest.severity] ?? 'information-circle';
-  const label = CONDITION_LABELS[latest.condition_type] ?? latest.condition_type;
+  const others = Math.max((totalCount ?? conditions.length) - 1, 0);
+  const color = SEVERITY_COLORS[top.severity] ?? SEVERITY_COLORS.info;
+  const icon = SEVERITY_ICONS[top.severity] ?? 'information-circle';
+  const label = CONDITION_LABELS[top.condition_type] ?? top.condition_type;
 
   return (
     <TouchableOpacity
       style={[styles.banner, { borderLeftColor: color }]}
       onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`Trail condition: ${label}${
+        others > 0 ? `, and ${others} more report${others === 1 ? '' : 's'}` : ''
+      }. View all reports`}
     >
       <View style={styles.row}>
         <Ionicons name={icon as any} size={20} color={color} />
         <View style={styles.textContainer}>
           <Text style={[styles.label, { color }]}>{label}</Text>
-          {latest.description && (
+          {top.description && (
             <Text style={styles.description} numberOfLines={1}>
-              {latest.description}
+              {top.description}
             </Text>
           )}
         </View>
-        {conditions.length > 1 && (
-          <Text style={styles.more}>+{conditions.length - 1} more</Text>
+        {others > 0 && (
+          <Text style={styles.more}>+{others} more</Text>
         )}
         <Ionicons name="chevron-forward" size={16} color={Colors.textLight} />
       </View>

@@ -1,12 +1,14 @@
 import { useEffect, useRef } from 'react';
-import { Platform } from 'react-native';
+import { Linking, Platform } from 'react-native';
 import * as Device from 'expo-device';
 import Constants from 'expo-constants';
 import { router } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { notificationsService } from '../services/notifications';
 import { useAuthStore } from '../store/authStore';
+import { getNotificationTarget, mapLinks } from '../utils/notificationTarget';
 import { queryKeys } from '../utils/queryKeys';
+import { storage } from '../utils/storage';
 
 // expo-notifications remote push is not available in Expo Go (SDK 53+)
 const isExpoGo = Constants.appOwnership === 'expo';
@@ -103,21 +105,41 @@ export function useUpdateNotificationPrefs() {
   });
 }
 
-function navigateFromNotification(data: Record<string, any>) {
-  if (data?.type === 'new_follower' && data.followerId) {
-    router.push(`/trail/user/${data.followerId}`);
-  } else if (data?.type === 'badge_earned') {
-    router.push('/(tabs)/profile/badges');
-  } else if (data?.type === 'sos' && data.userId) {
-    router.push(`/trail/user/${data.userId}`);
-  } else if (data?.type === 'emergency_contact') {
-    router.push('/(tabs)/profile/settings');
-  } else if (data?.type === 'new_comment') {
-    router.push('/(tabs)/community');
-  } else if (data?.type === 'completion_approved') {
-    router.push('/(tabs)/profile/analytics');
-  } else if (data?.type === 'event_invite' && data.eventId) {
-    router.push(`/trail/events/${data.eventId}`);
+async function openInMaps(lat: number, lng: number) {
+  for (const url of mapLinks(lat, lng, Platform.OS)) {
+    try {
+      await Linking.openURL(url);
+      return;
+    } catch {
+      // try the next link
+    }
+  }
+}
+
+/**
+ * Opens what a tapped push notification is about. Uses the same mapping as the
+ * notification list (utils/notificationTarget), so both lead to the same place.
+ */
+export function navigateFromNotification(data: unknown) {
+  const payload = data && typeof data === 'object' ? (data as Record<string, unknown>) : null;
+  const target = getNotificationTarget(null, payload);
+
+  try {
+    if (target.kind === 'route') {
+      // A Profile sub-screen opened on its own (cold start) would have nothing to go
+      // back to; the anchor puts the Profile home underneath it.
+      const options = target.href.startsWith('/(tabs)/profile/') ? { withAnchor: true } : undefined;
+      router.push(target.href as any, options);
+    } else if (target.kind === 'sos') {
+      // Someone asked for help: show where they are, or failing that who they are
+      if (target.lat !== null && target.lng !== null) {
+        void openInMaps(target.lat, target.lng);
+      } else if (target.userId) {
+        router.push(`/trail/user/${target.userId}` as any);
+      }
+    }
+  } catch {
+    // The navigator is not mounted yet; there is nowhere to go
   }
 }
 
@@ -132,7 +154,11 @@ export function useNotificationSetup() {
     // Register push token with backend
     registerForPushNotifications().then((token) => {
       if (token) {
-        notificationsService.registerToken(token).catch(() => {});
+        notificationsService
+          .registerToken(token)
+          // Remembered so that signing out can unregister this device
+          .then(() => storage.setPushToken(token))
+          .catch(() => {});
       }
     });
 

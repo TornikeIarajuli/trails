@@ -5,6 +5,7 @@
 export const queryKeys = {
   // Trails (list, detail, regions, nearby)
   trails: (params?: object) => ['trails', params] as const,
+  trailLists: () => ['trails'] as const,     // wildcard: invalidates every trail list
   trail: {
     detail: (id: string) => ['trail', id] as const,
     root: () => ['trail'] as const,          // wildcard: invalidates all trail details
@@ -27,6 +28,7 @@ export const queryKeys = {
   // Bookmarks
   bookmarks: {
     mine: (page: number) => ['bookmarks', 'me', page] as const,
+    list: (category?: string) => ['bookmarks', 'list', category ?? 'all'] as const,
     check: (trailId: string) => ['bookmarks', 'check', trailId] as const,
     root: () => ['bookmarks'] as const,      // wildcard
   },
@@ -41,6 +43,9 @@ export const queryKeys = {
     trail: (trailId: string) => ['photos', trailId] as const,
     root: () => ['photos'] as const,         // wildcard
   },
+  // Client-side record of the user's own photo likes — deliberately not under 'photos',
+  // so invalidating the photo lists does not reset it
+  photoLikes: () => ['photoLikes'] as const,
 
   // Completions
   completions: {
@@ -66,11 +71,21 @@ export const queryKeys = {
   // Follows
   follows: {
     check: (userId: string) => ['follows', 'check', userId] as const,
-    followers: (userId: string, page: number) => ['follows', 'followers', userId, page] as const,
-    following: (userId: string, page: number) => ['follows', 'following', userId, page] as const,
+    list: (kind: 'followers' | 'following', userId: string) => ['follows', kind, userId] as const,
     counts: (userId: string) => ['follows', 'counts', userId] as const,
     root: () => ['follows'] as const,        // wildcard
     publicProfile: (userId: string) => ['publicProfile', userId] as const,
+  },
+
+  // The signed-in user's emergency contact id
+  emergencyContact: () => ['myEmergencyContact'] as const,
+
+  // User search
+  userSearch: (query: string) => ['userSearch', query] as const,
+
+  // Moderation
+  moderation: {
+    blocks: () => ['moderation', 'blocks'] as const,
   },
 
   // Leaderboard
@@ -112,6 +127,8 @@ export const queryKeys = {
   // Notifications
   notifications: {
     list: (page: number) => ['notifications', 'list', page] as const,
+    feed: () => ['notifications', 'feed'] as const,
+    unreadCount: () => ['notifications', 'unreadCount'] as const,
     prefs: () => ['notifications', 'prefs'] as const,
     root: () => ['notifications'] as const,
   },

@@ -13,10 +13,16 @@ import * as ImagePicker from 'expo-image-picker';
 import { useColors, ColorPalette } from '../../constants/colors';
 import { Avatar } from '../ui/Avatar';
 import { usersService } from '../../services/users';
-import { mediaService } from '../../services/media';
+import { mediaService, describeImageUpload, getUploadErrorMessage } from '../../services/media';
 import { UserProfile } from '../../types/user';
 import { queryKeys } from '../../utils/queryKeys';
 import { getUserTitle } from '../../utils/userTitle';
+import { getErrorMessage } from '../../utils/showError';
+
+// Same limits as the API
+const NAME_MAX = 100;
+const BIO_MAX = 500;
+const CONTACT_MAX = 200;
 
 interface ProfileCardProps {
   profile: UserProfile;
@@ -33,17 +39,15 @@ export function ProfileCard({ profile }: ProfileCardProps) {
   const [editContact, setEditContact] = useState('');
 
   const avatarMutation = useMutation({
-    mutationFn: async (uri: string) => {
-      const fileName = uri.split('/').pop() || 'avatar.jpg';
-      const ext = fileName.split('.').pop()?.toLowerCase();
-      const mimeType = ext === 'png' ? 'image/png' : 'image/jpeg';
-      return mediaService.uploadAvatar(uri, fileName, mimeType);
+    mutationFn: async (asset: ImagePicker.ImagePickerAsset) => {
+      const { fileName, mimeType } = describeImageUpload(asset);
+      return mediaService.uploadAvatar(asset.uri, fileName, mimeType);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.profile.root() });
     },
-    onError: () => {
-      Alert.alert('Error', 'Failed to upload avatar');
+    onError: (err) => {
+      Alert.alert('Upload failed', getUploadErrorMessage(err));
     },
   });
 
@@ -54,8 +58,8 @@ export function ProfileCard({ profile }: ProfileCardProps) {
       queryClient.invalidateQueries({ queryKey: queryKeys.profile.root() });
       setEditing(false);
     },
-    onError: () => {
-      Alert.alert('Error', 'Failed to update profile');
+    onError: (err) => {
+      Alert.alert('Error', getErrorMessage(err, 'Failed to update profile'));
     },
   });
 
@@ -72,7 +76,7 @@ export function ProfileCard({ profile }: ProfileCardProps) {
       quality: 0.7,
     });
     if (!result.canceled && result.assets[0]) {
-      avatarMutation.mutate(result.assets[0].uri);
+      avatarMutation.mutate(result.assets[0]);
     }
   };
 
@@ -84,9 +88,10 @@ export function ProfileCard({ profile }: ProfileCardProps) {
   };
 
   const saveProfile = () => {
+    // Empty strings (not undefined, which the API ignores) so a name or bio can be removed
     profileMutation.mutate({
-      full_name: editName.trim() || undefined,
-      bio: editBio.trim() || undefined,
+      full_name: editName.trim(),
+      bio: editBio.trim(),
       contact_info: editContact.trim() || null,
     });
   };
@@ -96,8 +101,9 @@ export function ProfileCard({ profile }: ProfileCardProps) {
   return (
     <View style={styles.profileCard}>
       <TouchableOpacity onPress={pickAvatar} disabled={avatarMutation.isPending} accessibilityLabel="Change profile photo" accessibilityRole="button">
+        {/* The API versions the avatar URL (?v=n), so it can be cached like any image */}
         <Avatar
-          uri={profile.avatar_url ? `${profile.avatar_url}?t=${Date.now()}` : null}
+          uri={profile.avatar_url}
           name={profile.full_name || profile.username}
           size={80}
         />
@@ -137,6 +143,8 @@ export function ProfileCard({ profile }: ProfileCardProps) {
             placeholderTextColor={Colors.textLight}
             value={editName}
             onChangeText={setEditName}
+            maxLength={NAME_MAX}
+            accessibilityLabel="Full name"
           />
           <TextInput
             style={[styles.editInput, styles.editBioInput]}
@@ -146,6 +154,8 @@ export function ProfileCard({ profile }: ProfileCardProps) {
             onChangeText={setEditBio}
             multiline
             numberOfLines={3}
+            maxLength={BIO_MAX}
+            accessibilityLabel="Bio"
           />
           <TextInput
             style={styles.editInput}
@@ -153,7 +163,8 @@ export function ProfileCard({ profile }: ProfileCardProps) {
             placeholderTextColor={Colors.textLight}
             value={editContact}
             onChangeText={setEditContact}
-            maxLength={100}
+            maxLength={CONTACT_MAX}
+            accessibilityLabel="Contact info"
           />
           <View style={styles.editActions}>
             <TouchableOpacity

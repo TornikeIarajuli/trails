@@ -1,9 +1,11 @@
 import React, { useMemo } from 'react';
-import { View, StyleSheet, Text, Platform } from 'react-native';
+import { View, StyleSheet, Text, Platform, Linking } from 'react-native';
 import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
 import { useColors, ColorPalette } from '../../constants/colors';
 import { Checkpoint } from '../../types/checkpoint';
 import { parseGeoPoint } from '../../utils/geo';
+
+const OSM_COPYRIGHT_URL = 'https://www.openstreetmap.org/copyright';
 
 interface TrailMapProps {
   route?: { latitude: number; longitude: number }[];
@@ -62,35 +64,45 @@ export function TrailMap({
   };
 
   return (
-    <View style={[styles.container, { height }]}>
-      <MapView
-        style={styles.map}
-        provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
-        initialRegion={region}
+    <View>
+      <View style={[styles.container, { height }]}>
+        <MapView
+          style={styles.map}
+          provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
+          initialRegion={region}
+        >
+          {route.length > 1 && (
+            <Polyline
+              coordinates={route}
+              strokeColor={Colors.primary}
+              strokeWidth={3}
+            />
+          )}
+          {startPoint && (
+            <Marker coordinate={startPoint} title="Start" pinColor="green" />
+          )}
+          {endPoint && (
+            <Marker coordinate={endPoint} title="End" pinColor="red" />
+          )}
+          {parsedCheckpoints.map((cp) => (
+            <Marker
+              key={cp.id}
+              coordinate={cp.coord}
+              title={cp.name_en}
+              description={cp.type}
+              pinColor={Colors.accent}
+            />
+          ))}
+        </MapView>
+      </View>
+      {/* The route and checkpoints come from OpenStreetMap (ODbL), which requires this credit */}
+      <Text
+        style={styles.attribution}
+        onPress={() => Linking.openURL(OSM_COPYRIGHT_URL).catch(() => {})}
+        accessibilityRole="link"
       >
-        {route.length > 1 && (
-          <Polyline
-            coordinates={route}
-            strokeColor={Colors.primary}
-            strokeWidth={3}
-          />
-        )}
-        {startPoint && (
-          <Marker coordinate={startPoint} title="Start" pinColor="green" />
-        )}
-        {endPoint && (
-          <Marker coordinate={endPoint} title="End" pinColor="red" />
-        )}
-        {parsedCheckpoints.map((cp) => (
-          <Marker
-            key={cp.id}
-            coordinate={cp.coord}
-            title={cp.name_en}
-            description={cp.type}
-            pinColor={Colors.accent}
-          />
-        ))}
-      </MapView>
+        Map data © OpenStreetMap contributors
+      </Text>
     </View>
   );
 }
@@ -114,5 +126,12 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   placeholderText: {
     color: Colors.textLight,
     fontSize: 14,
+  },
+  attribution: {
+    fontSize: 11,
+    color: Colors.textLight,
+    textAlign: 'right',
+    marginHorizontal: 16,
+    marginTop: 4,
   },
 });

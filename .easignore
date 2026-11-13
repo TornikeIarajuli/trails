@@ -4,3 +4,13 @@ web/
 node_modules/
 nul
 *.svg
+
+# Generated native projects: EAS must run prebuild from mobile/app.json instead.
+# No trailing slash, so the (otherwise empty) directory itself is not uploaded either.
+mobile/android
+mobile/ios
+
+# Not part of the app. This file replaces .gitignore for EAS uploads, so anything
+# that should stay off the build servers has to be listed here as well.
+/content
+/.claude

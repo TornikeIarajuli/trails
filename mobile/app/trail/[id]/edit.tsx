@@ -16,13 +16,34 @@ import * as ImagePicker from 'expo-image-picker';
 import { useColors, ColorPalette } from '../../../constants/colors';
 import { useTrail } from '../../../hooks/useTrails';
 import { trailsService, UpdateTrailData } from '../../../services/trails';
-import { mediaService } from '../../../services/media';
+import {
+  mediaService,
+  describeImageUpload,
+  getUploadErrorMessage,
+} from '../../../services/media';
 import { Input } from '../../../components/ui/Input';
 import { Button } from '../../../components/ui/Button';
 import { LoadingSpinner } from '../../../components/ui/LoadingSpinner';
+import { ErrorState } from '../../../components/ui/ErrorState';
 import { TrailDifficulty, TrailMedia } from '../../../types/trail';
+import { queryKeys } from '../../../utils/queryKeys';
+import { getErrorMessage } from '../../../utils/showError';
+import { buildTrailUpdate, trailToForm, TrailEditForm } from '../../../utils/trailEditForm';
 
 const DIFFICULTIES: TrailDifficulty[] = ['easy', 'medium', 'hard', 'ultra'];
+
+const EMPTY_FORM: TrailEditForm = {
+  nameEn: '',
+  nameKa: '',
+  descEn: '',
+  descKa: '',
+  difficulty: 'medium',
+  region: '',
+  distanceKm: '',
+  elevationGainM: '',
+  estimatedHours: '',
+  coverImageUrl: '',
+};
 
 function DifficultyPicker({
   value,
@@ -43,6 +64,8 @@ function DifficultyPicker({
             key={d}
             style={[styles.difficultyChip, d === value && styles.difficultyChipActive]}
             onPress={() => onChange(d)}
+            accessibilityRole="button"
+            accessibilityState={{ selected: d === value }}
           >
             <Text
               style={[
@@ -88,6 +111,9 @@ function MediaGrid({
                   { text: 'Delete', style: 'destructive', onPress: () => onDelete(m.id) },
                 ]);
               }}
+              hitSlop={6}
+              accessibilityLabel="Delete photo"
+              accessibilityRole="button"
             >
               <Ionicons name="close-circle" size={22} color={Colors.error} />
             </TouchableOpacity>
@@ -97,6 +123,9 @@ function MediaGrid({
           style={styles.addPhotoBtn}
           onPress={onAdd}
           disabled={isUploading}
+          accessibilityLabel={isUploading ? 'Uploading photo' : 'Add photo'}
+          accessibilityRole="button"
+          accessibilityState={{ busy: isUploading, disabled: isUploading }}
         >
           {isUploading ? (
             <ActivityIndicator size="small" color={Colors.primary} />
@@ -117,48 +146,36 @@ export default function TrailEditScreen() {
   const styles = useMemo(() => createStyles(Colors), [Colors]);
   const { id } = useLocalSearchParams<{ id: string }>();
   const queryClient = useQueryClient();
-  const { data: trail, isLoading } = useTrail(id);
+  const { data: trail, isLoading, isError, error, isFetching, refetch, isRefetching } = useTrail(id);
 
-  const [nameEn, setNameEn] = useState('');
-  const [nameKa, setNameKa] = useState('');
-  const [descEn, setDescEn] = useState('');
-  const [descKa, setDescKa] = useState('');
-  const [difficulty, setDifficulty] = useState<TrailDifficulty>('medium');
-  const [region, setRegion] = useState('');
-  const [distanceKm, setDistanceKm] = useState('');
-  const [elevationGainM, setElevationGainM] = useState('');
-  const [estimatedHours, setEstimatedHours] = useState('');
-  const [coverImageUrl, setCoverImageUrl] = useState('');
+  const [form, setForm] = useState<TrailEditForm>(EMPTY_FORM);
+  const [initialised, setInitialised] = useState(false);
   const [localMedia, setLocalMedia] = useState<TrailMedia[]>([]);
   const [photosChanged, setPhotosChanged] = useState(false);
 
+  const setField = <K extends keyof TrailEditForm>(key: K, value: TrailEditForm[K]) =>
+    setForm((prev) => ({ ...prev, [key]: value }));
+
+  // Fill the form once, from up-to-date data. Later refetches (after a photo upload,
+  // on reconnect, when the app returns to the foreground…) must not wipe what was typed.
   useEffect(() => {
-    if (trail) {
-      setNameEn(trail.name_en || '');
-      setNameKa(trail.name_ka || '');
-      setDescEn(trail.description_en || '');
-      setDescKa(trail.description_ka || '');
-      setDifficulty(trail.difficulty);
-      setRegion(trail.region || '');
-      setDistanceKm(trail.distance_km?.toString() || '');
-      setElevationGainM(trail.elevation_gain_m?.toString() || '');
-      setEstimatedHours(trail.estimated_hours?.toString() || '');
-      setCoverImageUrl(trail.cover_image_url || '');
-      setLocalMedia(trail.media || []);
-    }
-  }, [trail]);
+    if (!trail || initialised || isFetching) return;
+    setForm(trailToForm(trail));
+    setLocalMedia(trail.media ?? []);
+    setInitialised(true);
+  }, [trail, initialised, isFetching]);
 
   const updateMutation = useMutation({
     mutationFn: (data: UpdateTrailData) => trailsService.updateTrail(id, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['trail', id] });
-      queryClient.invalidateQueries({ queryKey: ['trails'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.trail.detail(id) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.trailLists() });
       Alert.alert('Saved', 'Trail updated successfully.', [
         { text: 'OK', onPress: () => router.back() },
       ]);
     },
-    onError: (err: Error) => {
-      Alert.alert('Error', err.message || 'Failed to update trail');
+    onError: (err) => {
+      Alert.alert('Error', getErrorMessage(err, 'Failed to update trail'));
     },
   });
 
@@ -167,30 +184,34 @@ export default function TrailEditScreen() {
     onSuccess: (_data, mediaId) => {
       setLocalMedia((prev) => prev.filter((m) => m.id !== mediaId));
       setPhotosChanged(true);
-      queryClient.invalidateQueries({ queryKey: ['trail', id] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.trail.detail(id) });
     },
-    onError: (err: Error) => {
-      Alert.alert('Error', err.message || 'Failed to delete photo');
+    onError: (err) => {
+      Alert.alert('Error', getErrorMessage(err, 'Failed to delete photo'));
     },
   });
 
+  // Trail gallery photos go to the admin endpoint (`trail_media`), not to the
+  // community photo endpoint — that one files them under "Community Photos".
   const uploadMediaMutation = useMutation({
-    mutationFn: async (uri: string) => {
-      const fileName = uri.split('/').pop() || 'photo.jpg';
-      const ext = fileName.split('.').pop()?.toLowerCase();
-      const mimeType = ext === 'png' ? 'image/png' : 'image/jpeg';
-      return mediaService.uploadHikePhoto(id, uri, fileName, mimeType);
+    mutationFn: (asset: ImagePicker.ImagePickerAsset) => {
+      const { fileName, mimeType } = describeImageUpload(asset);
+      return mediaService.uploadTrailMedia(id, asset.uri, fileName, mimeType);
     },
-    onSuccess: () => {
+    onSuccess: (media) => {
+      if (media?.id) {
+        setLocalMedia((prev) => (prev.some((m) => m.id === media.id) ? prev : [...prev, media]));
+      }
       setPhotosChanged(true);
-      queryClient.invalidateQueries({ queryKey: ['trail', id] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.trail.detail(id) });
     },
-    onError: (err: Error) => {
-      Alert.alert('Error', err.message || 'Failed to upload photo');
+    onError: (err) => {
+      Alert.alert('Upload failed', getUploadErrorMessage(err));
     },
   });
 
   const pickPhoto = async () => {
+    if (uploadMediaMutation.isPending) return;
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
       Alert.alert('Permission needed', 'Please allow access to your photos');
@@ -204,29 +225,19 @@ export default function TrailEditScreen() {
     });
 
     if (!result.canceled && result.assets[0]) {
-      uploadMediaMutation.mutate(result.assets[0].uri);
+      uploadMediaMutation.mutate(result.assets[0]);
     }
   };
 
   const handleSave = () => {
-    const data: UpdateTrailData = {};
+    if (!trail) return;
+    const result = buildTrailUpdate(trail, form);
+    if (!result.ok) {
+      Alert.alert('Check the form', result.error);
+      return;
+    }
 
-    if (nameEn !== trail?.name_en) data.name_en = nameEn;
-    if (nameKa !== (trail?.name_ka || '')) data.name_ka = nameKa || undefined;
-    if (descEn !== (trail?.description_en || '')) data.description_en = descEn || undefined;
-    if (descKa !== (trail?.description_ka || '')) data.description_ka = descKa || undefined;
-    if (difficulty !== trail?.difficulty) data.difficulty = difficulty;
-    if (region !== (trail?.region || '')) data.region = region;
-    if (distanceKm !== (trail?.distance_km?.toString() || ''))
-      data.distance_km = distanceKm ? parseFloat(distanceKm) : undefined;
-    if (elevationGainM !== (trail?.elevation_gain_m?.toString() || ''))
-      data.elevation_gain_m = elevationGainM ? parseInt(elevationGainM, 10) : undefined;
-    if (estimatedHours !== (trail?.estimated_hours?.toString() || ''))
-      data.estimated_hours = estimatedHours ? parseFloat(estimatedHours) : undefined;
-    if (coverImageUrl !== (trail?.cover_image_url || ''))
-      data.cover_image_url = coverImageUrl || undefined;
-
-    if (Object.keys(data).length === 0) {
+    if (Object.keys(result.data).length === 0) {
       if (photosChanged) {
         Alert.alert('Saved', 'Photo changes saved successfully.', [
           { text: 'OK', onPress: () => router.back() },
@@ -237,36 +248,81 @@ export default function TrailEditScreen() {
       return;
     }
 
-    updateMutation.mutate(data);
+    updateMutation.mutate(result.data);
   };
 
-  if (isLoading || !trail) return <LoadingSpinner />;
+  const header = (
+    <Stack.Screen
+      options={{
+        headerShown: true,
+        title: 'Edit Trail',
+        headerStyle: { backgroundColor: Colors.background },
+        headerTintColor: Colors.text,
+        headerTitleStyle: { color: Colors.text },
+        headerShadowVisible: false,
+      }}
+    />
+  );
+
+  if (!trail) {
+    return (
+      <>
+        {header}
+        {isLoading ? (
+          <LoadingSpinner />
+        ) : (
+          <ErrorState
+            error={error}
+            title="Couldn't load this trail"
+            onRetry={() => refetch()}
+            retrying={isRefetching}
+          />
+        )}
+      </>
+    );
+  }
+
+  if (!initialised) {
+    return (
+      <>
+        {header}
+        <LoadingSpinner />
+      </>
+    );
+  }
 
   return (
     <>
-      <Stack.Screen
-        options={{
-          headerShown: true,
-          title: 'Edit Trail',
-          headerStyle: { backgroundColor: Colors.background },
-          headerTintColor: Colors.text,
-          headerTitleStyle: { color: Colors.text },
-          headerShadowVisible: false,
-        }}
-      />
+      {header}
       <ScrollView
         style={styles.container}
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
       >
-        <Input label="Name (English)" value={nameEn} onChangeText={setNameEn} />
-        <Input label="Name (Georgian)" value={nameKa} onChangeText={setNameKa} />
+        {isError && (
+          <ErrorState
+            compact
+            error={error}
+            message="Couldn't refresh this trail — you are editing the last saved copy."
+            onRetry={() => refetch()}
+            retrying={isRefetching}
+            style={styles.staleNotice}
+          />
+        )}
+
+        <Input
+          label="Name (English)"
+          value={form.nameEn}
+          onChangeText={(v) => setField('nameEn', v)}
+          error={form.nameEn.trim() ? undefined : 'Required'}
+        />
+        <Input label="Name (Georgian)" value={form.nameKa} onChangeText={(v) => setField('nameKa', v)} />
 
         <View style={styles.fieldContainer}>
           <Text style={styles.fieldLabel}>Description (English)</Text>
           <Input
-            value={descEn}
-            onChangeText={setDescEn}
+            value={form.descEn}
+            onChangeText={(v) => setField('descEn', v)}
             multiline
             numberOfLines={4}
             style={styles.multilineInput}
@@ -276,40 +332,45 @@ export default function TrailEditScreen() {
         <View style={styles.fieldContainer}>
           <Text style={styles.fieldLabel}>Description (Georgian)</Text>
           <Input
-            value={descKa}
-            onChangeText={setDescKa}
+            value={form.descKa}
+            onChangeText={(v) => setField('descKa', v)}
             multiline
             numberOfLines={4}
             style={styles.multilineInput}
           />
         </View>
 
-        <DifficultyPicker value={difficulty} onChange={setDifficulty} />
+        <DifficultyPicker value={form.difficulty} onChange={(d) => setField('difficulty', d)} />
 
-        <Input label="Region" value={region} onChangeText={setRegion} />
+        <Input
+          label="Region"
+          value={form.region}
+          onChangeText={(v) => setField('region', v)}
+          error={form.region.trim() ? undefined : 'Required'}
+        />
 
         <View style={styles.row}>
           <View style={styles.rowItem}>
             <Input
               label="Distance (km)"
-              value={distanceKm}
-              onChangeText={setDistanceKm}
+              value={form.distanceKm}
+              onChangeText={(v) => setField('distanceKm', v)}
               keyboardType="decimal-pad"
             />
           </View>
           <View style={styles.rowItem}>
             <Input
               label="Elevation (m)"
-              value={elevationGainM}
-              onChangeText={setElevationGainM}
+              value={form.elevationGainM}
+              onChangeText={(v) => setField('elevationGainM', v)}
               keyboardType="number-pad"
             />
           </View>
           <View style={styles.rowItem}>
             <Input
               label="Hours"
-              value={estimatedHours}
-              onChangeText={setEstimatedHours}
+              value={form.estimatedHours}
+              onChangeText={(v) => setField('estimatedHours', v)}
               keyboardType="decimal-pad"
             />
           </View>
@@ -317,14 +378,14 @@ export default function TrailEditScreen() {
 
         <Input
           label="Cover Image URL"
-          value={coverImageUrl}
-          onChangeText={setCoverImageUrl}
+          value={form.coverImageUrl}
+          onChangeText={(v) => setField('coverImageUrl', v)}
           autoCapitalize="none"
           keyboardType="url"
         />
 
-        {coverImageUrl ? (
-          <Image source={{ uri: coverImageUrl }} style={styles.coverPreview} cachePolicy="memory-disk" />
+        {form.coverImageUrl.trim() ? (
+          <Image source={{ uri: form.coverImageUrl.trim() }} style={styles.coverPreview} cachePolicy="memory-disk" />
         ) : null}
 
         <MediaGrid
@@ -359,6 +420,9 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   content: {
     padding: 16,
     paddingBottom: 40,
+  },
+  staleNotice: {
+    marginBottom: 16,
   },
   fieldContainer: {
     marginBottom: 16,

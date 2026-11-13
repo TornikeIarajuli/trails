@@ -11,10 +11,10 @@ import {
 import { useLocalSearchParams, router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import * as ImagePicker from 'expo-image-picker';
 import { useColors, ColorPalette } from '../../../constants/colors';
 import { useTrail } from '../../../hooks/useTrails';
 import { useAuthStore } from '../../../store/authStore';
+import { useHikeStore } from '../../../store/hikeStore';
 import { useSettingsStore } from '../../../store/settingsStore';
 import { TrailPhotoCarousel } from '../../../components/trail/TrailPhotoCarousel';
 import { DifficultyBadge } from '../../../components/trail/DifficultyBadge';
@@ -28,12 +28,13 @@ import { ConditionsBanner } from '../../../components/trail/ConditionsBanner';
 import { CommunityPhotos } from '../../../components/trail/CommunityPhotos';
 import { ReportConditionModal } from '../../../components/community/ReportConditionModal';
 import { LoadingSpinner } from '../../../components/ui/LoadingSpinner';
+import { ErrorState } from '../../../components/ui/ErrorState';
 import { Button } from '../../../components/ui/Button';
 import { parseGeoPoint, parseGeoLineString } from '../../../utils/geo';
-import { mediaService } from '../../../services/media';
-import { useUploadPhoto } from '../../../hooks/useCommunity';
+import { useAddTrailPhoto, useTrailConditions } from '../../../hooks/useCommunity';
 import { useTrailReviews } from '../../../hooks/useReviews';
 import { useActiveHikerCount } from '../../../hooks/useCompletions';
+import { useWithoutBlocked } from '../../../hooks/useModeration';
 import { ReviewsList } from '../../../components/trail/ReviewsList';
 import { WriteReviewModal } from '../../../components/trail/WriteReviewModal';
 import { WeatherCard } from '../../../components/trail/WeatherCard';
@@ -50,19 +51,32 @@ export default function TrailDetailScreen() {
   const language = useSettingsStore((s) => s.language);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const isAdmin = useAuthStore((s) => s.isAdmin);
-  const { data: trail, isLoading, refetch: refetchTrail } = useTrail(id);
+  const hikeIsActive = useHikeStore((s) => s.isActive);
+  const hikeTrailId = useHikeStore((s) => s.trailId);
+  const {
+    data: trail,
+    isLoading,
+    isError,
+    error,
+    refetch: refetchTrail,
+    isRefetching,
+  } = useTrail(id);
   const [conditionModalVisible, setConditionModalVisible] = useState(false);
   const [reviewModalVisible, setReviewModalVisible] = useState(false);
-  const uploadPhotoMutation = useUploadPhoto();
-  const { data: reviews = [], refetch: refetchReviews } = useTrailReviews(id);
+  const { addPhoto, isUploading } = useAddTrailPhoto(id);
+  const reviewsQuery = useTrailReviews(id);
+  const reviews = useWithoutBlocked(reviewsQuery.data, (review) => review.user_id);
+  const refetchReviews = reviewsQuery.refetch;
+  // The trail payload only carries its three newest reports; the banner needs all of them
+  const { data: allConditions, refetch: refetchConditions } = useTrailConditions(id);
   const { data: activeCount, refetch: refetchCount } = useActiveHikerCount(id);
 
   const [refreshing, setRefreshing] = useState(false);
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await Promise.all([refetchTrail(), refetchReviews(), refetchCount()]);
+    await Promise.all([refetchTrail(), refetchReviews(), refetchCount(), refetchConditions()]);
     setRefreshing(false);
-  }, [refetchTrail, refetchReviews, refetchCount]);
+  }, [refetchTrail, refetchReviews, refetchCount, refetchConditions]);
 
   const [isSavedOffline, setIsSavedOffline] = useState(() =>
     trailCache.isTrailSavedOffline(id),
@@ -89,38 +103,66 @@ export default function TrailDetailScreen() {
     }
   };
 
-  if (isLoading || !trail) return <LoadingSpinner />;
+  if (!trail) {
+    if (isLoading) return <LoadingSpinner />;
+    return (
+      <ErrorState
+        error={error}
+        title="Couldn't load this trail"
+        onRetry={() => refetchTrail()}
+        retrying={isRefetching}
+        showBack
+      />
+    );
+  }
 
   const name = localName(trail.name_en, trail.name_ka, language);
   const description =
     language === 'ka' && trail.description_ka
       ? trail.description_ka
       : trail.description_en;
+  const checkpoints = trail.checkpoints ?? [];
+  const conditions = allConditions ?? trail.recent_conditions ?? [];
+  const conditionsTotal = allConditions ? allConditions.length : trail.conditions_count;
 
-  const handleAddPhoto = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Permission needed', 'Please allow access to your photos');
+  const resumingThisHike = hikeIsActive && hikeTrailId === id;
+  const otherActiveHikeTrailId = hikeIsActive && hikeTrailId && hikeTrailId !== id ? hikeTrailId : null;
+
+  const openHike = () => router.push(`/trail/${id}/hike`);
+
+  const handleStartHike = () => {
+    if (!isAuthenticated) {
+      router.push('/(auth)/login');
       return;
     }
 
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      quality: 0.8,
-    });
-
-    if (!result.canceled && result.assets[0]) {
-      try {
-        const asset = result.assets[0];
-        const fileName = asset.uri.split('/').pop() || 'photo.jpg';
-        const ext = fileName.split('.').pop()?.toLowerCase();
-        const mimeType = ext === 'png' ? 'image/png' : 'image/jpeg';
-        const { url } = await mediaService.uploadHikePhoto(id, asset.uri, fileName, mimeType);
-        uploadPhotoMutation.mutate({ trail_id: id, url });
-      } catch {
-        Alert.alert('Error', 'Failed to upload photo');
-      }
+    // One hike at a time: opening a second hike screen would keep recording the
+    // first hike but file it under this trail.
+    if (otherActiveHikeTrailId) {
+      Alert.alert(
+        'Hike in progress',
+        'You are already recording a hike on another trail. End or discard it before starting a new one.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Open active hike',
+            onPress: () => router.push(`/trail/${otherActiveHikeTrailId}/hike`),
+          },
+        ],
+      );
+      return;
     }
+
+    if (trail.status === 'closed' && !resumingThisHike) {
+      const note = trail.status_note?.trim() || 'This trail is currently marked as closed.';
+      Alert.alert('Trail closed', `${note}\n\nStart a hike here anyway?`, [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Start anyway', style: 'destructive', onPress: openHike },
+      ]);
+      return;
+    }
+
+    openHike();
   };
 
   return (
@@ -136,7 +178,7 @@ export default function TrailDetailScreen() {
           />
         }
       >
-        <TrailPhotoCarousel coverUrl={trail.cover_image_url} media={trail.media} />
+        <TrailPhotoCarousel coverUrl={trail.cover_image_url} media={trail.media ?? []} trailId={id} />
 
         {/* Back button overlay */}
         <TouchableOpacity
@@ -144,6 +186,7 @@ export default function TrailDetailScreen() {
           onPress={() => router.back()}
           accessibilityLabel="Go back"
           accessibilityRole="button"
+          testID="back-button"
         >
           <Ionicons name="arrow-back" size={24} color={Colors.text} />
         </TouchableOpacity>
@@ -170,6 +213,18 @@ export default function TrailDetailScreen() {
             </TouchableOpacity>
           )}
         </View>
+
+        {/* The refresh failed but an earlier copy is on screen — say so, conditions may have changed */}
+        {isError && (
+          <ErrorState
+            compact
+            error={error}
+            message="Couldn't refresh this trail — showing the last saved copy."
+            onRetry={() => refetchTrail()}
+            retrying={isRefetching}
+            style={styles.staleNotice}
+          />
+        )}
 
         {trail.status && trail.status !== 'open' && (
           <View style={[styles.statusBanner, STATUS_BANNER_BG[trail.status]]}>
@@ -203,11 +258,13 @@ export default function TrailDetailScreen() {
             estimatedHours={trail.estimated_hours}
           />
 
-          {trail.avg_rating !== null && (
+          {trail.avg_rating != null && (
             <View style={styles.ratingRow}>
               <Ionicons name="star" size={18} color="#FFB800" />
               <Text style={styles.rating}>{trail.avg_rating}</Text>
-              <Text style={styles.reviewCount}>({trail.review_count} reviews)</Text>
+              <Text style={styles.reviewCount}>
+                ({trail.review_count} review{trail.review_count === 1 ? '' : 's'})
+              </Text>
             </View>
           )}
 
@@ -225,14 +282,15 @@ export default function TrailDetailScreen() {
 
           {/* Elevation Profile */}
           <ElevationProfile
-            checkpoints={trail.checkpoints}
+            checkpoints={checkpoints}
             distanceKm={trail.distance_km}
           />
 
           {/* Conditions Banner */}
-          {trail.recent_conditions && trail.recent_conditions.length > 0 && (
+          {conditions.length > 0 && (
             <ConditionsBanner
-              conditions={trail.recent_conditions}
+              conditions={conditions}
+              totalCount={conditionsTotal}
               onPress={() => router.push(`/trail/${id}/conditions`)}
             />
           )}
@@ -243,6 +301,7 @@ export default function TrailDetailScreen() {
               style={styles.reportLink}
               onPress={() => setConditionModalVisible(true)}
               activeOpacity={0.7}
+              accessibilityRole="button"
             >
               <Ionicons name="flag-outline" size={18} color={Colors.primary} />
               <Text style={styles.reportLinkText}>Report Trail Condition</Text>
@@ -258,16 +317,17 @@ export default function TrailDetailScreen() {
             route={parseGeoLineString(trail.route)}
             startPoint={parseGeoPoint(trail.start_point) ?? undefined}
             endPoint={parseGeoPoint(trail.end_point) ?? undefined}
-            checkpoints={trail.checkpoints}
+            checkpoints={checkpoints}
             height={220}
           />
 
-          <CheckpointList checkpoints={trail.checkpoints} />
+          <CheckpointList checkpoints={checkpoints} />
 
           {/* Upcoming Group Hikes */}
           <TouchableOpacity
             style={styles.sectionLink}
             onPress={() => router.push(`/trail/${id}/events` as any)}
+            accessibilityRole="button"
           >
             <Ionicons name="people-outline" size={18} color={Colors.primary} />
             <Text style={styles.sectionLinkText}>Upcoming Group Hikes</Text>
@@ -279,7 +339,8 @@ export default function TrailDetailScreen() {
             trailId={id}
             photosCount={trail.photos_count}
             onViewAll={() => router.push(`/trail/${id}/photos`)}
-            onAddPhoto={handleAddPhoto}
+            onAddPhoto={addPhoto}
+            isUploading={isUploading}
           />
 
           {/* Reviews */}
@@ -287,6 +348,9 @@ export default function TrailDetailScreen() {
             reviews={reviews}
             trailId={id}
             onWriteReview={() => setReviewModalVisible(true)}
+            isError={reviewsQuery.isError}
+            error={reviewsQuery.error}
+            onRetry={() => refetchReviews()}
           />
         </View>
       </ScrollView>
@@ -294,14 +358,10 @@ export default function TrailDetailScreen() {
       {/* Start Hike button */}
       <View style={[styles.bottomBar, { paddingBottom: insets.bottom + 8 }]}>
         <Button
-          title={isAuthenticated ? 'Start Hike' : 'Log in to Start'}
-          onPress={() => {
-            if (isAuthenticated) {
-              router.push(`/trail/${id}/hike`);
-            } else {
-              router.push('/(auth)/login');
-            }
-          }}
+          title={
+            !isAuthenticated ? 'Log in to Start' : resumingThisHike ? 'Resume Hike' : 'Start Hike'
+          }
+          onPress={handleStartHike}
         />
       </View>
 
@@ -468,6 +528,10 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     fontSize: 14,
     color: '#16A34A',
     fontWeight: '600',
+  },
+  staleNotice: {
+    marginHorizontal: 16,
+    marginTop: 12,
   },
   statusBanner: {
     flexDirection: 'row',

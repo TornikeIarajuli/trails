@@ -6,6 +6,8 @@ import { Ionicons } from '@expo/vector-icons';
 import Animated, { useSharedValue, useAnimatedStyle, useReducedMotion, withSpring } from 'react-native-reanimated';
 import { useColors, ColorPalette } from '../../constants/colors';
 import { useNetworkStatus } from '../../hooks/useNetworkStatus';
+import { useUnreadNotificationCount } from '../../hooks/useNotificationCenter';
+import { useAuthStore } from '../../store/authStore';
 
 type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -77,6 +79,8 @@ function Header() {
   const Colors = useColors();
   const styles = useMemo(() => createStyles(Colors), [Colors]);
   const networkQuality = useNetworkStatus();
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const unreadCount = useUnreadNotificationCount();
 
   const bannerConfig = networkQuality === 'offline'
     ? { icon: 'cloud-offline-outline' as const, text: "You're offline — showing cached data", color: '#C62828' }
@@ -88,14 +92,34 @@ function Header() {
     <View>
       <View style={[styles.header, { paddingTop: insets.top + 6 }]}>
         <Text style={styles.appTitle}>Mikiri Trails</Text>
-        <Pressable
-          onPress={() => router.push('/search')}
-          accessibilityLabel="Search"
-          accessibilityRole="button"
-          style={styles.searchButton}
-        >
-          <Ionicons name="search-outline" size={20} color={Colors.textSecondary} />
-        </Pressable>
+        <View style={styles.headerActions}>
+          {isAuthenticated && (
+            <Pressable
+              // withAnchor: the screen lives in the Profile stack, which needs its home underneath
+              onPress={() => router.push('/(tabs)/profile/notifications' as any, { withAnchor: true })}
+              accessibilityLabel={
+                unreadCount > 0 ? `Notifications, ${unreadCount} unread` : 'Notifications'
+              }
+              accessibilityRole="button"
+              style={styles.searchButton}
+            >
+              <Ionicons name="notifications-outline" size={20} color={Colors.textSecondary} />
+              {unreadCount > 0 && (
+                <View style={styles.badge}>
+                  <Text style={styles.badgeText}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
+                </View>
+              )}
+            </Pressable>
+          )}
+          <Pressable
+            onPress={() => router.push('/search')}
+            accessibilityLabel="Find hikers"
+            accessibilityRole="button"
+            style={styles.searchButton}
+          >
+            <Ionicons name="search-outline" size={20} color={Colors.textSecondary} />
+          </Pressable>
+        </View>
       </View>
       {bannerConfig && (
         <View style={[styles.offlineBanner, { backgroundColor: bannerConfig.color }]}>
@@ -178,6 +202,11 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     fontWeight: '800',
     color: Colors.primary,
   },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   searchButton: {
     width: 36,
     height: 36,
@@ -185,6 +214,23 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: Colors.background,
+  },
+  badge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    paddingHorizontal: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.error,
+  },
+  badgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#fff',
   },
   tabBar: {
     flexDirection: 'row',

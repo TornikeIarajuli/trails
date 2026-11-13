@@ -8,8 +8,10 @@ import {
 } from 'react-native';
 import { useColors, ColorPalette } from '../../../constants/colors';
 import { useFeed } from '../../../hooks/useFeed';
+import { useWithoutBlocked } from '../../../hooks/useModeration';
 import { ActivityCard } from '../../../components/feed/ActivityCard';
 import { EmptyFeed } from '../../../components/feed/EmptyFeed';
+import { ErrorState } from '../../../components/ui/ErrorState';
 import { LoadingSpinner } from '../../../components/ui/LoadingSpinner';
 import { FeedItemSkeleton } from '../../../components/ui/Skeleton';
 import { FeedItem } from '../../../types/feed';
@@ -23,6 +25,8 @@ export default function FeedScreen() {
   const {
     data,
     isLoading,
+    isError,
+    error,
     isRefetching,
     refetch,
     fetchNextPage,
@@ -30,7 +34,17 @@ export default function FeedScreen() {
     isFetchingNextPage,
   } = useFeed();
 
-  const items: FeedItem[] = data?.pages.flatMap((page) => page.data) ?? [];
+  const loadedItems = useMemo(() => {
+    const seen = new Set<string>();
+    return (data?.pages.flatMap((page) => page.data) ?? []).filter((item: FeedItem) => {
+      const key = `${item.activity_type}-${item.activity_id}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [data]);
+  // The API already leaves out blocked users; this also covers the moment right after blocking
+  const items = useWithoutBlocked(loadedItems, (item) => item.user_id);
 
   if (isLoading) {
     return (
@@ -39,6 +53,20 @@ export default function FeedScreen() {
         {Array.from({ length: SKELETON_COUNT }).map((_, i) => (
           <FeedItemSkeleton key={i} />
         ))}
+      </View>
+    );
+  }
+
+  if (isError && items.length === 0) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.screenTitle}>Activity Feed</Text>
+        <ErrorState
+          error={error}
+          title="Couldn't load your feed"
+          onRetry={() => refetch()}
+          retrying={isRefetching}
+        />
       </View>
     );
   }

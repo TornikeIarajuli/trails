@@ -25,7 +25,13 @@ export function Input({ label, error, style, secureTextEntry, ...props }: InputP
           {...props}
         />
         {isPassword && (
-          <TouchableOpacity style={styles.toggle} onPress={() => setHidden(!hidden)}>
+          <TouchableOpacity
+            style={styles.toggle}
+            onPress={() => setHidden(!hidden)}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel={hidden ? 'Show password' : 'Hide password'}
+          >
             <Ionicons name={hidden ? 'eye-off-outline' : 'eye-outline'} size={22} color={Colors.textSecondary} />
           </TouchableOpacity>
         )}

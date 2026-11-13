@@ -2,6 +2,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { completionsService } from '../services/completions';
 import { showError } from '../utils/showError';
 import { queryKeys } from '../utils/queryKeys';
+import { invalidateAfterHikeRecorded } from '../utils/hikeSync';
+import { buildRecordHikePayload } from '../utils/track';
+import { PendingCompletion } from '../types/completion';
 import api from '../services/api';
 
 export function useMyCompletions() {
@@ -40,15 +43,12 @@ export function useSubmitCompletion() {
 export function useRecordHike() {
   const queryClient = useQueryClient();
 
+  // No onError here: the hike screen decides between queueing the hike for later
+  // and showing the server's refusal, and a second generic alert would hide that.
   return useMutation({
-    mutationFn: (data: { trailId: string; elapsedSeconds?: number }) =>
-      completionsService.recordHike(data.trailId, data.elapsedSeconds),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.completions.root() });
-      queryClient.invalidateQueries({ queryKey: queryKeys.profile.root() });
-      queryClient.invalidateQueries({ queryKey: queryKeys.feed() });
-    },
-    onError: (err) => showError(err),
+    mutationFn: (completion: PendingCompletion) =>
+      completionsService.recordHike(buildRecordHikePayload(completion)),
+    onSuccess: () => invalidateAfterHikeRecorded(queryClient),
   });
 }
 

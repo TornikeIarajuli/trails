@@ -1,5 +1,5 @@
 import api from './api';
-import { UserProfile, PublicProfile, LeaderboardEntry } from '../types/user';
+import { UserProfile, PublicProfile, LeaderboardEntry, SosResult } from '../types/user';
 
 export const usersService = {
   async getMyProfile(): Promise<UserProfile> {
@@ -56,7 +56,9 @@ export const usersService = {
     await api.delete('/users/me');
   },
 
-  async sendSos(lat: number, lng: number): Promise<void> {
-    await api.post('/users/me/sos', { lat, lng });
+  /** Alerts the emergency contact. A 2xx alone does not mean anyone was reached — check `sent`. */
+  async sendSos(lat: number, lng: number): Promise<SosResult> {
+    const response = await api.post('/users/me/sos', { lat, lng });
+    return response.data;
   },
 };

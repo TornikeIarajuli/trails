@@ -7,23 +7,28 @@ import {
   StyleSheet,
   ActivityIndicator,
   RefreshControl,
+  Alert,
+  Linking,
+  Platform,
 } from 'react-native';
 import { Stack, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors, ColorPalette } from '../../../constants/colors';
-import {
-  useNotificationList,
-  useMarkRead,
-  useMarkAllRead,
-} from '../../../hooks/useNotifications';
+import { useMarkRead, useMarkAllRead } from '../../../hooks/useNotifications';
+import { useNotificationFeed } from '../../../hooks/useNotificationCenter';
 import { AppNotification } from '../../../services/notifications';
+import { ErrorState } from '../../../components/ui/ErrorState';
+import { getNotificationTarget, mapLinks } from '../../../utils/notificationTarget';
 
 const TYPE_CONFIG: Record<string, { icon: string; color: string; bg: string }> = {
   badge_earned:        { icon: 'medal',              color: '#F59E0B', bg: '#FEF3C7' },
   completion_approved: { icon: 'checkmark-circle',   color: '#16A34A', bg: '#DCFCE7' },
   new_follower:        { icon: 'person-add',          color: '#3B82F6', bg: '#DBEAFE' },
+  new_comment:         { icon: 'chatbubble',          color: '#0EA5E9', bg: '#E0F2FE' },
   event_invite:        { icon: 'calendar',            color: '#8B5CF6', bg: '#EDE9FE' },
-  trail_condition:     { icon: 'warning',             color: '#D97706', bg: '#FEF3C7' },
+  event_update:        { icon: 'calendar',            color: '#8B5CF6', bg: '#EDE9FE' },
+  emergency_contact:   { icon: 'shield-checkmark',    color: '#DC2626', bg: '#FEE2E2' },
+  sos:                 { icon: 'alert-circle',        color: '#DC2626', bg: '#FEE2E2' },
   general:             { icon: 'notifications',       color: '#6B7280', bg: '#F3F4F6' },
 };
 
@@ -39,6 +44,46 @@ function timeAgo(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString();
 }
 
+async function openInMaps(lat: number, lng: number) {
+  for (const url of mapLinks(lat, lng, Platform.OS)) {
+    try {
+      await Linking.openURL(url);
+      return;
+    } catch {
+      // try the next link
+    }
+  }
+  Alert.alert('Could not open maps', `The location is ${lat.toFixed(5)}, ${lng.toFixed(5)}.`);
+}
+
+function openNotification(item: AppNotification) {
+  const target = getNotificationTarget(item.type, item.data);
+
+  if (target.kind === 'route') {
+    router.push(target.href as any);
+    return;
+  }
+
+  if (target.kind === 'sos') {
+    const { lat, lng, userId } = target;
+    const buttons: { text: string; style?: 'cancel'; onPress?: () => void }[] = [];
+    if (lat !== null && lng !== null) {
+      buttons.push({ text: 'Open location in Maps', onPress: () => openInMaps(lat, lng) });
+    }
+    if (userId) {
+      buttons.push({ text: 'View profile', onPress: () => router.push(`/trail/user/${userId}` as any) });
+    }
+    buttons.push({ text: 'Close', style: 'cancel' });
+    Alert.alert(
+      item.title || 'SOS',
+      lat !== null && lng !== null
+        ? `${item.body}\n\nLocation: ${lat.toFixed(5)}, ${lng.toFixed(5)}\n\nIf they may be in danger, call 112.`
+        : `${item.body}\n\nIf they may be in danger, call 112.`,
+      buttons,
+    );
+  }
+}
+
 function NotificationRow({
   item,
   onPress,
@@ -52,12 +97,15 @@ function NotificationRow({
 }) {
   const cfg = TYPE_CONFIG[item.type] ?? TYPE_CONFIG.general;
   const isUnread = !item.read_at;
+  const actionable = getNotificationTarget(item.type, item.data).kind !== 'none';
 
   return (
     <TouchableOpacity
       style={[styles.row, isUnread && { backgroundColor: Colors.primary + '08' }]}
       onPress={onPress}
       activeOpacity={0.7}
+      accessibilityRole="button"
+      accessibilityLabel={`${isUnread ? 'Unread. ' : ''}${item.title}. ${item.body}`}
     >
       {isUnread && <View style={styles.unreadBar} />}
       <View style={[styles.iconWrap, { backgroundColor: cfg.bg }]}>
@@ -72,6 +120,7 @@ function NotificationRow({
         </View>
         <Text style={styles.body} numberOfLines={2}>{item.body}</Text>
       </View>
+      {actionable && <Ionicons name="chevron-forward" size={16} color={Colors.textLight} />}
     </TouchableOpacity>
   );
 }
@@ -80,12 +129,100 @@ export default function NotificationsScreen() {
   const Colors = useColors();
   const styles = useMemo(() => createStyles(Colors), [Colors]);
 
-  const { data, isLoading, refetch, isRefetching } = useNotificationList(1);
+  const {
+    data,
+    isLoading,
+    isError,
+    error,
+    refetch,
+    isRefetching,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useNotificationFeed();
   const markRead = useMarkRead();
   const markAllRead = useMarkAllRead();
 
-  const notifications = data?.data ?? [];
-  const unreadCount = data?.unreadCount ?? 0;
+  const notifications = useMemo(() => {
+    const seen = new Set<string>();
+    return (data?.pages.flatMap((page) => page.data ?? []) ?? []).filter((n) => {
+      if (seen.has(n.id)) return false;
+      seen.add(n.id);
+      return true;
+    });
+  }, [data]);
+  // The first page carries the user's total unread count
+  const unreadCount = data?.pages[0]?.unreadCount ?? 0;
+
+  const handlePress = (item: AppNotification) => {
+    if (!item.read_at) markRead.mutate(item.id);
+    openNotification(item);
+  };
+
+  let content: React.ReactNode;
+  if (isLoading) {
+    content = <ActivityIndicator style={{ marginTop: 60 }} color={Colors.primary} size="large" />;
+  } else if (isError && notifications.length === 0) {
+    content = (
+      <ErrorState
+        error={error}
+        title="Couldn't load notifications"
+        onRetry={() => refetch()}
+        retrying={isRefetching}
+      />
+    );
+  } else {
+    content = (
+      <FlatList
+        data={notifications}
+        keyExtractor={(n) => n.id}
+        renderItem={({ item }) => (
+          <NotificationRow
+            item={item}
+            styles={styles}
+            Colors={Colors}
+            onPress={() => handlePress(item)}
+          />
+        )}
+        ItemSeparatorComponent={() => <View style={styles.separator} />}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={notifications.length === 0 ? styles.emptyContainer : undefined}
+        onEndReached={() => {
+          if (hasNextPage && !isFetchingNextPage) fetchNextPage();
+        }}
+        onEndReachedThreshold={0.5}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefetching && !isFetchingNextPage}
+            onRefresh={() => refetch()}
+            tintColor={Colors.primary}
+            colors={[Colors.primary]}
+          />
+        }
+        ListHeaderComponent={
+          unreadCount > 0 ? (
+            <View style={styles.unreadBadge}>
+              <Text style={styles.unreadBadgeText}>{unreadCount} unread</Text>
+            </View>
+          ) : null
+        }
+        ListFooterComponent={
+          isFetchingNextPage ? (
+            <ActivityIndicator style={styles.footerSpinner} color={Colors.primary} />
+          ) : null
+        }
+        ListEmptyComponent={
+          <View style={styles.empty}>
+            <View style={styles.emptyIcon}>
+              <Ionicons name="notifications-off-outline" size={40} color={Colors.textLight} />
+            </View>
+            <Text style={styles.emptyTitle}>All caught up</Text>
+            <Text style={styles.emptySubtitle}>No notifications yet</Text>
+          </View>
+        }
+      />
+    );
+  }
 
   return (
     <>
@@ -101,8 +238,10 @@ export default function NotificationsScreen() {
             unreadCount > 0 ? (
               <TouchableOpacity
                 onPress={() => markAllRead.mutate()}
+                disabled={markAllRead.isPending}
                 style={{ marginRight: 16 }}
                 activeOpacity={0.7}
+                accessibilityRole="button"
               >
                 <Text style={{ color: Colors.accent, fontWeight: '600', fontSize: 14 }}>
                   Mark all read
@@ -112,54 +251,13 @@ export default function NotificationsScreen() {
         }}
       />
       <View style={styles.container}>
-        {isLoading ? (
-          <ActivityIndicator style={{ marginTop: 60 }} color={Colors.primary} size="large" />
-        ) : notifications.length === 0 ? (
-          <View style={styles.empty}>
-            <View style={styles.emptyIcon}>
-              <Ionicons name="notifications-off-outline" size={40} color={Colors.textLight} />
-            </View>
-            <Text style={styles.emptyTitle}>All caught up</Text>
-            <Text style={styles.emptySubtitle}>No notifications yet</Text>
-          </View>
-        ) : (
-          <>
-            {unreadCount > 0 && (
-              <View style={styles.unreadBadge}>
-                <Text style={styles.unreadBadgeText}>{unreadCount} unread</Text>
-              </View>
-            )}
-            <FlatList
-              data={notifications}
-              keyExtractor={(n) => n.id}
-              renderItem={({ item }) => (
-                <NotificationRow
-                  item={item}
-                  styles={styles}
-                  Colors={Colors}
-                  onPress={() => {
-                    if (!item.read_at) markRead.mutate(item.id);
-                  }}
-                />
-              )}
-              ItemSeparatorComponent={() => <View style={styles.separator} />}
-              showsVerticalScrollIndicator={false}
-              refreshControl={
-                <RefreshControl
-                  refreshing={isRefetching}
-                  onRefresh={refetch}
-                  tintColor={Colors.primary}
-                  colors={[Colors.primary]}
-                />
-              }
-            />
-          </>
-        )}
+        <View style={styles.list}>{content}</View>
 
         <TouchableOpacity
           style={styles.prefsLink}
           onPress={() => router.push('/(tabs)/profile/notification-preferences')}
           activeOpacity={0.7}
+          accessibilityRole="button"
         >
           <Ionicons name="options-outline" size={18} color={Colors.primary} />
           <Text style={styles.prefsLinkText}>Manage Preferences</Text>
@@ -176,10 +274,13 @@ const createStyles = (Colors: ColorPalette) =>
       flex: 1,
       backgroundColor: Colors.background,
     },
+    list: {
+      flex: 1,
+    },
     unreadBadge: {
       marginHorizontal: 16,
       marginTop: 12,
-      marginBottom: 4,
+      marginBottom: 8,
       alignSelf: 'flex-start',
       backgroundColor: Colors.primary + '15',
       paddingHorizontal: 10,
@@ -193,7 +294,7 @@ const createStyles = (Colors: ColorPalette) =>
     },
     row: {
       flexDirection: 'row',
-      alignItems: 'flex-start',
+      alignItems: 'center',
       gap: 12,
       paddingHorizontal: 16,
       paddingVertical: 14,
@@ -250,12 +351,18 @@ const createStyles = (Colors: ColorPalette) =>
       backgroundColor: Colors.border,
       marginLeft: 72,
     },
+    footerSpinner: {
+      paddingVertical: 16,
+    },
+    emptyContainer: {
+      flexGrow: 1,
+    },
     empty: {
       flex: 1,
       alignItems: 'center',
       justifyContent: 'center',
       gap: 8,
-      paddingBottom: 60,
+      paddingVertical: 60,
     },
     emptyIcon: {
       width: 80,

@@ -20,7 +20,7 @@ export default function PrivacyPolicyScreen() {
         }}
       />
       <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-        <Text style={styles.updated}>Last updated: March 2026</Text>
+        <Text style={styles.updated}>Last updated: November 2026</Text>
 
         <Section title="1. Introduction" styles={styles}>
           Georgia Trails ("we", "our", or "us") is committed to protecting your personal information. This Privacy Policy explains how we collect, use, and safeguard your data when you use the Georgia Trails mobile application.
@@ -28,25 +28,27 @@ export default function PrivacyPolicyScreen() {
 
         <Section title="2. Information We Collect" styles={styles}>
           <Bold styles={styles}>Account Information:</Bold> When you register, we collect your email address, username, and optional profile details such as a bio and avatar photo.{'\n\n'}
-          <Bold styles={styles}>Location Data:</Bold> With your permission, we collect GPS coordinates during active hikes to track your route, calculate distance, and verify trail completions. Location tracking is only active while you are recording a hike.{'\n\n'}
-          <Bold styles={styles}>Activity Data:</Bold> We store your completed hikes, trail reviews, condition reports, community photos, and badge achievements.{'\n\n'}
+          <Bold styles={styles}>Location Data:</Bold> With your permission, we use your location while you record a hike (to track your route, calculate distance, and verify the completion), when you ask for trails near you, and when you trigger SOS. When you finish a hike, the recorded GPS track is sent to our servers and stored there to verify the completion.{'\n\n'}
+          <Bold styles={styles}>Activity Data:</Bold> We store your completed hikes, trail reviews, condition reports, community photos, comments, likes, follows, the group hikes you create or join, the emergency contact you choose, and your badge achievements.{'\n\n'}
           <Bold styles={styles}>Contact Information:</Bold> If you choose to add contact info to your profile (e.g. phone or Telegram), it is displayed only to other users who view your profile.{'\n\n'}
-          <Bold styles={styles}>Device Data:</Bold> We collect push notification tokens to send you relevant alerts. We do not collect device identifiers for advertising purposes.
+          <Bold styles={styles}>Device Data:</Bold> We collect push notification tokens to send you relevant alerts. We do not collect device identifiers for advertising purposes.{'\n\n'}
+          <Bold styles={styles}>Usage Analytics:</Bold> We use PostHog to understand how the app is used. PostHog receives usage events (such as the screens you open and the features you use), information about your device (such as its model, operating system and app version), and your user ID together with your email address as an identifier.
         </Section>
 
         <Section title="3. How We Use Your Information" styles={styles}>
           • To provide and operate the app{'\n'}
-          • To verify trail completions and award badges{'\n'}
+          • To record hikes, verify completions from the recorded GPS track, and award badges{'\n'}
           • To display your activity on leaderboards and your profile{'\n'}
-          • To send push notifications about hike events, badge awards, and comments{'\n'}
+          • To send push notifications about badges, new followers, comments, group hikes, and SOS alerts from people who chose you as their emergency contact{'\n'}
           • To improve app performance and fix bugs{'\n'}
           • To respond to support requests
         </Section>
 
         <Section title="4. Data Sharing" styles={styles}>
           We do not sell or rent your personal data to third parties.{'\n\n'}
-          Your username, profile photo, completed trails, and badges are visible to other users of the app. Your email address is never shown publicly.{'\n\n'}
-          We use Supabase as our database and authentication provider, and Render for backend hosting. These services process your data on our behalf and are bound by their own privacy policies.
+          Your public profile (username, name, profile photo, bio, completed trails, and badges) is visible to other users of the app, as is the time you were last active in the app ("last seen"). Your reviews, trail photos, condition reports, comments, and group hikes are visible to all users. Your email address and your recorded GPS tracks are not shown to other users.{'\n\n'}
+          If you trigger SOS, your current location is sent to your emergency contact. The person you choose as emergency contact is notified that you chose them.{'\n\n'}
+          We use Supabase as our database, authentication and photo storage provider, Render for backend hosting, Expo's push notification service (your push token and the content of each notification) to deliver push notifications, PostHog for usage analytics (usage events, device information, and your user ID and email address as identifier), and Sentry for error logs from our API, which can include technical details of the request that failed. These services process your data on our behalf and are bound by their own privacy policies.
         </Section>
 
         <Section title="5. Data Retention" styles={styles}>
@@ -55,7 +57,7 @@ export default function PrivacyPolicyScreen() {
         </Section>
 
         <Section title="6. Security" styles={styles}>
-          We use industry-standard security practices including encrypted connections (HTTPS/TLS), hashed passwords, and row-level security on our database. However, no method of transmission over the internet is 100% secure.
+          We use industry-standard security practices including encrypted connections (HTTPS/TLS), hashed passwords, and row-level security on our database. Photos you upload are stored at public web addresses: anyone who has the link to a photo can open it without signing in. No method of transmission over the internet is 100% secure.
         </Section>
 
         <Section title="7. Children's Privacy" styles={styles}>

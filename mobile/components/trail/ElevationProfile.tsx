@@ -107,10 +107,11 @@ export function ElevationProfile({
           <Text style={styles.statValue}>{maxElev}m</Text>
         </View>
         <View style={styles.stat}>
-          <Text style={styles.statLabel}>Gain</Text>
+          {/* Highest minus lowest checkpoint — not the cumulative climb, so not "gain" */}
+          <Text style={styles.statLabel}>Range</Text>
           <Text style={styles.statValue}>{maxElev - minElev}m</Text>
         </View>
-        {distanceKm && (
+        {distanceKm != null && distanceKm > 0 && (
           <View style={styles.stat}>
             <Text style={styles.statLabel}>Distance</Text>
             <Text style={styles.statValue}>{distanceKm}km</Text>

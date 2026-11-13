@@ -45,6 +45,8 @@ export function TrailFilters({
           placeholderTextColor={Colors.textLight}
           value={search}
           onChangeText={onSearchChange}
+          accessibilityLabel="Search trails"
+          testID="search-input"
         />
         {search.length > 0 && (
           <TouchableOpacity onPress={() => onSearchChange('')} accessibilityLabel="Clear search" accessibilityRole="button">

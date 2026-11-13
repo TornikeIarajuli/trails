@@ -40,28 +40,25 @@ export function WriteReviewModal({ trailId, visible, onClose }: Props) {
         comment: comment.trim() || undefined,
       },
       {
+        // Errors are reported by the hook
         onSuccess: () => {
           setRating(0);
           setComment('');
           onClose();
-        },
-        onError: (error: any) => {
-          const raw = error?.response?.data?.message;
-          const message = Array.isArray(raw) ? raw.join(', ') : raw || 'Failed to submit review';
-          Alert.alert('Error', message);
         },
       },
     );
   };
 
   const handleClose = () => {
+    if (submitMutation.isPending) return;
     setRating(0);
     setComment('');
     onClose();
   };
 
   return (
-    <Modal visible={visible} animationType="slide" transparent>
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={handleClose}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.overlay}

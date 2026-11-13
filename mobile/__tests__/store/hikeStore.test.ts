@@ -7,7 +7,9 @@
  * Zustand v5 `setState(partial)` merges data fields while leaving action
  * functions intact. We reset only the data fields before each test.
  */
-import { useHikeStore, GpsPoint } from '../../store/hikeStore';
+import { useHikeStore, GpsPoint, PendingCompletion, whenHikeStoreHydrated } from '../../store/hikeStore';
+import { flushHikeStorage } from '../../utils/hikeStorage';
+import { MAX_TRACK_POINTS } from '../../utils/track';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -15,6 +17,7 @@ import { useHikeStore, GpsPoint } from '../../store/hikeStore';
 const INITIAL_DATA = {
   isActive: false,
   trailId: null,
+  ownerId: null,
   startTime: null,
   elapsedSeconds: 0,
   isPaused: false,
@@ -22,13 +25,40 @@ const INITIAL_DATA = {
   baseElapsedSeconds: 0,
   visitedCheckpointIds: [] as string[],
   gpsPoints: [] as GpsPoint[],
-  lastHikeGpsPoints: [] as GpsPoint[],
+  distanceCoveredMeters: 0,
+  lastHike: null,
+  pendingCompletions: [] as PendingCompletion[],
 };
 
 const store = () => useHikeStore.getState();
 
+/** One degree of latitude is ~111 km, so 0.0001° is ~11 m. */
+const METERS_11 = 0.0001;
+
+const pending = (overrides: Partial<PendingCompletion> = {}): PendingCompletion => ({
+  localId: 'local-1',
+  userId: 'user-1',
+  trailId: 'trail-1',
+  elapsedSeconds: 3600,
+  startedAt: '2026-11-13T07:00:00.000Z',
+  completedAt: '2026-11-13T08:00:00.000Z',
+  distanceM: 5000,
+  track: [[41.0, 44.0, 1_794_553_200]],
+  attempts: 0,
+  ...overrides,
+});
+
+beforeAll(async () => {
+  await whenHikeStoreHydrated();
+});
+
 beforeEach(() => {
   useHikeStore.setState(INITIAL_DATA);
+});
+
+// Actions schedule a write; let it finish so no timer outlives the test
+afterEach(async () => {
+  await flushHikeStorage();
 });
 
 // ---------------------------------------------------------------------------
@@ -45,6 +75,17 @@ describe('startHike', () => {
     expect(store().trailId).toBe('trail-xyz');
   });
 
+  it('records which account the hike belongs to', () => {
+    store().startHike('trail-xyz', 'user-1');
+    expect(store().ownerId).toBe('user-1');
+  });
+
+  it('has no owner when none is given', () => {
+    useHikeStore.setState({ ownerId: 'someone-else' });
+    store().startHike('trail-xyz');
+    expect(store().ownerId).toBeNull();
+  });
+
   it('resets elapsedSeconds and baseElapsedSeconds to 0', () => {
     useHikeStore.setState({ elapsedSeconds: 999, baseElapsedSeconds: 400 });
     store().startHike('t1');
@@ -58,18 +99,23 @@ describe('startHike', () => {
     expect(store().isPaused).toBe(false);
   });
 
-  it('initialises resumedAt close to Date.now()', () => {
+  it('initialises resumedAt and startTime close to Date.now()', () => {
     const before = Date.now();
     store().startHike('t1');
-    const { resumedAt } = store();
+    const { resumedAt, startTime } = store();
     expect(resumedAt).toBeGreaterThanOrEqual(before);
     expect(resumedAt).toBeLessThanOrEqual(Date.now());
+    expect(startTime).toBe(resumedAt);
   });
 
-  it('clears any pre-existing gpsPoints', () => {
-    useHikeStore.setState({ gpsPoints: [{ lat: 1, lng: 2, timestamp: 1000 }] });
+  it('clears any pre-existing gpsPoints and distance', () => {
+    useHikeStore.setState({
+      gpsPoints: [{ lat: 1, lng: 2, timestamp: 1000 }],
+      distanceCoveredMeters: 1234,
+    });
     store().startHike('t1');
     expect(store().gpsPoints).toEqual([]);
+    expect(store().distanceCoveredMeters).toBe(0);
   });
 
   it('clears any pre-existing visitedCheckpointIds', () => {
@@ -78,11 +124,22 @@ describe('startHike', () => {
     expect(store().visitedCheckpointIds).toEqual([]);
   });
 
-  it('does not touch lastHikeGpsPoints (kept for export)', () => {
-    const prev = [{ lat: 40.0, lng: 43.0, timestamp: 5000 }];
-    useHikeStore.setState({ lastHikeGpsPoints: prev });
+  it('does not touch lastHike (kept for export)', () => {
+    const prev = {
+      trailId: 'older-trail',
+      completionId: 'c-1',
+      localId: null,
+      points: [{ lat: 40.0, lng: 43.0, timestamp: 5000 }],
+    };
+    useHikeStore.setState({ lastHike: prev });
     store().startHike('t1');
-    expect(store().lastHikeGpsPoints).toEqual(prev);
+    expect(store().lastHike).toEqual(prev);
+  });
+
+  it('does not touch the queue of completions waiting to upload', () => {
+    useHikeStore.setState({ pendingCompletions: [pending()] });
+    store().startHike('t1');
+    expect(store().pendingCompletions).toHaveLength(1);
   });
 });
 
@@ -204,18 +261,25 @@ describe('endHike', () => {
     expect(store().isActive).toBe(false);
   });
 
-  it('clears trailId to null', () => {
-    useHikeStore.setState({ trailId: 'trail-1' });
+  it('clears trailId and ownerId to null', () => {
+    useHikeStore.setState({ trailId: 'trail-1', ownerId: 'user-1' });
     store().endHike();
     expect(store().trailId).toBeNull();
+    expect(store().ownerId).toBeNull();
   });
 
-  it('resets elapsedSeconds, baseElapsedSeconds, and resumedAt', () => {
-    useHikeStore.setState({ elapsedSeconds: 900, baseElapsedSeconds: 900, resumedAt: Date.now() });
+  it('resets elapsedSeconds, baseElapsedSeconds, resumedAt and distance', () => {
+    useHikeStore.setState({
+      elapsedSeconds: 900,
+      baseElapsedSeconds: 900,
+      resumedAt: Date.now(),
+      distanceCoveredMeters: 4200,
+    });
     store().endHike();
     expect(store().elapsedSeconds).toBe(0);
     expect(store().baseElapsedSeconds).toBe(0);
     expect(store().resumedAt).toBeNull();
+    expect(store().distanceCoveredMeters).toBe(0);
   });
 
   it('clears gpsPoints', () => {
@@ -230,23 +294,42 @@ describe('endHike', () => {
     expect(store().visitedCheckpointIds).toEqual([]);
   });
 
-  it('preserves gpsPoints in lastHikeGpsPoints before clearing', () => {
+  it('keeps the track as lastHike, tied to the trail and the completion it produced', () => {
     const points: GpsPoint[] = [
       { lat: 41.0, lng: 44.0, timestamp: 1000 },
       { lat: 41.1, lng: 44.1, timestamp: 2000 },
     ];
-    useHikeStore.setState({ gpsPoints: points });
-    store().endHike();
-    expect(store().lastHikeGpsPoints).toEqual(points);
+    useHikeStore.setState({ isActive: true, trailId: 'trail-1', gpsPoints: points });
+    store().endHike({ completionId: 'completion-9' });
+    expect(store().lastHike).toEqual({
+      trailId: 'trail-1',
+      completionId: 'completion-9',
+      localId: null,
+      points,
+    });
     expect(store().gpsPoints).toEqual([]);
   });
 
-  it('overwrites any previous lastHikeGpsPoints', () => {
-    const old: GpsPoint[] = [{ lat: 0, lng: 0, timestamp: 0 }];
+  it('ties the track to a queue entry when the hike could not be uploaded yet', () => {
+    useHikeStore.setState({
+      isActive: true,
+      trailId: 'trail-1',
+      gpsPoints: [{ lat: 41, lng: 44, timestamp: 1000 }],
+    });
+    store().endHike({ localId: 'local-7' });
+    expect(store().lastHike).toMatchObject({ trailId: 'trail-1', completionId: null, localId: 'local-7' });
+  });
+
+  it('overwrites any previous lastHike', () => {
     const fresh: GpsPoint[] = [{ lat: 42.0, lng: 45.0, timestamp: 9000 }];
-    useHikeStore.setState({ lastHikeGpsPoints: old, gpsPoints: fresh });
+    useHikeStore.setState({
+      lastHike: { trailId: 'old', completionId: 'c-old', localId: null, points: [{ lat: 0, lng: 0, timestamp: 0 }] },
+      trailId: 'new',
+      gpsPoints: fresh,
+    });
     store().endHike();
-    expect(store().lastHikeGpsPoints).toEqual(fresh);
+    expect(store().lastHike?.trailId).toBe('new');
+    expect(store().lastHike?.points).toEqual(fresh);
   });
 
   it('sets isPaused back to false', () => {
@@ -257,59 +340,149 @@ describe('endHike', () => {
 });
 
 // ---------------------------------------------------------------------------
+// discardHike
+// ---------------------------------------------------------------------------
+describe('discardHike', () => {
+  it('resets the active hike and drops its track', () => {
+    store().startHike('trail-1');
+    store().addGpsPoint(41.0, 44.0, { timestamp: 1000 });
+    store().discardHike();
+    expect(store().isActive).toBe(false);
+    expect(store().trailId).toBeNull();
+    expect(store().gpsPoints).toEqual([]);
+  });
+
+  it('leaves the last finished hike alone', () => {
+    const lastHike = {
+      trailId: 'finished',
+      completionId: 'c-1',
+      localId: null,
+      points: [{ lat: 41, lng: 44, timestamp: 1 }],
+    };
+    useHikeStore.setState({ lastHike });
+    store().startHike('abandoned');
+    store().addGpsPoint(42.0, 45.0, { timestamp: 1000 });
+    store().discardHike();
+    expect(store().lastHike).toEqual(lastHike);
+  });
+
+  it('keeps completions that are waiting to upload', () => {
+    useHikeStore.setState({ pendingCompletions: [pending()] });
+    store().startHike('abandoned');
+    store().discardHike();
+    expect(store().pendingCompletions).toHaveLength(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // addGpsPoint
 // ---------------------------------------------------------------------------
 describe('addGpsPoint', () => {
-  it('appends a new point with correct lat, lng, and a timestamp', () => {
-    useHikeStore.setState({ isPaused: false });
+  beforeEach(() => {
+    useHikeStore.setState({ isActive: true, isPaused: false });
+  });
+
+  it('appends a new point with the lat, lng and time of the fix', () => {
+    const accepted = store().addGpsPoint(41.5, 44.5, { timestamp: 1_700_000_000_000, accuracy: 8 });
+    const { gpsPoints } = store();
+    expect(accepted).toBe(true);
+    expect(gpsPoints).toEqual([{ lat: 41.5, lng: 44.5, timestamp: 1_700_000_000_000 }]);
+  });
+
+  it('falls back to the current time when the fix has no timestamp', () => {
     const before = Date.now();
     store().addGpsPoint(41.5, 44.5);
-    const { gpsPoints } = store();
-    expect(gpsPoints).toHaveLength(1);
-    expect(gpsPoints[0].lat).toBe(41.5);
-    expect(gpsPoints[0].lng).toBe(44.5);
-    expect(gpsPoints[0].timestamp).toBeGreaterThanOrEqual(before);
+    expect(store().gpsPoints[0].timestamp).toBeGreaterThanOrEqual(before);
   });
 
   it('does not add a point when the hike is paused', () => {
-    useHikeStore.setState({ isPaused: true, gpsPoints: [] });
-    store().addGpsPoint(41.5, 44.5);
+    useHikeStore.setState({ isPaused: true });
+    expect(store().addGpsPoint(41.5, 44.5, { timestamp: 1000 })).toBe(false);
+    expect(store().gpsPoints).toHaveLength(0);
+  });
+
+  it('does not add a point when no hike is active', () => {
+    useHikeStore.setState({ isActive: false });
+    expect(store().addGpsPoint(41.5, 44.5, { timestamp: 1000 })).toBe(false);
     expect(store().gpsPoints).toHaveLength(0);
   });
 
   it('accumulates multiple points in insertion order', () => {
-    useHikeStore.setState({ isPaused: false, gpsPoints: [] });
-    store().addGpsPoint(41.0, 44.0);
-    store().addGpsPoint(41.1, 44.1);
-    store().addGpsPoint(41.2, 44.2);
+    store().addGpsPoint(41.0, 44.0, { timestamp: 1000 });
+    store().addGpsPoint(41.1, 44.1, { timestamp: 2000 });
+    store().addGpsPoint(41.2, 44.2, { timestamp: 3000 });
     const { gpsPoints } = store();
     expect(gpsPoints).toHaveLength(3);
     expect(gpsPoints[0].lat).toBe(41.0);
     expect(gpsPoints[2].lat).toBe(41.2);
   });
 
-  it('caps the buffer at 500 entries — oldest point is dropped first', () => {
-    const existing: GpsPoint[] = Array.from({ length: 500 }, (_, i) => ({
-      lat: i,
-      lng: i,
-      timestamp: i * 1000,
-    }));
-    useHikeStore.setState({ isPaused: false, gpsPoints: existing });
-    store().addGpsPoint(99.0, 99.0);
-    const { gpsPoints } = store();
-    expect(gpsPoints).toHaveLength(500);
-    // Index 0 (lat=0) was the oldest and must have been removed
-    expect(gpsPoints[0].lat).toBe(1);
-    // The new point is at the end
-    expect(gpsPoints[499].lat).toBe(99.0);
+  it('drops a fix whose reported accuracy is worse than 50 m', () => {
+    expect(store().addGpsPoint(41.0, 44.0, { timestamp: 1000, accuracy: 120 })).toBe(false);
+    expect(store().addGpsPoint(41.0, 44.0, { timestamp: 2000, accuracy: 50 })).toBe(true);
+    expect(store().gpsPoints).toHaveLength(1);
   });
 
-  it('stays at exactly 500 after adding many points past the cap', () => {
-    useHikeStore.setState({ isPaused: false, gpsPoints: [] });
+  it('drops an invalid fix (negative accuracy)', () => {
+    expect(store().addGpsPoint(41.0, 44.0, { timestamp: 1000, accuracy: -1 })).toBe(false);
+  });
+
+  it('ignores the same fix delivered twice (foreground watcher + background task)', () => {
+    store().addGpsPoint(41.0, 44.0, { timestamp: 1000, accuracy: 5 });
+    store().addGpsPoint(41.0 + METERS_11, 44.0, { timestamp: 2000, accuracy: 5 });
+    const distance = store().distanceCoveredMeters;
+
+    expect(store().addGpsPoint(41.0 + METERS_11, 44.0, { timestamp: 2000, accuracy: 5 })).toBe(false);
+    expect(store().gpsPoints).toHaveLength(2);
+    expect(store().distanceCoveredMeters).toBe(distance);
+  });
+
+  it('ignores a fix that is not newer than the last recorded one', () => {
+    store().addGpsPoint(41.0, 44.0, { timestamp: 5000 });
+    expect(store().addGpsPoint(41.0 + METERS_11, 44.0, { timestamp: 4000 })).toBe(false);
+    expect(store().addGpsPoint(41.0 + METERS_11, 44.0, { timestamp: 5000 })).toBe(false);
+    expect(store().gpsPoints).toHaveLength(1);
+  });
+
+  it('ignores a fix closer than ~3 m to the last recorded one', () => {
+    store().addGpsPoint(41.0, 44.0, { timestamp: 1000 });
+    // 0.00001° of latitude is ~1.1 m
+    expect(store().addGpsPoint(41.00001, 44.0, { timestamp: 2000 })).toBe(false);
+    expect(store().gpsPoints).toHaveLength(1);
+    expect(store().distanceCoveredMeters).toBe(0);
+  });
+
+  it('adds the distance from the previous point', () => {
+    store().addGpsPoint(41.0, 44.0, { timestamp: 1000 });
+    store().addGpsPoint(41.0 + METERS_11, 44.0, { timestamp: 2000 });
+    expect(store().distanceCoveredMeters).toBeGreaterThan(10);
+    expect(store().distanceCoveredMeters).toBeLessThan(12);
+  });
+
+  it('keeps the whole track well past the old 500-point limit', () => {
     for (let i = 0; i < 510; i++) {
-      store().addGpsPoint(i, i);
+      store().addGpsPoint(41 + i * METERS_11, 44, { timestamp: 1000 + i });
     }
-    expect(store().gpsPoints).toHaveLength(500);
+    const { gpsPoints } = store();
+    expect(gpsPoints).toHaveLength(510);
+    expect(gpsPoints[0].lat).toBe(41);
+  });
+
+  it('thins older points instead of dropping the start once the cap is reached', () => {
+    const full: GpsPoint[] = Array.from({ length: MAX_TRACK_POINTS }, (_, i) => ({
+      lat: 41 + i * METERS_11,
+      lng: 44,
+      timestamp: 1000 + i,
+    }));
+    useHikeStore.setState({ gpsPoints: full });
+
+    store().addGpsPoint(50, 44, { timestamp: 10_000_000 });
+
+    const { gpsPoints } = store();
+    expect(gpsPoints.length).toBeLessThan(MAX_TRACK_POINTS);
+    expect(gpsPoints[0]).toEqual(full[0]);
+    expect(gpsPoints[gpsPoints.length - 2]).toEqual(full[full.length - 1]);
+    expect(gpsPoints[gpsPoints.length - 1].lat).toBe(50);
   });
 });
 
@@ -324,10 +497,10 @@ describe('markCheckpointVisited', () => {
     expect(store().visitedCheckpointIds).toEqual(['cp-1', 'cp-2']);
   });
 
-  it('can add the same checkpoint ID more than once (no deduplication)', () => {
+  it('records a checkpoint only once', () => {
     useHikeStore.setState({ visitedCheckpointIds: ['cp-1'] });
     store().markCheckpointVisited('cp-1');
-    expect(store().visitedCheckpointIds).toHaveLength(2);
+    expect(store().visitedCheckpointIds).toEqual(['cp-1']);
   });
 
   it('does not modify other state fields', () => {
@@ -338,21 +511,45 @@ describe('markCheckpointVisited', () => {
 });
 
 // ---------------------------------------------------------------------------
-// clearLastHikeGps
+// Queue of completions waiting to upload
 // ---------------------------------------------------------------------------
-describe('clearLastHikeGps', () => {
-  it('empties the lastHikeGpsPoints array', () => {
-    useHikeStore.setState({
-      lastHikeGpsPoints: [{ lat: 1, lng: 2, timestamp: 1000 }],
-    });
-    store().clearLastHikeGps();
-    expect(store().lastHikeGpsPoints).toEqual([]);
+describe('pending completions', () => {
+  it('enqueueCompletion appends in order', () => {
+    store().enqueueCompletion(pending({ localId: 'a' }));
+    store().enqueueCompletion(pending({ localId: 'b' }));
+    expect(store().pendingCompletions.map((p) => p.localId)).toEqual(['a', 'b']);
   });
 
-  it('is a no-op when lastHikeGpsPoints is already empty', () => {
-    useHikeStore.setState({ lastHikeGpsPoints: [] });
-    store().clearLastHikeGps();
-    expect(store().lastHikeGpsPoints).toEqual([]);
+  it('notePendingAttempt counts a failed attempt for that entry only', () => {
+    useHikeStore.setState({ pendingCompletions: [pending({ localId: 'a' }), pending({ localId: 'b' })] });
+    store().notePendingAttempt('b');
+    store().notePendingAttempt('b');
+    expect(store().pendingCompletions.map((p) => p.attempts)).toEqual([0, 2]);
+  });
+
+  it('removePendingCompletion drops the entry', () => {
+    useHikeStore.setState({ pendingCompletions: [pending({ localId: 'a' }), pending({ localId: 'b' })] });
+    store().removePendingCompletion('a');
+    expect(store().pendingCompletions.map((p) => p.localId)).toEqual(['b']);
+  });
+
+  it('resolvePendingCompletion drops the entry and ties the saved track to the completion', () => {
+    useHikeStore.setState({
+      pendingCompletions: [pending({ localId: 'a' })],
+      lastHike: { trailId: 'trail-1', completionId: null, localId: 'a', points: [{ lat: 41, lng: 44, timestamp: 1 }] },
+    });
+    store().resolvePendingCompletion('a', 'completion-5');
+    expect(store().pendingCompletions).toEqual([]);
+    expect(store().lastHike?.completionId).toBe('completion-5');
+  });
+
+  it('resolvePendingCompletion leaves the track of a different hike alone', () => {
+    useHikeStore.setState({
+      pendingCompletions: [pending({ localId: 'a' })],
+      lastHike: { trailId: 'other', completionId: null, localId: 'b', points: [] },
+    });
+    store().resolvePendingCompletion('a', 'completion-5');
+    expect(store().lastHike?.completionId).toBeNull();
   });
 });
 
@@ -377,16 +574,16 @@ describe('pause ↔ resume cycle', () => {
   });
 
   it('addGpsPoint is a no-op during the paused window', () => {
-    useHikeStore.setState({ gpsPoints: [], resumedAt: Date.now() });
-    store().addGpsPoint(41.0, 44.0); // active
+    useHikeStore.setState({ isActive: true, gpsPoints: [], resumedAt: Date.now() });
+    store().addGpsPoint(41.0, 44.0, { timestamp: 1000 }); // active
     expect(store().gpsPoints).toHaveLength(1);
 
     store().pauseHike();
-    store().addGpsPoint(41.1, 44.1); // paused — should NOT be added
+    store().addGpsPoint(41.1, 44.1, { timestamp: 2000 }); // paused — should NOT be added
     expect(store().gpsPoints).toHaveLength(1);
 
     store().resumeHike();
-    store().addGpsPoint(41.2, 44.2); // active again
+    store().addGpsPoint(41.2, 44.2, { timestamp: 3000 }); // active again
     expect(store().gpsPoints).toHaveLength(2);
   });
 });

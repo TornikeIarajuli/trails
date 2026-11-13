@@ -2,6 +2,7 @@ import {
   useQuery,
   useMutation,
   useQueryClient,
+  useInfiniteQuery,
 } from '@tanstack/react-query';
 import { followsService } from '../services/follows';
 import { showError } from '../utils/showError';
@@ -29,18 +30,19 @@ export function useToggleFollow() {
   });
 }
 
-export function useFollowers(userId: string, page = 1) {
-  return useQuery({
-    queryKey: queryKeys.follows.followers(userId, page),
-    queryFn: () => followsService.getFollowers(userId, page),
-    enabled: !!userId,
-  });
-}
-
-export function useFollowing(userId: string, page = 1) {
-  return useQuery({
-    queryKey: queryKeys.follows.following(userId, page),
-    queryFn: () => followsService.getFollowing(userId, page),
+/** A user's followers or the users they follow, loaded page by page. */
+export function useFollowList(kind: 'followers' | 'following', userId: string) {
+  return useInfiniteQuery({
+    queryKey: queryKeys.follows.list(kind, userId),
+    queryFn: ({ pageParam = 1 }) =>
+      kind === 'followers'
+        ? followsService.getFollowers(userId, pageParam)
+        : followsService.getFollowing(userId, pageParam),
+    getNextPageParam: (lastPage) => {
+      const { page, totalPages } = lastPage.pagination;
+      return page < totalPages ? page + 1 : undefined;
+    },
+    initialPageParam: 1,
     enabled: !!userId,
   });
 }

@@ -10,10 +10,11 @@ import {
 } from 'react-native';
 import { Stack, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Image } from 'expo-image';
 import { useColors, ColorPalette } from '../../../constants/colors';
 import { useRecommendations } from '../../../hooks/useRecommendations';
 import { DifficultyBadge } from '../../../components/trail/DifficultyBadge';
+import { TrailCover } from '../../../components/trail/TrailCover';
+import { ErrorState } from '../../../components/ui/ErrorState';
 import { TrailDifficulty } from '../../../types/trail';
 
 const DIFFICULTY_LABELS: Record<string, string> = {
@@ -27,7 +28,7 @@ export default function RecommendationsScreen() {
   const Colors = useColors();
   const styles = useMemo(() => createStyles(Colors), [Colors]);
 
-  const { data, isLoading, refetch, isRefetching } = useRecommendations();
+  const { data, isLoading, isError, error, refetch, isRefetching } = useRecommendations();
 
   const allCompleted = data?.all_completed ?? false;
   const totalCompleted = data
@@ -67,18 +68,7 @@ export default function RecommendationsScreen() {
       activeOpacity={0.8}
       onPress={() => router.push(`/trail/${item.id}`)}
     >
-      {item.cover_image_url ? (
-        <Image
-          source={{ uri: item.cover_image_url }}
-          style={styles.cardImage}
-          contentFit="cover"
-          cachePolicy="memory-disk"
-        />
-      ) : (
-        <View style={[styles.cardImage, styles.cardImagePlaceholder]}>
-          <Ionicons name="trail-sign-outline" size={24} color={Colors.textLight} />
-        </View>
-      )}
+      <TrailCover uri={item.cover_image_url} style={styles.cardImage} iconSize={24} />
       <View style={styles.cardContent}>
         <Text style={styles.cardName} numberOfLines={1}>{item.name_en}</Text>
         <Text style={styles.cardRegion} numberOfLines={1}>{item.region}</Text>
@@ -132,6 +122,13 @@ export default function RecommendationsScreen() {
       <View style={styles.container}>
         {isLoading ? (
           <ActivityIndicator style={{ marginTop: 40 }} color={Colors.primary} />
+        ) : isError && !data ? (
+          <ErrorState
+            error={error}
+            title="Couldn't load recommendations"
+            onRetry={() => refetch()}
+            retrying={isRefetching}
+          />
         ) : (
           <FlatList
             data={data?.data ?? []}
@@ -181,6 +178,7 @@ const createStyles = (Colors: ColorPalette) =>
       width: 60,
       height: 60,
       borderRadius: 10,
+      overflow: 'hidden',
     },
     cardImagePlaceholder: {
       backgroundColor: Colors.borderLight,

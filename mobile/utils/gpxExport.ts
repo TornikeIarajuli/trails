@@ -1,4 +1,4 @@
-import { GpsPoint } from '../store/hikeStore';
+import { GpsPoint } from './track';
 
 export function buildGpxString(trailName: string, points: GpsPoint[]): string {
   const trkpts = points

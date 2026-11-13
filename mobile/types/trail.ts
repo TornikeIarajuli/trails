@@ -65,7 +65,29 @@ export interface NearbyTrail {
   estimated_hours: number | null;
   cover_image_url: string | null;
   distance_from_user_m: number;
+  // Returned once the nearby RPC has been upgraded (migration 046); absent before that.
+  status?: TrailStatus | null;
+  status_note?: string | null;
+  start_point?: GeoPoint | null;
 }
+
+/** What a trail row or map pin needs — satisfied by list items and nearby results alike. */
+export type TrailSummary = Pick<
+  Trail,
+  | 'id'
+  | 'name_en'
+  | 'name_ka'
+  | 'difficulty'
+  | 'region'
+  | 'distance_km'
+  | 'elevation_gain_m'
+  | 'estimated_hours'
+  | 'cover_image_url'
+> & {
+  status?: TrailStatus | null;
+  status_note?: string | null;
+  start_point?: GeoPoint | null;
+};
 
 // Re-export for convenience
 export type { Checkpoint } from './checkpoint';

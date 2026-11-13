@@ -1,5 +1,7 @@
-import { useInfiniteQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, QueryClient } from '@tanstack/react-query';
 import { feedService } from '../services/feed';
+import { FeedItem } from '../types/feed';
+import { FeedPages, mapFeedItem } from '../utils/feedCache';
 import { queryKeys } from '../utils/queryKeys';
 
 export function useFeed() {
@@ -13,4 +15,13 @@ export function useFeed() {
     initialPageParam: 1,
     staleTime: 2 * 60 * 1000, // 2 min — social feed should feel reasonably fresh
   });
+}
+
+/** Updates one activity in the cached feed in place, without refetching every loaded page. */
+export function patchFeedItem(
+  queryClient: QueryClient,
+  activityId: string,
+  patch: (item: FeedItem) => FeedItem,
+) {
+  queryClient.setQueryData<FeedPages>(queryKeys.feed(), (old) => mapFeedItem(old, activityId, patch));
 }

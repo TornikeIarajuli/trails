@@ -49,3 +49,10 @@ export interface LeaderboardEntry {
   total_trails_completed: number;
   rank: number;
 }
+
+/** Response of `POST /users/me/sos`. `sent` is true only if a push reached the contact's device(s). */
+export interface SosResult {
+  sent: boolean;
+  reason: 'ok' | 'no_contact' | 'contact_unreachable';
+  devices: number;
+}

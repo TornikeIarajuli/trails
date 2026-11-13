@@ -82,16 +82,24 @@ function RootLayout() {
     );
   }
 
+  const app = (
+    <PersistQueryClientProvider
+      client={queryClient}
+      persistOptions={{ persister: queryPersister, maxAge: 24 * 60 * 60 * 1000 }}
+    >
+      <ErrorBoundary onError={() => setHasError(true)}>
+        <RootLayoutInner />
+      </ErrorBoundary>
+    </PersistQueryClientProvider>
+  );
+
+  // No PostHog key in this build: run without analytics rather than not at all
+  const analyticsClient = initAnalytics();
+  if (!analyticsClient) return app;
+
   return (
-    <PostHogProvider client={initAnalytics()} autocapture>
-      <PersistQueryClientProvider
-        client={queryClient}
-        persistOptions={{ persister: queryPersister, maxAge: 24 * 60 * 60 * 1000 }}
-      >
-        <ErrorBoundary onError={() => setHasError(true)}>
-          <RootLayoutInner />
-        </ErrorBoundary>
-      </PersistQueryClientProvider>
+    <PostHogProvider client={analyticsClient} autocapture>
+      {app}
     </PostHogProvider>
   );
 }

@@ -2,17 +2,18 @@ import api from './api';
 import { Trail, TrailDetail, TrailMedia, NearbyTrail } from '../types/trail';
 import { PaginatedResponse } from '../types/api';
 
+// `null` clears an optional field; an omitted key leaves it unchanged.
 export interface UpdateTrailData {
   name_en?: string;
-  name_ka?: string;
-  description_en?: string;
-  description_ka?: string;
+  name_ka?: string | null;
+  description_en?: string | null;
+  description_ka?: string | null;
   difficulty?: string;
   region?: string;
-  distance_km?: number;
-  elevation_gain_m?: number;
-  estimated_hours?: number;
-  cover_image_url?: string;
+  distance_km?: number | null;
+  elevation_gain_m?: number | null;
+  estimated_hours?: number | null;
+  cover_image_url?: string | null;
   is_published?: boolean;
 }
 

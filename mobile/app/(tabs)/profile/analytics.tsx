@@ -6,7 +6,9 @@ import { useColors, ColorPalette } from '../../../constants/colors';
 import { useMyCompletions } from '../../../hooks/useCompletions';
 import { useMyBadges } from '../../../hooks/useBadges';
 import { LoadingSpinner } from '../../../components/ui/LoadingSpinner';
+import { ErrorState } from '../../../components/ui/ErrorState';
 import { TrailCompletion } from '../../../types/completion';
+import { bestWeekStreak } from '../../../utils/weekStreak';
 import { BADGE_ICON_MAP, BADGE_CATEGORY_COLOR } from '../../../components/badges/badgeConstants';
 
 // ── helpers ──────────────────────────────────────────────────────────────────
@@ -52,25 +54,8 @@ function computeAnalytics(completions: TrailCompletion[]) {
     if (diff && diff in diffCounts) diffCounts[diff]++;
   });
 
-  // Best streak (consecutive weeks with at least 1 hike)
-  const weekNumbers = new Set(
-    approved.map((c) => {
-      const d = new Date(c.completed_at);
-      const startOfYear = new Date(d.getFullYear(), 0, 1);
-      return Math.floor((d.getTime() - startOfYear.getTime()) / (7 * 86400000));
-    }),
-  );
-  let bestStreak = 0;
-  let currentStreak = 0;
-  const weekArr = Array.from(weekNumbers).sort((a, b) => a - b);
-  for (let i = 0; i < weekArr.length; i++) {
-    if (i === 0 || weekArr[i] === weekArr[i - 1] + 1) {
-      currentStreak++;
-      bestStreak = Math.max(bestStreak, currentStreak);
-    } else {
-      currentStreak = 1;
-    }
-  }
+  // Best streak (consecutive ISO weeks with at least 1 hike, across year boundaries)
+  const bestStreak = bestWeekStreak(approved.map((c) => c.completed_at));
 
   return { totalHikes, totalKm, totalElevation, totalSeconds, months, maxMonthCount, diffCounts, bestStreak };
 }
@@ -81,7 +66,14 @@ export default function AnalyticsScreen() {
   const Colors = useColors();
   const styles = useMemo(() => createStyles(Colors), [Colors]);
 
-  const { data: completions, isLoading } = useMyCompletions();
+  const {
+    data: completions,
+    isLoading,
+    isError,
+    error,
+    refetch,
+    isRefetching,
+  } = useMyCompletions();
   const { data: userBadges } = useMyBadges();
 
   const stats = useMemo(() => {
@@ -109,7 +101,14 @@ export default function AnalyticsScreen() {
         }}
       />
       <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-        {isLoading || !stats ? (
+        {!stats && isError ? (
+          <ErrorState
+            error={error}
+            title="Couldn't load your stats"
+            onRetry={() => refetch()}
+            retrying={isRefetching}
+          />
+        ) : isLoading || !stats ? (
           <LoadingSpinner />
         ) : (
           <>

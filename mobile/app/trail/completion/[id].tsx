@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -32,6 +32,7 @@ import { BadgeUnlockModal } from '../../../components/badges/BadgeUnlockModal';
 import { useAllBadges } from '../../../hooks/useBadges';
 import { Badge } from '../../../types/badge';
 import { analytics } from '../../../utils/analytics';
+import { describeCompletionOutcome } from '../../../utils/verification';
 
 function formatElapsedTime(seconds: number): string {
   const h = Math.floor(seconds / 3600);
@@ -41,18 +42,44 @@ function formatElapsedTime(seconds: number): string {
   return `${h}h ${m}m`;
 }
 
+function toNumber(value: string | undefined): number | null {
+  if (value === undefined || value === '') return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
 export default function CompletionDetailScreen() {
   const Colors = useColors();
   const styles = useMemo(() => createStyles(Colors), [Colors]);
 
-  const { id, newBadgeIds: rawBadgeIds } = useLocalSearchParams<{ id: string; newBadgeIds?: string }>();
+  // `fresh` and the fields after it are only set when arriving straight from a finished hike
+  const {
+    id,
+    newBadgeIds: rawBadgeIds,
+    fresh,
+    verified: verifiedParam,
+    reason: reasonParam,
+    coverage: coverageParam,
+    required: requiredParam,
+    already,
+  } = useLocalSearchParams<{
+    id: string;
+    newBadgeIds?: string;
+    fresh?: string;
+    verified?: string;
+    reason?: string;
+    coverage?: string;
+    required?: string;
+    already?: string;
+  }>();
   const insets = useSafeAreaInsets();
-  const { data: completions, isLoading } = useMyCompletions();
-  const lastHikeGpsPoints = useHikeStore((s) => s.lastHikeGpsPoints);
-  const clearLastHikeGps = useHikeStore((s) => s.clearLastHikeGps);
+  const { data: completions, isFetching, dataUpdatedAt, errorUpdatedAt, refetch } = useMyCompletions();
+  const lastHike = useHikeStore((s) => s.lastHike);
   const { data: allBadges } = useAllBadges();
 
-  const [showConfetti, setShowConfetti] = useState(true);
+  const justFinished = fresh === '1';
+
+  const [showConfetti, setShowConfetti] = useState(justFinished && verifiedParam !== '0');
   const [showBadgeModal, setShowBadgeModal] = useState(false);
   const [newBadges, setNewBadges] = useState<Badge[]>([]);
 
@@ -83,12 +110,31 @@ export default function CompletionDetailScreen() {
 
   const completion = completions?.find((c) => c.id === id);
 
-  if (isLoading) return <LoadingSpinner />;
+  // The cached list can predate this completion (recorded a moment ago, or on another
+  // device), so it only counts as missing after a fetch made while this screen is open.
+  const openedAt = useRef(Date.now()).current;
+  const checkedSinceOpen = dataUpdatedAt >= openedAt || errorUpdatedAt >= openedAt;
+  const loadFailed = !completion && errorUpdatedAt >= openedAt && errorUpdatedAt >= dataUpdatedAt;
+
+  useEffect(() => {
+    if (!completion && !checkedSinceOpen && !isFetching) refetch();
+  }, [completion, checkedSinceOpen, isFetching, refetch]);
+
+  if (!completion && (!checkedSinceOpen || isFetching)) return <LoadingSpinner />;
 
   if (!completion) {
     return (
       <View style={[styles.container, styles.centered]}>
-        <Text style={styles.emptyText}>Completion not found</Text>
+        <Text style={styles.emptyText}>
+          {loadFailed
+            ? 'Could not load this completion. Check your connection and try again.'
+            : 'Completion not found'}
+        </Text>
+        {loadFailed && (
+          <TouchableOpacity style={[styles.backButton, styles.retryButton]} onPress={() => refetch()}>
+            <Text style={styles.backButtonText}>Try Again</Text>
+          </TouchableOpacity>
+        )}
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
           <Text style={styles.backButtonText}>Go Back</Text>
         </TouchableOpacity>
@@ -98,7 +144,31 @@ export default function CompletionDetailScreen() {
 
   const trail = completion.trails;
   const hasActualTime = completion.elapsed_seconds != null;
-  const hasEstimate = trail?.estimated_hours != null;
+  const estimatedHours = trail?.estimated_hours ?? null;
+  const hasEstimate = estimatedHours != null && estimatedHours > 0;
+
+  const outcome = describeCompletionOutcome({
+    status: completion.status,
+    reviewerNote: completion.reviewer_note,
+    recorded: justFinished
+      ? {
+          verified: verifiedParam === undefined ? null : verifiedParam === '1',
+          reason: reasonParam ?? null,
+          coverage: toNumber(coverageParam),
+          requiredCoverage: toNumber(requiredParam),
+        }
+      : null,
+  });
+  const isVerified = outcome.state === 'verified';
+
+  // Only the track of the hike that produced this completion (or, while that hike is
+  // still waiting to upload, the latest hike on this trail) may be exported from here.
+  const exportPoints =
+    lastHike &&
+    lastHike.trailId === completion.trail_id &&
+    (!lastHike.completionId || lastHike.completionId === completion.id)
+      ? lastHike.points
+      : [];
 
   const handleShare = async () => {
     const lines: string[] = [`🏔️ I completed ${trail?.name_en ?? 'a trail'}!`];
@@ -107,7 +177,7 @@ export default function CompletionDetailScreen() {
     if (trail?.elevation_gain_m != null) lines.push(`⬆️ Elevation: ${formatElevation(trail.elevation_gain_m)}`);
     if (hasActualTime && hasEstimate) {
       const actualHours = completion.elapsed_seconds! / 3600;
-      const diff = ((actualHours - trail!.estimated_hours!) / trail!.estimated_hours!) * 100;
+      const diff = ((actualHours - estimatedHours) / estimatedHours) * 100;
       if (diff < 0) lines.push(`🔥 ${Math.abs(Math.round(diff))}% faster than estimated!`);
     }
     lines.push('#GeorgiaTrails');
@@ -115,20 +185,21 @@ export default function CompletionDetailScreen() {
   };
 
   const handleExportGpx = async () => {
-    if (lastHikeGpsPoints.length === 0) {
+    if (exportPoints.length === 0) {
       Alert.alert('No GPS data', 'No GPS track is available for this hike.');
       return;
     }
     try {
       const trailName = trail?.name_en ?? 'hike';
       const filename = `${trailName.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.gpx`;
-      const gpx = buildGpxString(trailName, lastHikeGpsPoints);
+      const gpx = buildGpxString(trailName, exportPoints);
       const f = new FSFile(Paths.cache, filename);
       f.write(gpx);
       const canShare = await Sharing.isAvailableAsync();
       if (canShare) {
+        // The track stays on the phone afterwards: the share sheet resolves the same
+        // way whether the file was saved or the sheet was dismissed.
         await Sharing.shareAsync(f.uri, { mimeType: 'application/gpx+xml', dialogTitle: 'Export GPX Track' });
-        clearLastHikeGps();
       } else {
         Alert.alert('Sharing not available', 'Your device does not support file sharing.');
       }
@@ -136,6 +207,8 @@ export default function CompletionDetailScreen() {
       Alert.alert('Export failed', 'Could not export the GPX file. Please try again.');
     }
   };
+
+  const outcomeColor = isVerified ? Colors.success : outcome.state === 'rejected' ? Colors.error : Colors.warning;
 
   return (
     <View style={styles.container}>
@@ -191,13 +264,28 @@ export default function CompletionDetailScreen() {
             )}
           </View>
 
-          {/* Completion Date */}
-          <View style={styles.dateRow}>
-            <Ionicons name="checkmark-circle" size={20} color={Colors.success} />
-            <Text style={styles.dateText}>
-              Completed on {formatDate(completion.completed_at)}
-            </Text>
+          {/* Completion date and whether it counts */}
+          <View style={[styles.dateRow, { backgroundColor: outcomeColor + '15' }]}>
+            <Ionicons
+              name={isVerified ? 'checkmark-circle' : outcome.state === 'rejected' ? 'close-circle' : 'alert-circle'}
+              size={20}
+              color={outcomeColor}
+            />
+            <View style={styles.dateTextWrap}>
+              <Text style={styles.dateText}>
+                {isVerified ? 'Completed' : 'Recorded'} on {formatDate(completion.completed_at)}
+              </Text>
+              <Text style={[styles.outcomeTitle, { color: outcomeColor }]}>{outcome.title}</Text>
+            </View>
           </View>
+
+          {outcome.detail && <Text style={styles.outcomeDetail}>{outcome.detail}</Text>}
+
+          {justFinished && already === '1' && (
+            <Text style={styles.outcomeDetail}>
+              You had already completed this trail, so your earlier completion is the one shown here.
+            </Text>
+          )}
 
           {/* Stats Grid */}
           <View style={styles.statsGrid}>
@@ -230,7 +318,7 @@ export default function CompletionDetailScreen() {
             {hasEstimate && (
               <View style={styles.statCard}>
                 <Ionicons name="hourglass-outline" size={24} color={Colors.primary} />
-                <Text style={styles.statValue}>{formatDuration(trail!.estimated_hours!)}</Text>
+                <Text style={styles.statValue}>{formatDuration(estimatedHours)}</Text>
                 <Text style={styles.statLabel}>Estimated</Text>
               </View>
             )}
@@ -250,14 +338,14 @@ export default function CompletionDetailScreen() {
                 <Ionicons name="swap-horizontal" size={24} color={Colors.textLight} />
                 <View style={styles.comparisonItem}>
                   <Text style={styles.comparisonValue}>
-                    {formatDuration(trail!.estimated_hours!)}
+                    {formatDuration(estimatedHours)}
                   </Text>
                   <Text style={styles.comparisonLabel}>Estimated</Text>
                 </View>
               </View>
               {(() => {
                 const actualHours = completion.elapsed_seconds! / 3600;
-                const diff = ((actualHours - trail!.estimated_hours!) / trail!.estimated_hours!) * 100;
+                const diff = ((actualHours - estimatedHours) / estimatedHours) * 100;
                 const isFaster = diff < 0;
                 return (
                   <Text
@@ -278,7 +366,8 @@ export default function CompletionDetailScreen() {
           {/* Action Buttons */}
           <TouchableOpacity
             style={styles.profileButton}
-            onPress={() => router.replace('/(tabs)/profile' as any)}
+            // Pops back to the tabs already underneath instead of stacking a second set
+            onPress={() => router.dismissTo('/(tabs)/profile')}
           >
             <Ionicons name="person-outline" size={20} color={Colors.textOnPrimary} />
             <Text style={styles.profileButtonText}>Go to Profile</Text>
@@ -293,7 +382,7 @@ export default function CompletionDetailScreen() {
               <Text style={styles.viewTrailText}>View Trail</Text>
             </TouchableOpacity>
 
-            {lastHikeGpsPoints.length > 0 && (
+            {exportPoints.length > 0 && (
               <TouchableOpacity style={styles.gpxButton} onPress={handleExportGpx}>
                 <Ionicons name="download-outline" size={20} color={Colors.accent} />
                 <Text style={styles.gpxButtonText}>Export GPX</Text>
@@ -314,17 +403,22 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   centered: {
     justifyContent: 'center',
     alignItems: 'center',
+    paddingHorizontal: 24,
   },
   emptyText: {
     fontSize: 16,
     color: Colors.textSecondary,
     marginBottom: 16,
+    textAlign: 'center',
   },
   backButton: {
     backgroundColor: Colors.primary,
     paddingHorizontal: 24,
     paddingVertical: 10,
     borderRadius: 8,
+  },
+  retryButton: {
+    marginBottom: 12,
   },
   backButtonText: {
     color: Colors.textOnPrimary,
@@ -397,16 +491,30 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: Colors.success + '15',
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderRadius: 10,
     marginBottom: 20,
   },
+  dateTextWrap: {
+    flex: 1,
+  },
   dateText: {
     fontSize: 15,
     fontWeight: '600',
     color: Colors.text,
+  },
+  outcomeTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    marginTop: 2,
+  },
+  outcomeDetail: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: Colors.textSecondary,
+    marginTop: -8,
+    marginBottom: 20,
   },
   statsGrid: {
     flexDirection: 'row',

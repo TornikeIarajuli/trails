@@ -26,15 +26,8 @@ export const communityService = {
   },
 
   // ---- Photos ----
-
-  async uploadPhoto(data: {
-    trail_id: string;
-    url: string;
-    caption?: string;
-  }): Promise<TrailPhoto> {
-    const response = await api.post('/community/photos', data);
-    return response.data;
-  },
+  // Photos are created by the upload itself (mediaService.uploadHikePhoto), which
+  // inserts the row server-side; there is deliberately no separate "create" call here.
 
   async getTrailPhotos(trailId: string, page = 1, limit = 20): Promise<PaginatedResponse<TrailPhoto>> {
     const response = await api.get(`/community/photos/${trailId}`, {

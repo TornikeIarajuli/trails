@@ -15,4 +15,8 @@ export interface FeedItem {
   trail_name_en: string;
   trail_name_ka: string | null;
   trail_cover_image_url: string | null;
+  // Sent by current API versions; undefined when talking to an older backend.
+  like_count?: number;
+  comment_count?: number;
+  liked_by_me?: boolean;
 }

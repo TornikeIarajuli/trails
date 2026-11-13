@@ -14,7 +14,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useColors, ColorPalette } from '../../constants/colors';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
-import { useLogin } from '../../hooks/useAuth';
+import { useLogin, isEmailNotConfirmed } from '../../hooks/useAuth';
+import { getErrorMessage } from '../../utils/showError';
 
 export default function LoginScreen() {
   const Colors = useColors();
@@ -37,10 +38,10 @@ export default function LoginScreen() {
     if (!password) { setPasswordError('Password is required'); valid = false; }
     if (!valid) return;
     login.mutate({ email: email.trim(), password }, {
-      onError: (error: any) => {
-        const raw = error.response?.data?.message;
-        const msg = Array.isArray(raw) ? raw.join(', ') : raw || 'Invalid email or password';
-        setApiError(msg);
+      onError: (error: unknown) => {
+        // useLogin sends an unconfirmed account on to the verify-email screen
+        if (isEmailNotConfirmed(error)) return;
+        setApiError(getErrorMessage(error, 'Could not log in. Please try again.'));
       },
     });
   };

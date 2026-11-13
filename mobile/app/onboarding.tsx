@@ -30,7 +30,7 @@ const PAGES: OnboardingPage[] = [
     icon: 'trail-sign',
     title: 'Discover Trails',
     subtitle:
-      'Explore 200+ hiking trails across Georgia — from alpine glaciers in Svaneti to lush forests in Adjara.',
+      'Explore hiking trails across Georgia — from alpine glaciers in Svaneti to lush forests in Adjara.',
   },
   {
     id: '2',
@@ -95,8 +95,12 @@ export default function OnboardingScreen() {
     <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
       {/* Skip button */}
       <TouchableOpacity
-        style={styles.skipButton}
+        style={[styles.skipButton, { top: insets.top + 12 }]}
         onPress={handleGetStarted}
+        hitSlop={12}
+        accessibilityRole="button"
+        accessibilityLabel="Skip introduction"
+        testID="onboarding-skip"
       >
         <Text style={styles.skipText}>Skip</Text>
       </TouchableOpacity>
@@ -141,6 +145,7 @@ export default function OnboardingScreen() {
         <TouchableOpacity
           style={styles.button}
           onPress={isLastPage ? handleGetStarted : handleNext}
+          accessibilityRole="button"
         >
           <Text style={styles.buttonText}>
             {isLastPage ? 'Get Started' : 'Next'}
@@ -162,7 +167,6 @@ const createStyles = (Colors: ColorPalette) =>
     },
     skipButton: {
       position: 'absolute',
-      top: 56,
       right: 24,
       zIndex: 10,
     },

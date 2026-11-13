@@ -12,11 +12,17 @@ import { useColors, ColorPalette } from '../../constants/colors';
 import { Review } from '../../types/review';
 import { useAuthStore } from '../../store/authStore';
 import { useDeleteReview } from '../../hooks/useReviews';
+import { ErrorState } from '../ui/ErrorState';
+import { ContentMenu } from '../moderation/ContentMenu';
 
 interface Props {
   reviews: Review[];
   trailId: string;
   onWriteReview: () => void;
+  /** The reviews request failed — say so instead of claiming there are no reviews. */
+  isError?: boolean;
+  error?: unknown;
+  onRetry?: () => void;
 }
 
 function StarRating({ rating }: { rating: number }) {
@@ -85,10 +91,19 @@ const ReviewItem = React.memo(function ReviewItem({ review, trailId }: { review:
         </View>
         <View style={styles.reviewHeaderRight}>
           <StarRating rating={review.rating} />
-          {isOwn && (
+          {isOwn ? (
             <TouchableOpacity onPress={handleDelete} hitSlop={8} accessibilityLabel="Delete review" accessibilityRole="button">
               <Ionicons name="trash-outline" size={16} color={Colors.error} />
             </TouchableOpacity>
+          ) : (
+            <ContentMenu
+              targetType="review"
+              targetId={review.id}
+              targetLabel="review"
+              authorId={review.user_id}
+              authorName={review.profiles?.username}
+              iconSize={16}
+            />
           )}
         </View>
       </View>
@@ -99,28 +114,37 @@ const ReviewItem = React.memo(function ReviewItem({ review, trailId }: { review:
   );
 });
 
-export function ReviewsList({ reviews, trailId, onWriteReview }: Props) {
+export function ReviewsList({ reviews, trailId, onWriteReview, isError = false, error, onRetry }: Props) {
   const Colors = useColors();
   const styles = useMemo(() => createStyles(Colors), [Colors]);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const userId = useAuthStore((s) => s.user?.id);
   const hasReviewed = reviews.some((r) => r.user_id === userId);
+  const failed = isError && reviews.length === 0;
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Reviews ({reviews.length})</Text>
-        {isAuthenticated && !hasReviewed && (
-          <TouchableOpacity onPress={onWriteReview}>
+        <Text style={styles.title}>Reviews{failed ? '' : ` (${reviews.length})`}</Text>
+        {isAuthenticated && !hasReviewed && !failed && (
+          <TouchableOpacity onPress={onWriteReview} accessibilityRole="button">
             <Text style={styles.writeButton}>Write Review</Text>
           </TouchableOpacity>
         )}
       </View>
 
-      {reviews.length === 0 ? (
-        <Text style={styles.emptyText}>
-          No reviews yet. Be the first to share your experience!
-        </Text>
+      {failed ? (
+        <ErrorState compact error={error} message="Couldn't load the reviews." onRetry={onRetry} />
+      ) : reviews.length === 0 ? (
+        <View style={styles.empty}>
+          <Ionicons name="chatbox-ellipses-outline" size={28} color={Colors.textLight} />
+          <Text style={styles.emptyText}>No reviews yet</Text>
+          <Text style={styles.emptyHint}>
+            {isAuthenticated
+              ? 'Hiked this trail? Be the first to tell others what it was like.'
+              : 'Log in to write the first one.'}
+          </Text>
+        </View>
       ) : (
         reviews.map((review) => (
           <ReviewItem key={review.id} review={review} trailId={trailId} />
@@ -151,11 +175,24 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     fontWeight: '600',
     color: Colors.primary,
   },
+  empty: {
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 20,
+    paddingHorizontal: 24,
+    backgroundColor: Colors.surface,
+    borderRadius: 12,
+  },
   emptyText: {
-    fontSize: 14,
+    fontSize: 15,
+    fontWeight: '600',
+    color: Colors.textSecondary,
+  },
+  emptyHint: {
+    fontSize: 13,
+    lineHeight: 18,
     color: Colors.textLight,
     textAlign: 'center',
-    paddingVertical: 20,
   },
   reviewItem: {
     backgroundColor: Colors.surface,

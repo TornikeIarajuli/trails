@@ -7,13 +7,16 @@ import {
   StyleSheet,
   RefreshControl,
   ScrollView,
+  ActivityIndicator,
 } from 'react-native';
 import { Stack, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Image } from 'expo-image';
 import { useColors, ColorPalette } from '../../../constants/colors';
-import { useMyBookmarks } from '../../../hooks/useBookmarks';
+import { useBookmarkList, useToggleBookmark, useUpdateBookmark } from '../../../hooks/useBookmarks';
 import { DifficultyBadge } from '../../../components/trail/DifficultyBadge';
+import { TrailCover } from '../../../components/trail/TrailCover';
+import { ErrorState } from '../../../components/ui/ErrorState';
+import { ActionSheet } from '../../../components/ui/ActionSheet';
 import { TrailDifficulty } from '../../../types/trail';
 import {
   BookmarkCategory,
@@ -30,31 +33,63 @@ const CATEGORIES: (BookmarkCategory | undefined)[] = [
   'saved',
 ];
 
+const CATEGORY_ORDER: BookmarkCategory[] = ['saved', 'want_to_hike', 'in_progress', 'favorites'];
+
 export default function BookmarksScreen() {
   const Colors = useColors();
   const styles = useMemo(() => createStyles(Colors), [Colors]);
   const [activeCategory, setActiveCategory] = useState<BookmarkCategory | undefined>(undefined);
+  const [editing, setEditing] = useState<BookmarkEntry | null>(null);
 
-  const { data, isLoading, refetch, isRefetching } = useMyBookmarks(1, activeCategory);
+  const {
+    data,
+    isLoading,
+    isError,
+    error,
+    refetch,
+    isRefetching,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useBookmarkList(activeCategory);
+  const updateBookmark = useUpdateBookmark();
+  const toggleBookmark = useToggleBookmark();
+
+  const bookmarks = useMemo(() => {
+    const seen = new Set<string>();
+    return (data?.pages.flatMap((page) => page.data) ?? []).filter((b) => {
+      // A bookmark whose trail was unpublished or deleted comes back without it
+      if (!b.trails || seen.has(b.id)) return false;
+      seen.add(b.id);
+      return true;
+    });
+  }, [data]);
+
+  const onEditAction = (key: string) => {
+    const entry = editing;
+    setEditing(null);
+    if (!entry) return;
+    if (key === 'remove') {
+      toggleBookmark.mutate({ trailId: entry.trails.id });
+      return;
+    }
+    const category = key as BookmarkCategory;
+    if (category !== entry.category) {
+      updateBookmark.mutate({ trailId: entry.trails.id, data: { category } });
+    }
+  };
 
   const renderItem = ({ item }: { item: BookmarkEntry }) => (
     <TouchableOpacity
       style={styles.card}
       activeOpacity={0.8}
       onPress={() => router.push(`/trail/${item.trails.id}`)}
+      onLongPress={() => setEditing(item)}
+      accessibilityRole="button"
+      accessibilityLabel={item.trails.name_en}
+      accessibilityHint="Long press to change its list or remove it"
     >
-      {item.trails.cover_image_url ? (
-        <Image
-          source={{ uri: item.trails.cover_image_url }}
-          style={styles.cardImage}
-          contentFit="cover"
-          cachePolicy="memory-disk"
-        />
-      ) : (
-        <View style={[styles.cardImage, styles.cardImagePlaceholder]}>
-          <Ionicons name="trail-sign-outline" size={24} color={Colors.textLight} />
-        </View>
-      )}
+      <TrailCover uri={item.trails.cover_image_url} style={styles.cardImage} iconSize={22} />
       <View style={styles.cardContent}>
         <Text style={styles.cardName} numberOfLines={1}>{item.trails.name_en}</Text>
         <Text style={styles.cardRegion} numberOfLines={1}>{item.trails.region}</Text>
@@ -65,7 +100,7 @@ export default function BookmarksScreen() {
           {item.trails.distance_km != null && (
             <Text style={styles.metaText}>{item.trails.distance_km} km</Text>
           )}
-          {item.category && item.category !== 'saved' && (
+          {item.category && item.category !== 'saved' && CATEGORY_LABELS[item.category] && (
             <View style={styles.categoryTag}>
               <Ionicons
                 name={CATEGORY_ICONS[item.category] as any}
@@ -82,9 +117,67 @@ export default function BookmarksScreen() {
           <Text style={styles.noteText} numberOfLines={1}>{item.note}</Text>
         ) : null}
       </View>
-      <Ionicons name="chevron-forward" size={18} color={Colors.textLight} />
+      <TouchableOpacity
+        onPress={() => setEditing(item)}
+        hitSlop={10}
+        accessibilityRole="button"
+        accessibilityLabel={`Options for ${item.trails.name_en}`}
+      >
+        <Ionicons name="ellipsis-vertical" size={18} color={Colors.textLight} />
+      </TouchableOpacity>
     </TouchableOpacity>
   );
+
+  let content: React.ReactNode;
+  if (isLoading) {
+    content = <ActivityIndicator style={styles.loading} color={Colors.primary} size="large" />;
+  } else if (isError && bookmarks.length === 0) {
+    content = (
+      <ErrorState
+        error={error}
+        title="Couldn't load your bookmarks"
+        onRetry={() => refetch()}
+        retrying={isRefetching}
+      />
+    );
+  } else {
+    content = (
+      <FlatList
+        data={bookmarks}
+        keyExtractor={(item) => item.id}
+        renderItem={renderItem}
+        contentContainerStyle={styles.listContent}
+        onEndReached={() => {
+          if (hasNextPage && !isFetchingNextPage) fetchNextPage();
+        }}
+        onEndReachedThreshold={0.5}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefetching && !isFetchingNextPage}
+            onRefresh={() => refetch()}
+            tintColor={Colors.primary}
+            colors={[Colors.primary]}
+          />
+        }
+        ListFooterComponent={
+          isFetchingNextPage ? <ActivityIndicator style={styles.footer} color={Colors.primary} /> : null
+        }
+        ListEmptyComponent={
+          <View style={styles.empty}>
+            <Ionicons name="bookmark-outline" size={48} color={Colors.textLight} />
+            <Text style={styles.emptyText}>
+              {activeCategory
+                ? `No trails in "${CATEGORY_LABELS[activeCategory]}"`
+                : 'No bookmarked trails yet'}
+            </Text>
+            <Text style={styles.emptyHint}>
+              Tap the heart on any trail to save it here. Long-press the heart to choose a list.
+            </Text>
+          </View>
+        }
+      />
+    );
+  }
 
   return (
     <>
@@ -117,6 +210,8 @@ export default function BookmarksScreen() {
                   isActive && { backgroundColor: Colors.primary + '20', borderColor: Colors.primary },
                 ]}
                 onPress={() => setActiveCategory(cat)}
+                accessibilityRole="button"
+                accessibilityState={{ selected: isActive }}
               >
                 <Ionicons
                   name={icon as any}
@@ -131,29 +226,27 @@ export default function BookmarksScreen() {
           })}
         </ScrollView>
 
-        <FlatList
-          data={data?.data ?? []}
-          keyExtractor={(item) => item.id}
-          renderItem={renderItem}
-          contentContainerStyle={styles.listContent}
-          refreshControl={
-            <RefreshControl refreshing={isRefetching} onRefresh={refetch} />
-          }
-          ListEmptyComponent={
-            <View style={styles.empty}>
-              <Ionicons name="bookmark-outline" size={48} color={Colors.textLight} />
-              <Text style={styles.emptyText}>
-                {activeCategory
-                  ? `No trails in "${CATEGORY_LABELS[activeCategory]}"`
-                  : 'No bookmarked trails yet'}
-              </Text>
-              <Text style={styles.emptyHint}>
-                Tap the heart icon on any trail to save it here
-              </Text>
-            </View>
-          }
-        />
+        {content}
       </View>
+
+      {editing && (
+        <ActionSheet
+          visible
+          title={editing.trails.name_en}
+          message="Move to list"
+          options={[
+            ...CATEGORY_ORDER.map((category) => ({
+              key: category,
+              label: CATEGORY_LABELS[category],
+              icon: CATEGORY_ICONS[category] as React.ComponentProps<typeof Ionicons>['name'],
+              selected: editing.category === category,
+            })),
+            { key: 'remove', label: 'Remove bookmark', icon: 'trash-outline', destructive: true },
+          ]}
+          onSelect={onEditAction}
+          onClose={() => setEditing(null)}
+        />
+      )}
     </>
   );
 }
@@ -161,6 +254,8 @@ export default function BookmarksScreen() {
 const createStyles = (Colors: ColorPalette) =>
   StyleSheet.create({
     container: { flex: 1, backgroundColor: Colors.background },
+    loading: { marginTop: 40 },
+    footer: { paddingVertical: 16 },
     filterScroll: {
       flexGrow: 0,
       borderBottomWidth: 1,
@@ -188,7 +283,7 @@ const createStyles = (Colors: ColorPalette) =>
       color: Colors.textSecondary,
       fontWeight: '600',
     },
-    listContent: { padding: 16, gap: 10 },
+    listContent: { padding: 16, gap: 10, flexGrow: 1 },
     card: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -201,11 +296,7 @@ const createStyles = (Colors: ColorPalette) =>
       width: 56,
       height: 56,
       borderRadius: 10,
-    },
-    cardImagePlaceholder: {
-      backgroundColor: Colors.borderLight,
-      alignItems: 'center',
-      justifyContent: 'center',
+      overflow: 'hidden',
     },
     cardContent: { flex: 1, gap: 3 },
     cardName: { fontSize: 15, fontWeight: '700', color: Colors.text },

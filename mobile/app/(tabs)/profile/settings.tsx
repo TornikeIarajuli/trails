@@ -2,16 +2,102 @@ import React, { useMemo, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Switch, Alert, ScrollView, ActivityIndicator, Share } from 'react-native';
 import { Stack, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import Constants from 'expo-constants';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useColors, ColorPalette } from '../../../constants/colors';
 import { useSettingsStore, GpsAccuracy } from '../../../store/settingsStore';
+import { useAuthStore } from '../../../store/authStore';
 import { logout } from '../../../hooks/useAuth';
 import { usersService } from '../../../services/users';
+import { queryKeys } from '../../../utils/queryKeys';
+import { getErrorMessage } from '../../../utils/showError';
 
 const GPS_OPTIONS: { value: GpsAccuracy; label: string; hint: string }[] = [
-  { value: 'low', label: 'Battery Saver', hint: '~50m accuracy, 30s interval' },
-  { value: 'balanced', label: 'Balanced', hint: '~20m accuracy, 10s interval' },
-  { value: 'high', label: 'High Precision', hint: '~5m accuracy, 3s interval' },
+  { value: 'low', label: 'Battery Saver', hint: 'GPS with fewer updates. Uses the least battery; the recorded track is coarser.' },
+  { value: 'balanced', label: 'Standard (recommended)', hint: 'GPS, accurate to about 10 m.' },
+  { value: 'high', label: 'High Precision', hint: 'Best accuracy the phone can give. Uses the most battery.' },
 ];
+
+const APP_NAME = Constants.expoConfig?.name ?? 'GZA';
+const APP_VERSION = Constants.expoConfig?.version;
+
+function EmergencyContactRow({ styles, Colors }: { styles: ReturnType<typeof createStyles>; Colors: ColorPalette }) {
+  const queryClient = useQueryClient();
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+
+  const contactIdQuery = useQuery<string | null>({
+    queryKey: queryKeys.emergencyContact(),
+    queryFn: () => usersService.getMyEmergencyContactId(),
+    enabled: isAuthenticated,
+  });
+  const contactId = contactIdQuery.data ?? null;
+
+  const contactQuery = useQuery({
+    queryKey: queryKeys.follows.publicProfile(contactId ?? ''),
+    queryFn: () => usersService.getPublicProfile(contactId!),
+    enabled: !!contactId,
+  });
+
+  const removeContact = useMutation({
+    mutationFn: () => usersService.setEmergencyContact(null),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.emergencyContact() }),
+    onError: (err) => Alert.alert('Error', getErrorMessage(err, 'Could not remove your emergency contact.')),
+  });
+
+  const name = contactQuery.data?.username ? `@${contactQuery.data.username}` : null;
+  let subtitle: string;
+  if (contactIdQuery.isLoading) subtitle = 'Loading…';
+  else if (contactIdQuery.isError) subtitle = "Couldn't load — tap to retry";
+  else if (!contactId) subtitle = 'None set';
+  else subtitle = name ?? 'Set';
+
+  const onPress = () => {
+    if (contactIdQuery.isError) {
+      contactIdQuery.refetch();
+      return;
+    }
+    if (!contactId) {
+      Alert.alert(
+        'Emergency Contact',
+        "Choose someone who uses the app: open their profile and tap \"Set as Emergency Contact\". If you send an SOS during a hike, they get a push notification with your location. The app does not contact emergency services — call 112 for that.",
+        [
+          { text: 'Close', style: 'cancel' },
+          { text: 'Find a hiker', onPress: () => router.push('/search') },
+        ],
+      );
+      return;
+    }
+    Alert.alert('Emergency Contact', `${name ?? 'Your contact'} gets your SOS alerts.`, [
+      { text: 'Close', style: 'cancel' },
+      { text: 'View profile', onPress: () => router.push(`/trail/user/${contactId}` as any) },
+      { text: 'Remove', style: 'destructive', onPress: () => removeContact.mutate() },
+    ]);
+  };
+
+  return (
+    <TouchableOpacity
+      style={styles.linkRow}
+      activeOpacity={0.7}
+      onPress={onPress}
+      disabled={removeContact.isPending}
+      accessibilityRole="button"
+      accessibilityLabel={`Emergency contact: ${subtitle}`}
+    >
+      <View style={styles.rowLeft}>
+        <Ionicons name="alert-circle-outline" size={20} color={Colors.error} />
+        <View style={styles.rowTextBlock}>
+          <Text style={styles.rowLabel}>Emergency Contact</Text>
+          <Text style={styles.rowSubtitle}>{subtitle}</Text>
+        </View>
+      </View>
+      {removeContact.isPending ? (
+        <ActivityIndicator size="small" color={Colors.primary} />
+      ) : (
+        <Ionicons name="chevron-forward" size={18} color={Colors.textLight} />
+      )}
+    </TouchableOpacity>
+  );
+}
 
 export default function SettingsScreen() {
   const Colors = useColors();
@@ -137,6 +223,9 @@ export default function SettingsScreen() {
               style={styles.radioRow}
               onPress={() => setGpsAccuracy(opt.value)}
               activeOpacity={0.7}
+              accessibilityRole="radio"
+              accessibilityState={{ checked: gpsAccuracy === opt.value }}
+              accessibilityLabel={`${opt.label}. ${opt.hint}`}
             >
               <View style={styles.radioOuter}>
                 {gpsAccuracy === opt.value && <View style={[styles.radioInner, { backgroundColor: Colors.primary }]} />}
@@ -178,20 +267,7 @@ export default function SettingsScreen() {
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Safety</Text>
-          <TouchableOpacity
-            style={styles.linkRow}
-            activeOpacity={0.7}
-            onPress={() => Alert.alert(
-              'Emergency Contact',
-              'To set an emergency contact, find a user on their profile page and select "Set as Emergency Contact".',
-            )}
-          >
-            <View style={styles.rowLeft}>
-              <Ionicons name="alert-circle-outline" size={20} color={Colors.error} />
-              <Text style={styles.rowLabel}>Emergency Contact</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color={Colors.textLight} />
-          </TouchableOpacity>
+          <EmergencyContactRow styles={styles} Colors={Colors} />
         </View>
 
         <View style={styles.section}>
@@ -211,6 +287,19 @@ export default function SettingsScreen() {
             ) : (
               <Ionicons name="chevron-forward" size={18} color={Colors.textLight} />
             )}
+          </TouchableOpacity>
+          <View style={styles.divider} />
+          <TouchableOpacity
+            style={styles.linkRow}
+            activeOpacity={0.7}
+            onPress={() => router.push('/(tabs)/profile/blocked-users' as any)}
+            accessibilityRole="button"
+          >
+            <View style={styles.rowLeft}>
+              <Ionicons name="ban-outline" size={20} color={Colors.text} />
+              <Text style={styles.rowLabel}>Blocked users</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={Colors.textLight} />
           </TouchableOpacity>
         </View>
 
@@ -252,9 +341,24 @@ export default function SettingsScreen() {
             </View>
             <Ionicons name="chevron-forward" size={18} color={Colors.textLight} />
           </TouchableOpacity>
+          <View style={styles.divider} />
+          <TouchableOpacity
+            style={styles.linkRow}
+            activeOpacity={0.7}
+            onPress={() => router.push('/(tabs)/profile/credits' as any)}
+            accessibilityRole="button"
+          >
+            <View style={styles.rowLeft}>
+              <Ionicons name="images-outline" size={20} color={Colors.text} />
+              <Text style={styles.rowLabel}>Data sources & photo credits</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={Colors.textLight} />
+          </TouchableOpacity>
         </View>
 
-        <Text style={styles.version}>GZA Trails v1.0.0</Text>
+        <Text style={styles.version}>
+          {APP_VERSION ? `${APP_NAME} v${APP_VERSION}` : APP_NAME}
+        </Text>
       </ScrollView>
     </>
   );
@@ -304,6 +408,14 @@ const createStyles = (Colors: ColorPalette) =>
     rowLabel: {
       fontSize: 16,
       color: Colors.text,
+    },
+    rowTextBlock: {
+      flex: 1,
+    },
+    rowSubtitle: {
+      fontSize: 13,
+      color: Colors.textSecondary,
+      marginTop: 1,
     },
     radioRow: {
       flexDirection: 'row',

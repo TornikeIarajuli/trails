@@ -1,6 +1,5 @@
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import Animated, {
@@ -12,15 +11,15 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Pressable } from 'react-native';
 import { useColors, ColorPalette } from '../../constants/colors';
-import { Trail } from '../../types/trail';
+import { TrailSummary } from '../../types/trail';
 import { DifficultyBadge } from './DifficultyBadge';
-import { formatDistance, formatDuration } from '../../utils/formatters';
+import { TrailCover } from './TrailCover';
+import { formatDistance, formatDuration, formatElevation } from '../../utils/formatters';
 import { localName } from '../../utils/i18n';
 import { useSettingsStore } from '../../store/settingsStore';
-import { useActiveHikerCount } from '../../hooks/useCompletions';
 
 interface TrailCardProps {
-  trail: Trail;
+  trail: TrailSummary;
   index?: number;
 }
 
@@ -33,7 +32,6 @@ export const TrailCard = React.memo(function TrailCard({ trail, index = 0 }: Tra
   const reducedMotion = useReducedMotion();
   const scale = useSharedValue(1);
   const animatedStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
-  const { data: activeCount } = useActiveHikerCount(trail.id);
 
   const delay = Math.min(index, 8) * 50;
   const entering = reducedMotion ? undefined : FadeInDown.delay(delay).duration(280);
@@ -45,16 +43,16 @@ export const TrailCard = React.memo(function TrailCard({ trail, index = 0 }: Tra
         onPressIn={() => { if (!reducedMotion) scale.value = withSpring(0.97, { damping: 15 }); }}
         onPressOut={() => { if (!reducedMotion) scale.value = withSpring(1, { damping: 15 }); }}
         onPress={() => router.push(`/trail/${trail.id}`)}
+        accessibilityRole="button"
+        accessibilityLabel={name}
+        testID="trail-card"
       >
-        <Image
-          source={{
-            uri: trail.cover_image_url || 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&q=60',
-          }}
-          placeholder={{ blurhash: 'L76F~B?bWD%M~qxuxEtS%MNFWqxt' }}
-          contentFit="cover"
-          transition={300}
-          cachePolicy="memory-disk"
+        <TrailCover
+          uri={trail.cover_image_url}
           style={styles.image}
+          iconSize={36}
+          showLabel
+          transition={300}
         />
         <View style={styles.content}>
           {trail.status && trail.status !== 'open' && (
@@ -82,13 +80,8 @@ export const TrailCard = React.memo(function TrailCard({ trail, index = 0 }: Tra
             </View>
             <View style={styles.stat}>
               <Ionicons name="trending-up-outline" size={14} color={Colors.textSecondary} />
-              <Text style={styles.statText}>{trail.elevation_gain_m ?? '--'}m</Text>
+              <Text style={styles.statText}>{formatElevation(trail.elevation_gain_m)}</Text>
             </View>
-            {activeCount != null && activeCount > 0 && (
-              <View style={styles.stat}>
-                <Text style={styles.activeHikers}>🥾 {activeCount} active</Text>
-              </View>
-            )}
           </View>
         </View>
       </Pressable>
@@ -128,7 +121,6 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   image: {
     width: '100%',
     height: 160,
-    backgroundColor: Colors.borderLight,
   },
   content: {
     padding: 14,
@@ -162,11 +154,6 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   statText: {
     fontSize: 13,
     color: Colors.textSecondary,
-  },
-  activeHikers: {
-    fontSize: 12,
-    color: '#16A34A',
-    fontWeight: '600',
   },
   statusPill: {
     alignSelf: 'flex-start',

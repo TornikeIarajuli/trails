@@ -8,6 +8,8 @@ import {
   TextInput,
   StyleSheet,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors, ColorPalette } from '../../constants/colors';
@@ -63,27 +65,31 @@ export function ReportConditionModal({
         description: description.trim() || undefined,
       },
       {
+        // Errors are reported by the hook
         onSuccess: () => {
           setConditionType(null);
           setSeverity('info');
           setDescription('');
           onClose();
         },
-        onError: (err: any) => {
-          const msg = err?.response?.data?.message ?? err?.message ?? 'Failed to submit report';
-          Alert.alert('Error', Array.isArray(msg) ? msg.join('\n') : msg);
-        },
       },
     );
   };
 
+  const handleClose = () => {
+    if (!reportMutation.isPending) onClose();
+  };
+
   return (
-    <Modal visible={visible} animationType="slide" transparent>
-      <View style={styles.overlay}>
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={handleClose}>
+      <KeyboardAvoidingView
+        style={styles.overlay}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
         <View style={styles.modal}>
           <View style={styles.header}>
             <Text style={styles.title}>Report Condition</Text>
-            <TouchableOpacity onPress={onClose} accessibilityLabel="Close report form" accessibilityRole="button">
+            <TouchableOpacity onPress={handleClose} accessibilityLabel="Close report form" accessibilityRole="button">
               <Ionicons name="close" size={24} color={Colors.text} />
             </TouchableOpacity>
           </View>
@@ -162,7 +168,7 @@ export function ReportConditionModal({
             </Text>
           </TouchableOpacity>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }

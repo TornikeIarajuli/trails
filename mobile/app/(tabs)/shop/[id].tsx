@@ -6,6 +6,7 @@ import {
   ScrollView,
   StyleSheet,
   Linking,
+  Alert,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, router } from 'expo-router';
@@ -13,21 +14,44 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useColors, ColorPalette } from '../../../constants/colors';
 import { useProduct } from '../../../hooks/useShop';
+import { formatPrice } from '../../../utils/formatters';
+import { ErrorState } from '../../../components/ui/ErrorState';
+import { LoadingSpinner } from '../../../components/ui/LoadingSpinner';
+
+async function openShopLink(url: string) {
+  try {
+    await Linking.openURL(url);
+  } catch {
+    Alert.alert('Could not open link', 'This shop link could not be opened on your device.');
+  }
+}
 
 export default function ProductDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const Colors = useColors();
   const styles = useMemo(() => createStyles(Colors), [Colors]);
   const insets = useSafeAreaInsets();
-  const { data: product, isLoading } = useProduct(id);
+  const { data: product, isLoading, error, refetch, isRefetching } = useProduct(id);
 
-  if (isLoading || !product) {
+  if (!product) {
     return (
-      <View style={styles.container}>
-        <Text style={styles.loadingText}>Loading...</Text>
+      <View style={[styles.container, { paddingTop: insets.top }]}>
+        {isLoading ? (
+          <LoadingSpinner />
+        ) : (
+          <ErrorState
+            error={error}
+            title="Couldn't load this product"
+            onRetry={() => refetch()}
+            retrying={isRefetching}
+            showBack
+          />
+        )}
       </View>
     );
   }
+
+  const price = formatPrice(product.price);
 
   return (
     <View style={styles.container}>
@@ -43,6 +67,9 @@ export default function ProductDetailScreen() {
         <TouchableOpacity
           style={[styles.backButton, { top: insets.top + 8 }]}
           onPress={() => router.back()}
+          accessibilityLabel="Go back"
+          accessibilityRole="button"
+          testID="back-button"
         >
           <Ionicons name="arrow-back" size={22} color={Colors.text} />
         </TouchableOpacity>
@@ -50,7 +77,7 @@ export default function ProductDetailScreen() {
         <View style={styles.content}>
           <Text style={styles.name}>{product.name}</Text>
 
-          {product.price != null && <Text style={styles.price}>{product.price}₾</Text>}
+          {price ? <Text style={styles.price}>{price}</Text> : null}
 
           {product.shop_name && (
             <View style={styles.shopBadge}>
@@ -69,8 +96,9 @@ export default function ProductDetailScreen() {
         <View style={[styles.bottomBar, { paddingBottom: insets.bottom + 12 }]}>
           <TouchableOpacity
             style={styles.visitButton}
-            onPress={() => Linking.openURL(product.external_url!)}
+            onPress={() => openShopLink(product.external_url!)}
             activeOpacity={0.8}
+            accessibilityRole="link"
           >
             <Ionicons name="open-outline" size={18} color="#FFFFFF" />
             <Text style={styles.visitButtonText}>Visit Shop</Text>

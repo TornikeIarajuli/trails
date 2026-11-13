@@ -3,30 +3,39 @@ import { View, FlatList, Text, StyleSheet, TouchableOpacity, RefreshControl } fr
 import { router } from 'expo-router';
 import { useColors, ColorPalette } from '../../../constants/colors';
 import { useLeaderboard } from '../../../hooks/useLeaderboard';
+import { useWithoutBlocked } from '../../../hooks/useModeration';
 import { LeaderboardRow } from '../../../components/leaderboard/LeaderboardRow';
-import { LoadingSpinner } from '../../../components/ui/LoadingSpinner';
+import { ErrorState } from '../../../components/ui/ErrorState';
 import { LeaderboardRowSkeleton } from '../../../components/ui/Skeleton';
 
 export default function LeaderboardScreen() {
   const Colors = useColors();
   const styles = useMemo(() => createStyles(Colors), [Colors]);
 
-  const { data, isLoading, refetch, isRefetching } = useLeaderboard(50);
+  const { data, isLoading, isError, error, refetch, isRefetching } = useLeaderboard(50);
+  const entries = useWithoutBlocked(data, (entry) => entry.id);
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Leaderboard</Text>
-        <Text style={styles.subtitle}>Top trail conquerors</Text>
+        <Text style={styles.subtitle}>Hikers with the most verified trail completions</Text>
       </View>
 
       {isLoading ? (
         <View style={styles.list}>
           {Array.from({ length: 8 }).map((_, i) => <LeaderboardRowSkeleton key={i} />)}
         </View>
+      ) : isError && entries.length === 0 ? (
+        <ErrorState
+          error={error}
+          title="Couldn't load the leaderboard"
+          onRetry={() => refetch()}
+          retrying={isRefetching}
+        />
       ) : (
         <FlatList
-          data={data}
+          data={entries}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
             <LeaderboardRow entry={item} isTopThree={item.rank <= 3} />
@@ -47,10 +56,14 @@ export default function LeaderboardScreen() {
           }
           ListEmptyComponent={
             <View style={styles.empty}>
-              <Text style={styles.emptyText}>No hikers yet. Be the first!</Text>
+              <Text style={styles.emptyText}>No completed hikes yet</Text>
+              <Text style={styles.emptyHint}>
+                Finish a trail with GPS tracking on and you'll be the first name here.
+              </Text>
               <TouchableOpacity
                 style={styles.emptyAction}
                 onPress={() => router.push('/(tabs)/home' as any)}
+                accessibilityRole="button"
               >
                 <Text style={styles.emptyActionText}>Browse trails</Text>
               </TouchableOpacity>
@@ -88,11 +101,20 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   empty: {
     alignItems: 'center',
     paddingTop: 80,
+    paddingHorizontal: 32,
   },
   emptyText: {
     fontSize: 16,
-    color: Colors.textLight,
+    fontWeight: '600',
+    color: Colors.textSecondary,
     marginTop: 8,
+  },
+  emptyHint: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: Colors.textLight,
+    textAlign: 'center',
+    marginTop: 6,
   },
   emptyAction: {
     marginTop: 16,

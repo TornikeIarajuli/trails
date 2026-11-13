@@ -13,7 +13,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { useColors, ColorPalette } from '../constants/colors';
 import { usersService } from '../services/users';
 import { useDebounce } from '../hooks/useDebounce';
+import { useWithoutBlocked } from '../hooks/useModeration';
 import { Avatar } from '../components/ui/Avatar';
+import { ErrorState } from '../components/ui/ErrorState';
+import { queryKeys } from '../utils/queryKeys';
 
 export default function SearchScreen() {
   const Colors = useColors();
@@ -21,11 +24,12 @@ export default function SearchScreen() {
   const [query, setQuery] = useState('');
   const debouncedQuery = useDebounce(query, 300);
 
-  const { data: results, isLoading } = useQuery({
-    queryKey: ['userSearch', debouncedQuery],
+  const { data, isLoading, isError, error, refetch, isRefetching } = useQuery({
+    queryKey: queryKeys.userSearch(debouncedQuery),
     queryFn: () => usersService.searchUsers(debouncedQuery),
     enabled: debouncedQuery.length >= 2,
   });
+  const results = useWithoutBlocked(data, (user) => user.id);
 
   return (
     <View style={styles.container}>
@@ -40,9 +44,16 @@ export default function SearchScreen() {
           autoFocus
           autoCapitalize="none"
           returnKeyType="search"
+          accessibilityLabel="Search hikers"
+          testID="user-search-input"
         />
         {query.length > 0 && (
-          <TouchableOpacity onPress={() => setQuery('')}>
+          <TouchableOpacity
+            onPress={() => setQuery('')}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="Clear search"
+          >
             <Ionicons name="close-circle" size={20} color={Colors.textLight} />
           </TouchableOpacity>
         )}
@@ -50,13 +61,20 @@ export default function SearchScreen() {
 
       {debouncedQuery.length < 2 ? (
         <View style={styles.hintContainer}>
-          <Ionicons name="people-outline" size={48} color={Colors.borderLight} />
+          <Ionicons name="people-outline" size={48} color={Colors.textLight} />
           <Text style={styles.hintText}>Type at least 2 characters to search</Text>
         </View>
       ) : isLoading ? (
         <View style={styles.hintContainer}>
           <Text style={styles.hintText}>Searching...</Text>
         </View>
+      ) : isError && results.length === 0 ? (
+        <ErrorState
+          error={error}
+          title="Search failed"
+          onRetry={() => refetch()}
+          retrying={isRefetching}
+        />
       ) : (
         <FlatList
           data={results}
@@ -69,6 +87,7 @@ export default function SearchScreen() {
                 router.back();
                 setTimeout(() => router.push(`/trail/user/${item.id}`), 100);
               }}
+              accessibilityRole="button"
             >
               <Avatar uri={item.avatar_url} name={item.full_name || item.username} size={44} />
               <View style={styles.userInfo}>

@@ -10,13 +10,17 @@ import {
   Platform,
   StyleSheet,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useColors, ColorPalette } from '../../constants/colors';
 import { useComments, useAddComment, useDeleteComment } from '../../hooks/useComments';
+import { useWithoutBlocked } from '../../hooks/useModeration';
 import { useAuthStore } from '../../store/authStore';
 import { Avatar } from '../ui/Avatar';
+import { ErrorState } from '../ui/ErrorState';
+import { ContentMenu } from '../moderation/ContentMenu';
 import { ActivityComment } from '../../types/comment';
 
 function getRelativeTime(dateStr: string): string {
@@ -46,7 +50,10 @@ export function CommentsSheet({ activityId, activityType, visible, onClose }: Co
   const [text, setText] = useState('');
   const inputRef = useRef<TextInput>(null);
 
-  const { data: comments = [], isLoading } = useComments(activityId);
+  // Nothing is requested until the sheet is actually opened
+  const { data: allComments, isLoading, isError, error, refetch, isRefetching } =
+    useComments(activityId, 1, 50, visible);
+  const comments = useWithoutBlocked(allComments, (comment) => comment.user_id);
   const addComment = useAddComment();
   const deleteComment = useDeleteComment();
 
@@ -60,7 +67,14 @@ export function CommentsSheet({ activityId, activityType, visible, onClose }: Co
   };
 
   const handleDelete = (comment: ActivityComment) => {
-    deleteComment.mutate({ id: comment.id, activity_id: activityId });
+    Alert.alert('Delete comment', 'Delete this comment?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: () => deleteComment.mutate({ id: comment.id, activity_id: activityId }),
+      },
+    ]);
   };
 
   const renderComment = ({ item }: { item: ActivityComment }) => {
@@ -75,7 +89,7 @@ export function CommentsSheet({ activityId, activityType, visible, onClose }: Co
           </View>
           <Text style={styles.commentText}>{item.comment}</Text>
         </View>
-        {isOwn && (
+        {isOwn ? (
           <TouchableOpacity
             style={styles.deleteButton}
             onPress={() => handleDelete(item)}
@@ -85,6 +99,16 @@ export function CommentsSheet({ activityId, activityType, visible, onClose }: Co
           >
             <Ionicons name="trash-outline" size={16} color={Colors.error} />
           </TouchableOpacity>
+        ) : (
+          <ContentMenu
+            style={styles.deleteButton}
+            targetType="comment"
+            targetId={item.id}
+            targetLabel="comment"
+            authorId={item.user_id}
+            authorName={item.profiles?.username}
+            iconSize={16}
+          />
         )}
       </View>
     );
@@ -93,7 +117,12 @@ export function CommentsSheet({ activityId, activityType, visible, onClose }: Co
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <View style={styles.overlay}>
-        <TouchableOpacity style={styles.backdrop} onPress={onClose} />
+        <TouchableOpacity
+          style={styles.backdrop}
+          onPress={onClose}
+          accessibilityLabel="Close comments"
+          accessibilityRole="button"
+        />
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={[styles.sheet, { paddingBottom: insets.bottom + 8 }]}
@@ -112,6 +141,15 @@ export function CommentsSheet({ activityId, activityType, visible, onClose }: Co
             <View style={styles.loadingContainer}>
               <ActivityIndicator color={Colors.primary} />
             </View>
+          ) : isError && comments.length === 0 ? (
+            <ErrorState
+              compact
+              error={error}
+              message="Couldn't load the comments."
+              onRetry={() => refetch()}
+              retrying={isRefetching}
+              style={styles.loadError}
+            />
           ) : (
             <FlatList
               data={comments}
@@ -119,6 +157,7 @@ export function CommentsSheet({ activityId, activityType, visible, onClose }: Co
               renderItem={renderComment}
               contentContainerStyle={styles.listContent}
               showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
               ListEmptyComponent={
                 <Text style={styles.emptyText}>No comments yet. Be the first!</Text>
               }
@@ -200,6 +239,9 @@ const createStyles = (Colors: ColorPalette) =>
       height: 120,
       justifyContent: 'center',
       alignItems: 'center',
+    },
+    loadError: {
+      marginVertical: 24,
     },
     listContent: {
       paddingBottom: 12,

@@ -10,6 +10,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -18,11 +19,15 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useColors, ColorPalette } from '../../../../../constants/colors';
 import { useEvent, useJoinEvent, useLeaveEvent, useDeleteEvent } from '../../../../../hooks/useEvents';
 import { useComments, useAddComment, useDeleteComment } from '../../../../../hooks/useComments';
+import { useWithoutBlocked } from '../../../../../hooks/useModeration';
 import { useAuthStore } from '../../../../../store/authStore';
 import { LoadingSpinner } from '../../../../../components/ui/LoadingSpinner';
+import { ErrorState } from '../../../../../components/ui/ErrorState';
 import { Button } from '../../../../../components/ui/Button';
 import { Avatar } from '../../../../../components/ui/Avatar';
+import { ContentMenu } from '../../../../../components/moderation/ContentMenu';
 import { ActivityComment } from '../../../../../types/comment';
+import { getErrorStatus } from '../../../../../utils/showError';
 
 function getRelativeTime(dateStr: string): string {
   const diffMs = Date.now() - new Date(dateStr).getTime();
@@ -44,13 +49,15 @@ export default function EventDetailScreen() {
   const userId = useAuthStore((s) => s.user?.id);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
 
-  const { data: event, isLoading } = useEvent(eventId);
+  const { data: event, isLoading, isError, error, refetch, isRefetching } = useEvent(eventId);
   const joinEvent = useJoinEvent();
   const leaveEvent = useLeaveEvent();
   const deleteEvent = useDeleteEvent();
 
   // Comments — inline, no modal
-  const { data: comments = [], isLoading: commentsLoading } = useComments(eventId);
+  const commentsQuery = useComments(eventId);
+  const comments = useWithoutBlocked(commentsQuery.data, (comment) => comment.user_id);
+  const commentsLoading = commentsQuery.isLoading;
   const addComment = useAddComment();
   const deleteCommentMutation = useDeleteComment();
   const [commentText, setCommentText] = useState('');
@@ -65,21 +72,47 @@ export default function EventDetailScreen() {
     );
   };
 
-  if (isLoading || !event) return <LoadingSpinner />;
+  const handleDeleteComment = (comment: ActivityComment) => {
+    Alert.alert('Delete comment', 'Delete this comment?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: () => deleteCommentMutation.mutate({ id: comment.id, activity_id: eventId }),
+      },
+    ]);
+  };
+
+  if (!event) {
+    if (isLoading) return <LoadingSpinner />;
+    const gone = getErrorStatus(error) === 404;
+    return (
+      <>
+        <Stack.Screen options={{ headerShown: true, title: 'Group Hike' }} />
+        <ErrorState
+          error={error}
+          title={gone ? 'This group hike is no longer available' : "Couldn't load this group hike"}
+          message={gone ? 'It may have been cancelled by the organizer.' : undefined}
+          onRetry={gone ? undefined : () => refetch()}
+          retrying={isRefetching}
+          showBack
+        />
+      </>
+    );
+  }
 
   const isOrganizer = event.organizer_id === userId;
-  const isParticipant = event.participants?.some((p) => p.user_id === userId);
-  const isFull =
-    event.max_participants != null &&
-    (event.participants?.length ?? 0) >= event.max_participants;
+  const participants = event.participants ?? [];
+  const isParticipant = participants.some((p) => p.user_id === userId);
+  const isFull = event.max_participants != null && participants.length >= event.max_participants;
 
   const scheduledDate = new Date(event.scheduled_at);
 
   const handleDelete = () => {
-    Alert.alert('Delete Event', 'This will cancel the group hike for all participants.', [
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert('Cancel group hike', 'This cancels the hike for everyone who joined.', [
+      { text: 'Keep it', style: 'cancel' },
       {
-        text: 'Delete',
+        text: 'Cancel hike',
         style: 'destructive',
         onPress: () =>
           deleteEvent.mutate(eventId, { onSuccess: () => router.back() }),
@@ -87,10 +120,21 @@ export default function EventDetailScreen() {
     ]);
   };
 
-  const headerData = [{ type: 'header' as const }];
-
-  const renderHeader = () => (
+  // Rendered as an element below, not passed as a function: a function would be a
+  // new component type on every keystroke in the comment box and remount the header.
+  const header = (
     <>
+      {isError && (
+        <ErrorState
+          compact
+          error={error}
+          message="Couldn't refresh — showing what was loaded before."
+          onRetry={() => refetch()}
+          retrying={isRefetching}
+          style={styles.staleNotice}
+        />
+      )}
+
       <View style={styles.dateCard}>
         <Text style={styles.dateText}>
           {scheduledDate.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
@@ -100,13 +144,28 @@ export default function EventDetailScreen() {
         </Text>
       </View>
 
-      <View style={styles.section}>
+      <TouchableOpacity
+        style={styles.section}
+        onPress={() => router.push(`/trail/${event.trail_id}` as any)}
+        activeOpacity={0.7}
+        accessibilityRole="button"
+      >
         <Text style={styles.label}>Trail</Text>
         <Text style={styles.value}>{event.trails?.name_en}</Text>
-      </View>
+      </TouchableOpacity>
 
       <View style={styles.section}>
-        <Text style={styles.label}>Organizer</Text>
+        <View style={styles.labelRow}>
+          <Text style={styles.label}>Organizer</Text>
+          <ContentMenu
+            targetType="event"
+            targetId={event.id}
+            targetLabel="group hike"
+            authorId={event.organizer_id}
+            authorName={event.organizer?.username}
+            iconSize={16}
+          />
+        </View>
         <Text style={styles.value}>@{event.organizer?.username}</Text>
       </View>
 
@@ -119,17 +178,18 @@ export default function EventDetailScreen() {
 
       <View style={styles.section}>
         <Text style={styles.label}>
-          Participants ({event.participants?.length ?? 0}
+          Participants ({participants.length}
           {event.max_participants ? `/${event.max_participants}` : ''})
         </Text>
-        {(event.participants ?? []).map((p) => (
+        {participants.map((p) => (
           <TouchableOpacity
             key={p.user_id}
             style={styles.participantRow}
             onPress={() => router.push(`/trail/user/${p.user_id}` as any)}
             activeOpacity={0.7}
+            accessibilityRole="button"
           >
-            {p.profiles.avatar_url ? (
+            {p.profiles?.avatar_url ? (
               <Image
                 source={{ uri: p.profiles.avatar_url }}
                 style={styles.avatar}
@@ -140,7 +200,7 @@ export default function EventDetailScreen() {
                 <Ionicons name="person" size={14} color={Colors.textLight} />
               </View>
             )}
-            <Text style={styles.participantName}>@{p.profiles.username}</Text>
+            <Text style={styles.participantName}>@{p.profiles?.username ?? 'hiker'}</Text>
             {p.user_id === event.organizer_id && (
               <Text style={styles.organizerTag}>Organizer</Text>
             )}
@@ -171,6 +231,7 @@ export default function EventDetailScreen() {
           <Button
             title="Cancel Event"
             onPress={handleDelete}
+            loading={deleteEvent.isPending}
             variant="outline"
           />
         )}
@@ -188,7 +249,18 @@ export default function EventDetailScreen() {
         <ActivityIndicator color={Colors.primary} style={{ marginVertical: 16 }} />
       )}
 
-      {!commentsLoading && comments.length === 0 && (
+      {!commentsLoading && commentsQuery.isError && comments.length === 0 && (
+        <ErrorState
+          compact
+          error={commentsQuery.error}
+          message="Couldn't load the comments."
+          onRetry={() => commentsQuery.refetch()}
+          retrying={commentsQuery.isRefetching}
+          style={styles.staleNotice}
+        />
+      )}
+
+      {!commentsLoading && !commentsQuery.isError && comments.length === 0 && (
         <Text style={styles.emptyComments}>No comments yet. Start the conversation!</Text>
       )}
     </>
@@ -206,15 +278,26 @@ export default function EventDetailScreen() {
           </View>
           <Text style={styles.commentText}>{item.comment}</Text>
         </View>
-        {isOwn && (
+        {isOwn ? (
           <TouchableOpacity
             style={styles.deleteCommentBtn}
-            onPress={() => deleteCommentMutation.mutate({ id: item.id, activity_id: eventId })}
+            onPress={() => handleDeleteComment(item)}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             accessibilityLabel="Delete comment"
+            accessibilityRole="button"
           >
             <Ionicons name="trash-outline" size={16} color={Colors.error} />
           </TouchableOpacity>
+        ) : (
+          <ContentMenu
+            style={styles.deleteCommentBtn}
+            targetType="comment"
+            targetId={item.id}
+            targetLabel="comment"
+            authorId={item.user_id}
+            authorName={item.profiles?.username}
+            iconSize={16}
+          />
         )}
       </View>
     );
@@ -241,10 +324,21 @@ export default function EventDetailScreen() {
           data={comments}
           keyExtractor={(item) => item.id}
           renderItem={renderComment}
-          ListHeaderComponent={renderHeader}
+          ListHeaderComponent={header}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefetching}
+              onRefresh={() => {
+                refetch();
+                commentsQuery.refetch();
+              }}
+              tintColor={Colors.primary}
+              colors={[Colors.primary]}
+            />
+          }
         />
 
         {/* Sticky input at bottom */}
@@ -259,12 +353,14 @@ export default function EventDetailScreen() {
               onChangeText={setCommentText}
               maxLength={500}
               multiline
+              accessibilityLabel="Comment"
             />
             <TouchableOpacity
               style={[styles.sendButton, (!commentText.trim() || addComment.isPending) && styles.sendButtonDisabled]}
               onPress={handleSendComment}
               disabled={!commentText.trim() || addComment.isPending}
               accessibilityLabel="Send comment"
+              accessibilityRole="button"
             >
               {addComment.isPending ? (
                 <ActivityIndicator size="small" color="#fff" />
@@ -283,6 +379,7 @@ const createStyles = (Colors: ColorPalette) =>
   StyleSheet.create({
     container: { flex: 1, backgroundColor: Colors.background },
     listContent: { paddingBottom: 8 },
+    staleNotice: { marginHorizontal: 16, marginTop: 12 },
     dateCard: {
       margin: 16,
       padding: 20,
@@ -300,6 +397,7 @@ const createStyles = (Colors: ColorPalette) =>
       borderRadius: 10,
       gap: 6,
     },
+    labelRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
     label: { fontSize: 12, fontWeight: '600', color: Colors.textSecondary, textTransform: 'uppercase', letterSpacing: 0.5 },
     value: { fontSize: 16, color: Colors.text, fontWeight: '500' },
     description: { fontSize: 15, color: Colors.textSecondary, lineHeight: 22 },

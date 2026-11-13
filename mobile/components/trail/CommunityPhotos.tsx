@@ -5,6 +5,7 @@ import {
   ScrollView,
   TouchableOpacity,
   StyleSheet,
+  ActivityIndicator,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
@@ -17,19 +18,23 @@ interface CommunityPhotosProps {
   photosCount: number;
   onViewAll: () => void;
   onAddPhoto: () => void;
+  isUploading?: boolean;
 }
 
 export function CommunityPhotos({
   trailId,
-  photosCount,
+  photosCount: cachedPhotosCount,
   onViewAll,
   onAddPhoto,
+  isUploading = false,
 }: CommunityPhotosProps) {
   const Colors = useColors();
   const styles = useMemo(() => createStyles(Colors), [Colors]);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const { data } = useTrailPhotos(trailId);
   const photos = data?.pages.flatMap((p) => p.data) ?? [];
+  // The photo list is fresher than the count on the (server-cached) trail detail
+  const photosCount = data?.pages[0]?.pagination?.total ?? cachedPhotosCount ?? 0;
 
   if (photosCount === 0 && !isAuthenticated) return null;
 
@@ -40,7 +45,7 @@ export function CommunityPhotos({
           Community Photos{photosCount > 0 ? ` (${photosCount})` : ''}
         </Text>
         {photosCount > 4 && (
-          <TouchableOpacity onPress={onViewAll}>
+          <TouchableOpacity onPress={onViewAll} accessibilityRole="button">
             <Text style={styles.viewAll}>View All</Text>
           </TouchableOpacity>
         )}
@@ -52,9 +57,20 @@ export function CommunityPhotos({
         contentContainerStyle={styles.scrollContent}
       >
         {isAuthenticated && (
-          <TouchableOpacity style={styles.addButton} onPress={onAddPhoto}>
-            <Ionicons name="camera-outline" size={28} color={Colors.primary} />
-            <Text style={styles.addText}>Add Photo</Text>
+          <TouchableOpacity
+            style={styles.addButton}
+            onPress={onAddPhoto}
+            disabled={isUploading}
+            accessibilityRole="button"
+            accessibilityLabel={isUploading ? 'Uploading photo' : 'Add photo'}
+            accessibilityState={{ busy: isUploading, disabled: isUploading }}
+          >
+            {isUploading ? (
+              <ActivityIndicator color={Colors.primary} />
+            ) : (
+              <Ionicons name="camera-outline" size={28} color={Colors.primary} />
+            )}
+            <Text style={styles.addText}>{isUploading ? 'Uploading…' : 'Add Photo'}</Text>
           </TouchableOpacity>
         )}
 

@@ -58,29 +58,45 @@ describe('completionsService.clearActive', () => {
 });
 
 describe('completionsService.recordHike', () => {
-  it('calls POST /completions/record with trail_id and elapsed_seconds', async () => {
+  const payload = {
+    trail_id: 'trail-42',
+    elapsed_seconds: 3600,
+    started_at: '2026-11-13T07:00:00.000Z',
+    completed_at: '2026-11-13T08:00:00.000Z',
+    distance_m: 6120,
+    track: [[42.6655, 44.6146, 1_794_553_200]] as [number, number, number][],
+  };
+
+  it('calls POST /completions/record with the payload as given', async () => {
     mockPost.mockResolvedValueOnce(ok({ id: 'c1', trail_id: 'trail-42' }));
-    await completionsService.recordHike('trail-42', 3600);
-    expect(mockPost).toHaveBeenCalledWith('/completions/record', {
-      trail_id: 'trail-42',
-      elapsed_seconds: 3600,
-    });
+    await completionsService.recordHike(payload);
+    expect(mockPost).toHaveBeenCalledWith('/completions/record', payload, expect.anything());
   });
 
-  it('omits elapsed_seconds when not provided', async () => {
-    mockPost.mockResolvedValueOnce(ok({ id: 'c1', trail_id: 'trail-42' }));
-    await completionsService.recordHike('trail-42');
-    expect(mockPost).toHaveBeenCalledWith('/completions/record', {
-      trail_id: 'trail-42',
-      elapsed_seconds: undefined,
-    });
+  it('allows a waking server a full minute before giving up', async () => {
+    mockPost.mockResolvedValueOnce(ok({ id: 'c1' }));
+    await completionsService.recordHike({ trail_id: 'trail-42' });
+    expect(mockPost.mock.calls[0][2]).toEqual({ timeout: 60_000 });
   });
 
-  it('returns the completion object', async () => {
-    const completion = { id: 'c1', trail_id: 'trail-42', elapsed_seconds: 3600 };
+  it('returns the completion with its verification result', async () => {
+    const completion = {
+      id: 'c1',
+      trail_id: 'trail-42',
+      status: 'pending',
+      verified: false,
+      verification: { coverage: 0.31, required_coverage: 0.6, reason: 'low_coverage' },
+      new_badge_ids: [],
+      already_existed: false,
+    };
     mockPost.mockResolvedValueOnce(ok(completion));
-    const result = await completionsService.recordHike('trail-42', 3600);
+    const result = await completionsService.recordHike(payload);
     expect(result).toEqual(completion);
+  });
+
+  it('propagates a server refusal', async () => {
+    mockPost.mockRejectedValueOnce(new Error('Trail not found'));
+    await expect(completionsService.recordHike(payload)).rejects.toThrow('Trail not found');
   });
 });
 

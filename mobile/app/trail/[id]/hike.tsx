@@ -8,9 +8,11 @@ import {
   FlatList,
   Platform,
   Animated,
+  ActivityIndicator,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, router } from 'expo-router';
+import * as Linking from 'expo-linking';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import MapView, { Marker, Polyline, Callout, PROVIDER_GOOGLE } from 'react-native-maps';
@@ -21,14 +23,22 @@ import { useHikeStore } from '../../../store/hikeStore';
 import { useLocationTracking } from '../../../hooks/useLocation';
 import { Config } from '../../../constants/config';
 import { parseGeoPoint, parseGeoLineString, haversineDistance } from '../../../utils/geo';
-import { mediaService } from '../../../services/media';
+import { mediaService, describeImageUpload } from '../../../services/media';
 import { useRecordHike } from '../../../hooks/useCompletions';
-import { startBackgroundTracking, stopBackgroundTracking } from '../../../utils/locationTask';
+import { stopBackgroundTracking } from '../../../utils/locationTask';
 import * as Haptics from 'expo-haptics';
 import { useAuthStore } from '../../../store/authStore';
 import { usersService } from '../../../services/users';
 import { completionsService } from '../../../services/completions';
 import { analytics } from '../../../utils/analytics';
+import { Button } from '../../../components/ui/Button';
+import { LoadingSpinner } from '../../../components/ui/LoadingSpinner';
+import { discardActiveHike } from '../../../utils/hikeSession';
+import { buildSmsUrl, buildSosSmsBody } from '../../../utils/links';
+import { getErrorMessage } from '../../../utils/showError';
+import { classifySyncFailure } from '../../../utils/syncQueue';
+import { MAX_FIX_ACCURACY_M, buildPendingCompletion, isWithinCheckinRange } from '../../../utils/track';
+import { RecordHikeResponse } from '../../../types/completion';
 
 // Isolated timer component — only this re-renders every second
 function HikeTimer({ styles }: { styles: ReturnType<typeof createStyles> }) {
@@ -41,6 +51,7 @@ function HikeTimer({ styles }: { styles: ReturnType<typeof createStyles> }) {
 
   useEffect(() => {
     if (!isActive) return;
+    tick();
     const interval = setInterval(tick, 1000);
     return () => clearInterval(interval);
   }, [isActive, tick]);
@@ -76,19 +87,34 @@ function HikeTimer({ styles }: { styles: ReturnType<typeof createStyles> }) {
   );
 }
 
+function leaveScreen() {
+  if (router.canGoBack()) router.back();
+  else router.replace('/(tabs)/home');
+}
+
+function call112() {
+  Linking.openURL('tel:112').catch(() => {
+    Alert.alert('Could not start the call', 'Dial 112 from your phone app.');
+  });
+}
+
 export default function HikeScreen() {
   const Colors = useColors();
   const styles = useMemo(() => createStyles(Colors), [Colors]);
 
   const { id } = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
-  const { data: trail } = useTrail(id);
   const [hikePhotos, setHikePhotos] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
+  const finishedRef = useRef(false);
   const mapRef = useRef<MapView>(null);
   const hasInitialLocation = useRef(false);
 
+  const hydrated = useHikeStore((s) => s._hydrated);
   const isActive = useHikeStore((s) => s.isActive);
+  const activeTrailId = useHikeStore((s) => s.trailId);
   const isPaused = useHikeStore((s) => s.isPaused);
   const visitedCheckpointIds = useHikeStore((s) => s.visitedCheckpointIds);
   const distanceCoveredMeters = useHikeStore((s) => s.distanceCoveredMeters);
@@ -98,38 +124,29 @@ export default function HikeScreen() {
   const resumeHike = useHikeStore((s) => s.resumeHike);
   const addGpsPoint = useHikeStore((s) => s.addGpsPoint);
   const markCheckpointVisited = useHikeStore((s) => s.markCheckpointVisited);
+  const enqueueCompletion = useHikeStore((s) => s.enqueueCompletion);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
 
-  const handleSos = () => {
-    Alert.alert(
-      '🆘 SOS',
-      'Send an emergency alert to your emergency contact with your current GPS location?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Send SOS',
-          style: 'destructive',
-          onPress: () => {
-            const lat = location?.latitude;
-            const lng = location?.longitude;
-            if (!lat || !lng) {
-              Alert.alert('No GPS', 'Waiting for GPS fix. Please try again in a moment.');
-              return;
-            }
-            usersService.sendSos(lat, lng)
-              .then(() => Alert.alert('SOS Sent', 'Your emergency contact has been notified with your location.'))
-              .catch(() => Alert.alert('Error', 'Failed to send SOS. Try calling emergency services directly.'));
-          },
-        },
-      ],
-    );
-  };
+  // The stored trail id says which hike is running; the route only says which
+  // trail's hike screen was opened. They differ when a hike on another trail is
+  // still active, and nothing may then be recorded under this route's trail.
+  const isThisHike = hydrated && isActive && activeTrailId === id;
+  const otherTrailId = hydrated && isActive && activeTrailId && activeTrailId !== id ? activeTrailId : null;
+
+  const { data: trail } = useTrail(id);
+  const { data: otherTrail } = useTrail(otherTrailId ?? '');
 
   // Haptic tracking refs
   const nearbyAlertedRef = useRef<Set<string>>(new Set());
   const milestonesFiredRef = useRef<Set<number>>(new Set());
 
-  const location = useLocationTracking(isActive);
+  const {
+    location,
+    status: locationStatus,
+    canAskAgain,
+    backgroundTracking,
+    retry: retryLocation,
+  } = useLocationTracking(isThisHike && !saving);
   const recordHike = useRecordHike();
 
   // Parse route from trail data
@@ -141,59 +158,65 @@ export default function HikeScreen() {
     })
     .filter(Boolean) as any[];
 
-  // Start hike on mount + begin background GPS + mark active
+  const beginHike = () => {
+    if (!id) return;
+    startHike(id, useAuthStore.getState().user?.id ?? null);
+    analytics.hikeStarted(id, trail?.name_en ?? id);
+  };
+
+  // Start a hike on mount unless one is already running (on this trail or another)
   useEffect(() => {
-    if (!isActive && id) {
-      startHike(id);
-      analytics.hikeStarted(id, trail?.name_en ?? id);
-    }
-    startBackgroundTracking();
-    if (id) {
-      completionsService.markActive(id).catch(() => {});
-    }
+    if (!hydrated || !id || finishedRef.current) return;
+    if (!useHikeStore.getState().isActive) beginHike();
+  }, [hydrated, id]);
+
+  // Show this hiker in the trail's "currently hiking" count while the screen is open
+  useEffect(() => {
+    if (!isThisHike || !id) return;
+    completionsService.markActive(id).catch(() => {});
     return () => {
-      // Clean up active hike record on unmount (user navigated away without ending)
-      if (id) {
-        completionsService.clearActive(id).catch(() => {});
-      }
+      completionsService.clearActive(id).catch(() => {});
     };
-  }, [id]);
+  }, [isThisHike, id]);
 
   // Track GPS points, center map on first fix, and detect nearby checkpoints
   useEffect(() => {
-    if (location && isActive) {
-      addGpsPoint(location.latitude, location.longitude);
-      if (!hasInitialLocation.current) {
-        hasInitialLocation.current = true;
-        mapRef.current?.animateToRegion({
-          latitude: location.latitude,
-          longitude: location.longitude,
-          latitudeDelta: 0.01,
-          longitudeDelta: 0.01,
-        }, 1000);
+    if (!location || !isThisHike) return;
+
+    addGpsPoint(location.latitude, location.longitude, {
+      timestamp: location.timestamp,
+      accuracy: location.accuracy,
+    });
+    if (!hasInitialLocation.current) {
+      hasInitialLocation.current = true;
+      mapRef.current?.animateToRegion({
+        latitude: location.latitude,
+        longitude: location.longitude,
+        latitudeDelta: 0.01,
+        longitudeDelta: 0.01,
+      }, 1000);
+    }
+
+    // Checkpoint proximity haptics
+    parsedCheckpoints.forEach((cp) => {
+      if (useHikeStore.getState().visitedCheckpointIds.includes(cp.id)) return;
+      const dist = haversineDistance(location.latitude, location.longitude, cp.coord.latitude, cp.coord.longitude);
+
+      if (dist < 150 && !nearbyAlertedRef.current.has(cp.id)) {
+        nearbyAlertedRef.current.add(cp.id);
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       }
 
-      // Checkpoint proximity haptics
-      parsedCheckpoints.forEach((cp) => {
-        if (visitedCheckpointIds.includes(cp.id)) return;
-        const dist = haversineDistance(location.latitude, location.longitude, cp.coord.latitude, cp.coord.longitude);
-
-        if (dist < 150 && !nearbyAlertedRef.current.has(cp.id)) {
-          nearbyAlertedRef.current.add(cp.id);
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        }
-
-        if (dist < 30 && !visitedCheckpointIds.includes(cp.id)) {
-          markCheckpointVisited(cp.id);
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        }
-      });
-    }
+      if (isWithinCheckinRange(dist, location.accuracy)) {
+        markCheckpointVisited(cp.id);
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
+    });
   }, [location]);
 
   // Milestone haptics at 25 / 50 / 75 / 100% of trail distance
   useEffect(() => {
-    if (!isActive || !trail?.distance_km) return;
+    if (!isThisHike || !trail?.distance_km) return;
     const totalMeters = trail.distance_km * 1000;
     const pct = (distanceCoveredMeters / totalMeters) * 100;
     for (const threshold of [25, 50, 75, 100]) {
@@ -204,48 +227,186 @@ export default function HikeScreen() {
     }
   }, [distanceCoveredMeters]);
 
-  const handleEndHike = () => {
-    Alert.alert('End Hike', 'Are you sure you want to end this hike?', [
-      { text: 'Cancel', style: 'cancel' },
+  const currentPosition = (): { lat: number; lng: number } | null => {
+    if (location) return { lat: location.latitude, lng: location.longitude };
+    const points = useHikeStore.getState().gpsPoints;
+    const last = points[points.length - 1];
+    return last ? { lat: last.lat, lng: last.lng } : null;
+  };
+
+  // Shown whenever the emergency contact was not (confirmed to be) reached
+  const offerSosFallback = (title: string, message: string) => {
+    Alert.alert(title, `${message}\n\nCall 112, or text your location to someone who can help.`, [
+      { text: 'Call 112', onPress: call112 },
       {
-        text: 'End Hike',
-        style: 'destructive',
+        text: 'Text my location',
         onPress: () => {
-          stopBackgroundTracking();
-          if (id) completionsService.clearActive(id).catch(() => {});
-          const elapsed = useHikeStore.getState().elapsedSeconds;
-          if (id) {
-            recordHike.mutate(
-              { trailId: id, elapsedSeconds: elapsed },
-              {
-                onSuccess: (data: any) => {
-                  const newBadgeIds: string[] = data?.new_badge_ids ?? [];
-                  analytics.hikeCompleted(id, elapsed, distanceCoveredMeters / 1000);
-                  endHike();
-                  const params = newBadgeIds.length > 0
-                    ? `?newBadgeIds=${encodeURIComponent(JSON.stringify(newBadgeIds))}`
-                    : '';
-                  router.replace(`/trail/completion/${data?.id ?? id}${params}` as any);
-                },
-                onError: () => {
-                  // Save for offline retry
-                  useHikeStore.getState().setPendingSync({
-                    trailId: id!,
-                    elapsedSeconds: elapsed ?? 0,
-                    completedAt: new Date().toISOString(),
-                  });
-                  endHike();
-                  router.back();
-                },
-              },
-            );
-          } else {
-            endHike();
-            router.back();
-          }
+          Linking.openURL(buildSmsUrl(buildSosSmsBody(currentPosition()), Platform.OS)).catch(() => {
+            Alert.alert('Could not open messages', 'Send a text message from your messaging app.');
+          });
         },
       },
+      { text: 'Close', style: 'cancel' },
     ]);
+  };
+
+  const alertEmergencyContact = async () => {
+    const position = currentPosition();
+    if (!position) {
+      offerSosFallback('No GPS position yet', 'Your emergency contact was not alerted because your position is not known yet.');
+      return;
+    }
+    try {
+      const result = await usersService.sendSos(position.lat, position.lng);
+      if (result?.sent === true) {
+        Alert.alert('Alert sent', 'Your emergency contact has been notified with your location.', [
+          { text: 'Call 112', onPress: call112 },
+          { text: 'OK', style: 'cancel' },
+        ]);
+      } else if (result?.reason === 'no_contact') {
+        offerSosFallback('No emergency contact', 'You have not chosen an emergency contact, so nobody was alerted.');
+      } else if (result?.reason === 'contact_unreachable') {
+        offerSosFallback('Contact not reached', 'Your emergency contact has no device that can receive alerts right now, so nobody was alerted.');
+      } else {
+        offerSosFallback('Alert not confirmed', 'We could not confirm that your emergency contact was alerted.');
+      }
+    } catch {
+      offerSosFallback('Alert not sent', 'The server could not be reached, so your emergency contact was not alerted.');
+    }
+  };
+
+  const handleSos = () => {
+    Alert.alert('SOS', 'How do you want to get help?', [
+      { text: 'Alert my emergency contact', style: 'destructive', onPress: alertEmergencyContact },
+      { text: 'Call 112', onPress: call112 },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  };
+
+  const finishHike = async () => {
+    const hike = useHikeStore.getState();
+    if (savingRef.current || finishedRef.current || !hike.isActive || !hike.trailId) return;
+    savingRef.current = true;
+    setSaving(true);
+
+    const trailId = hike.trailId;
+    // Recorded for the account that started the hike, whoever is signed in by now
+    const completion = buildPendingCompletion(
+      { ...hike, trailId },
+      hike.ownerId ?? useAuthStore.getState().user?.id ?? null,
+    );
+
+    // Only the upload itself is inside the try: an error in what follows a successful
+    // upload must not be mistaken for a failed one and queue the hike a second time.
+    let result: RecordHikeResponse;
+    try {
+      result = await recordHike.mutateAsync(completion);
+    } catch (error) {
+      if (classifySyncFailure(error) === 'drop') {
+        // The server refused this hike; sending it again later would not help
+        savingRef.current = false;
+        setSaving(false);
+        Alert.alert('This hike could not be recorded', getErrorMessage(error), [
+          { text: 'Keep hike open', style: 'cancel' },
+          {
+            text: 'Discard hike',
+            style: 'destructive',
+            onPress: () => {
+              finishedRef.current = true;
+              discardActiveHike();
+              leaveScreen();
+            },
+          },
+        ]);
+        return;
+      }
+
+      finishedRef.current = true;
+      enqueueCompletion(completion);
+      void stopBackgroundTracking();
+      endHike({ localId: completion.localId });
+      leaveScreen();
+      Alert.alert(
+        'Hike saved on your phone',
+        'Your hike could not be uploaded right now, so it is stored on this phone. It will upload by itself once you are online and signed in — keep the app installed until then.',
+      );
+      return;
+    }
+
+    finishedRef.current = true;
+    analytics.hikeCompleted(trailId, completion.elapsedSeconds, hike.distanceCoveredMeters / 1000);
+    void stopBackgroundTracking();
+    endHike({ completionId: result?.id ?? null });
+
+    if (!result?.id) {
+      leaveScreen();
+      return;
+    }
+    // A backend without track verification reports no `verified`: go by the status it stored
+    const verified = result.verified ?? result.status !== 'pending';
+    const params = [
+      'fresh=1',
+      `verified=${verified ? '1' : '0'}`,
+      result.verification?.reason ? `reason=${encodeURIComponent(result.verification.reason)}` : null,
+      typeof result.verification?.coverage === 'number' ? `coverage=${result.verification.coverage}` : null,
+      typeof result.verification?.required_coverage === 'number'
+        ? `required=${result.verification.required_coverage}`
+        : null,
+      result.already_existed ? 'already=1' : null,
+      result.new_badge_ids?.length
+        ? `newBadgeIds=${encodeURIComponent(JSON.stringify(result.new_badge_ids))}`
+        : null,
+    ].filter(Boolean);
+    router.replace(`/trail/completion/${result.id}?${params.join('&')}` as any);
+  };
+
+  const handleEndHike = () => {
+    if (savingRef.current) return;
+    Alert.alert('End Hike', 'Are you sure you want to end this hike?', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'End Hike', style: 'destructive', onPress: finishHike },
+    ]);
+  };
+
+  const confirmDiscardOther = () => {
+    Alert.alert(
+      'Discard the other hike?',
+      'Its recorded route is deleted and it will not count as a completion.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Discard and start',
+          style: 'destructive',
+          onPress: () => {
+            discardActiveHike();
+            beginHike();
+          },
+        },
+      ],
+    );
+  };
+
+  const openLocationSettings = () => {
+    const open =
+      Platform.OS === 'android' && locationStatus === 'disabled'
+        ? Linking.sendIntent('android.settings.LOCATION_SOURCE_SETTINGS')
+        : Linking.openSettings();
+    open.catch(() => Linking.openSettings().catch(() => {}));
+  };
+
+  const uploadPhoto = async (asset: ImagePicker.ImagePickerAsset) => {
+    if (!id) return;
+    setHikePhotos((prev) => [asset.uri, ...prev]);
+
+    setUploading(true);
+    try {
+      const { fileName, mimeType } = describeImageUpload(asset);
+      await mediaService.uploadHikePhoto(id, asset.uri, fileName, mimeType);
+    } catch {
+      // Photo saved locally even if upload fails
+    } finally {
+      setUploading(false);
+    }
   };
 
   const takePhoto = async () => {
@@ -260,20 +421,7 @@ export default function HikeScreen() {
       allowsEditing: false,
     });
 
-    if (!result.canceled && result.assets[0] && id) {
-      const asset = result.assets[0];
-      setHikePhotos((prev) => [asset.uri, ...prev]);
-
-      setUploading(true);
-      try {
-        const fileName = asset.uri.split('/').pop() || 'hike_photo.jpg';
-        await mediaService.uploadHikePhoto(id, asset.uri, fileName, 'image/jpeg');
-      } catch {
-        // Photo saved locally even if upload fails
-      } finally {
-        setUploading(false);
-      }
-    }
+    if (!result.canceled && result.assets[0]) await uploadPhoto(result.assets[0]);
   };
 
   const pickFromGallery = async () => {
@@ -288,20 +436,7 @@ export default function HikeScreen() {
       quality: 0.6,
     });
 
-    if (!result.canceled && result.assets[0] && id) {
-      const asset = result.assets[0];
-      setHikePhotos((prev) => [asset.uri, ...prev]);
-
-      setUploading(true);
-      try {
-        const fileName = asset.uri.split('/').pop() || 'hike_photo.jpg';
-        await mediaService.uploadHikePhoto(id, asset.uri, fileName, 'image/jpeg');
-      } catch {
-        // Photo saved locally even if upload fails
-      } finally {
-        setUploading(false);
-      }
-    }
+    if (!result.canceled && result.assets[0]) await uploadPhoto(result.assets[0]);
   };
 
   const handlePhotoPress = () => {
@@ -311,6 +446,46 @@ export default function HikeScreen() {
       { text: 'Cancel', style: 'cancel' },
     ]);
   };
+
+  if (!hydrated) return <LoadingSpinner />;
+
+  if (otherTrailId) {
+    const otherName = otherTrail?.name_en ?? 'another trail';
+    return (
+      <View style={[styles.conflict, { paddingTop: insets.top + 24, paddingBottom: insets.bottom + 24 }]}>
+        <Ionicons name="footsteps-outline" size={44} color={Colors.accent} />
+        <Text style={styles.conflictTitle}>You already have a hike in progress</Text>
+        <Text style={styles.conflictBody}>
+          Your hike on {otherName} is still being recorded. Resume it, or discard it to start{' '}
+          {trail?.name_en ?? 'this trail'} instead.
+        </Text>
+        <Button
+          title={`Resume ${otherName}`}
+          onPress={() => router.replace(`/trail/${otherTrailId}/hike` as any)}
+          style={styles.conflictButton}
+        />
+        <Button
+          title="Discard it and start this one"
+          variant="outline"
+          onPress={confirmDiscardOther}
+          style={styles.conflictButton}
+        />
+        <TouchableOpacity onPress={leaveScreen} style={styles.conflictBack} accessibilityRole="button">
+          <Text style={styles.conflictBackText}>Go back</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  const locationBlocked = locationStatus === 'denied' || locationStatus === 'disabled';
+  const weakSignal =
+    !!location && typeof location.accuracy === 'number' && location.accuracy > MAX_FIX_ACCURACY_M;
+  let hint = 'Walk toward checkpoints to check in';
+  if (saving) hint = 'Saving your hike — this can take up to a minute on a slow connection';
+  else if (locationStatus === 'denied') hint = 'Location access is off, so your route is not being recorded.';
+  else if (locationStatus === 'disabled') hint = 'Location is turned off on this phone, so your route is not being recorded.';
+  else if (!location) hint = 'Acquiring GPS signal...';
+  else if (weakSignal) hint = `Weak GPS signal (±${Math.round(location.accuracy ?? 0)} m) — waiting for a better fix`;
 
   return (
     <View style={styles.container}>
@@ -370,7 +545,7 @@ export default function HikeScreen() {
 
       {/* Top bar */}
       <View style={[styles.topBar, { top: insets.top + 8 }]}>
-        <TouchableOpacity style={styles.iconButton} onPress={handleEndHike} accessibilityLabel="End hike" accessibilityRole="button">
+        <TouchableOpacity testID="close-button" style={styles.iconButton} onPress={handleEndHike} disabled={saving} accessibilityLabel="End hike" accessibilityRole="button">
           <Ionicons name="close" size={24} color={Colors.text} />
         </TouchableOpacity>
 
@@ -383,6 +558,14 @@ export default function HikeScreen() {
           </Text>
         </View>
       </View>
+
+      {/* Recording only continues while the app is open */}
+      {locationStatus === 'ready' && backgroundTracking === 'unavailable' && (
+        <View style={[styles.notice, { top: insets.top + 60 }]} pointerEvents="none">
+          <Ionicons name="warning-outline" size={16} color={Colors.textOnPrimary} />
+          <Text style={styles.noticeText}>Keep the app open — background tracking is unavailable</Text>
+        </View>
+      )}
 
       {/* SOS Button */}
       {isAuthenticated && (
@@ -410,11 +593,19 @@ export default function HikeScreen() {
       {/* Bottom info */}
       <View style={[styles.bottomBar, { paddingBottom: insets.bottom + 8 }]}>
         <Text style={styles.trailName}>{trail?.name_en ?? 'Loading...'}</Text>
-        <Text style={styles.hint}>
-          {location
-            ? 'Walk toward checkpoints to check in'
-            : 'Acquiring GPS signal...'}
-        </Text>
+        <Text style={[styles.hint, locationBlocked && !saving && styles.hintWarning]}>{hint}</Text>
+
+        {locationBlocked && !saving && (
+          <TouchableOpacity
+            style={styles.hintAction}
+            onPress={locationStatus === 'denied' && canAskAgain ? retryLocation : openLocationSettings}
+            accessibilityRole="button"
+          >
+            <Text style={styles.hintActionText}>
+              {locationStatus === 'denied' && canAskAgain ? 'Allow location' : 'Open Settings'}
+            </Text>
+          </TouchableOpacity>
+        )}
 
         {/* Photo strip */}
         {hikePhotos.length > 0 && (
@@ -432,8 +623,9 @@ export default function HikeScreen() {
 
         <View style={styles.hikeActions}>
           <TouchableOpacity
-            style={[styles.pauseButton, isPaused && styles.pauseButtonResume]}
+            style={[styles.pauseButton, isPaused && styles.pauseButtonResume, saving && styles.actionDisabled]}
             onPress={isPaused ? resumeHike : pauseHike}
+            disabled={saving}
           >
             <Ionicons
               name={isPaused ? 'play' : 'pause'}
@@ -445,8 +637,15 @@ export default function HikeScreen() {
             </Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.endButton} onPress={handleEndHike}>
-            <Text style={styles.endButtonText}>End Hike</Text>
+          <TouchableOpacity
+            style={[styles.endButton, saving && styles.actionDisabled]}
+            onPress={handleEndHike}
+            disabled={saving}
+            accessibilityRole="button"
+            accessibilityState={{ disabled: saving, busy: saving }}
+          >
+            {saving && <ActivityIndicator size="small" color={Colors.error} />}
+            <Text style={styles.endButtonText}>{saving ? 'Saving…' : 'End Hike'}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -519,6 +718,29 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   checkpointCountText: {
     fontSize: 16,
     fontWeight: '700',
+    color: Colors.textOnPrimary,
+  },
+  notice: {
+    position: 'absolute',
+    left: 16,
+    right: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: Colors.warning,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+  },
+  noticeText: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '600',
     color: Colors.textOnPrimary,
   },
   calloutContainer: {
@@ -607,6 +829,24 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     color: Colors.textSecondary,
     marginTop: 4,
     marginBottom: 12,
+    textAlign: 'center',
+  },
+  hintWarning: {
+    color: Colors.error,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  hintAction: {
+    backgroundColor: Colors.primary,
+    paddingHorizontal: 18,
+    paddingVertical: 8,
+    borderRadius: 10,
+    marginBottom: 12,
+  },
+  hintActionText: {
+    color: Colors.textOnPrimary,
+    fontWeight: '700',
+    fontSize: 14,
   },
   photoStrip: {
     marginBottom: 12,
@@ -649,6 +889,9 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     color: Colors.success,
   },
   endButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
     backgroundColor: Colors.error + '15',
     paddingHorizontal: 24,
     paddingVertical: 12,
@@ -658,6 +901,9 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     color: Colors.error,
     fontWeight: '700',
     fontSize: 16,
+  },
+  actionDisabled: {
+    opacity: 0.5,
   },
   sosButton: {
     position: 'absolute',
@@ -679,5 +925,39 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     fontWeight: '900',
     fontSize: 13,
     letterSpacing: 0.5,
+  },
+  conflict: {
+    flex: 1,
+    backgroundColor: Colors.background,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 28,
+  },
+  conflictTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: Colors.text,
+    textAlign: 'center',
+    marginTop: 16,
+    marginBottom: 10,
+  },
+  conflictBody: {
+    fontSize: 15,
+    lineHeight: 22,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+    marginBottom: 28,
+  },
+  conflictButton: {
+    alignSelf: 'stretch',
+    marginBottom: 12,
+  },
+  conflictBack: {
+    paddingVertical: 10,
+  },
+  conflictBackText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: Colors.primary,
   },
 });
