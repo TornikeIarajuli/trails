@@ -41,6 +41,8 @@ import { WeatherCard } from '../../../components/trail/WeatherCard';
 import { trailCache } from '../../../utils/trailCache';
 import { analytics } from '../../../utils/analytics';
 import { localName } from '../../../utils/i18n';
+import { isRouteUnverified, UNVERIFIED_ROUTE_MESSAGE } from '../../../utils/trailReview';
+import { TrailProblemModal } from '../../../components/trail/TrailProblemModal';
 
 export default function TrailDetailScreen() {
   const Colors = useColors();
@@ -62,6 +64,7 @@ export default function TrailDetailScreen() {
     isRefetching,
   } = useTrail(id);
   const [conditionModalVisible, setConditionModalVisible] = useState(false);
+  const [problemModalVisible, setProblemModalVisible] = useState(false);
   const [reviewModalVisible, setReviewModalVisible] = useState(false);
   const { addPhoto, isUploading } = useAddTrailPhoto(id);
   const reviewsQuery = useTrailReviews(id);
@@ -129,6 +132,26 @@ export default function TrailDetailScreen() {
   const otherActiveHikeTrailId = hikeIsActive && hikeTrailId && hikeTrailId !== id ? hikeTrailId : null;
 
   const openHike = () => router.push(`/trail/${id}/hike`);
+
+  const routeUnverified = isRouteUnverified(trail);
+
+  const openProblemReport = () => {
+    if (!isAuthenticated) {
+      Alert.alert('Sign in to report', 'Please log in to report a problem with this trail.', [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Log In', onPress: () => router.push('/(auth)/login') },
+      ]);
+      return;
+    }
+    setProblemModalVisible(true);
+  };
+
+  const explainUnverified = () => {
+    Alert.alert('Unverified route', UNVERIFIED_ROUTE_MESSAGE, [
+      { text: 'Close', style: 'cancel' },
+      { text: 'Report a problem', onPress: openProblemReport },
+    ]);
+  };
 
   const handleStartHike = () => {
     if (!isAuthenticated) {
@@ -246,7 +269,21 @@ export default function TrailDetailScreen() {
 
         <View style={styles.content}>
           <View style={styles.titleRow}>
-            <DifficultyBadge difficulty={trail.difficulty} size="md" />
+            <View style={styles.badgeRow}>
+              <DifficultyBadge difficulty={trail.difficulty} size="md" />
+              {routeUnverified && (
+                <TouchableOpacity
+                  style={styles.unverifiedChip}
+                  onPress={explainUnverified}
+                  hitSlop={6}
+                  accessibilityRole="button"
+                  accessibilityLabel="Unverified route. What does this mean?"
+                >
+                  <Ionicons name="information-circle-outline" size={14} color={Colors.textSecondary} />
+                  <Text style={styles.unverifiedText}>Unverified route</Text>
+                </TouchableOpacity>
+              )}
+            </View>
             <Text style={styles.region}>{trail.region}</Text>
           </View>
 
@@ -311,6 +348,18 @@ export default function TrailDetailScreen() {
             </TouchableOpacity>
           )}
 
+          {/* Problems with the trail data itself (route, existence, details) */}
+          <TouchableOpacity
+            style={styles.reportLink}
+            onPress={openProblemReport}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+          >
+            <Ionicons name="alert-circle-outline" size={18} color={Colors.primary} />
+            <Text style={styles.reportLinkText}>Report a problem with this trail</Text>
+            <Ionicons name="chevron-forward" size={16} color={Colors.textLight} style={{ marginLeft: 'auto' }} />
+          </TouchableOpacity>
+
           {description && (
             <Text style={styles.description}>{description}</Text>
           )}
@@ -372,6 +421,13 @@ export default function TrailDetailScreen() {
         trailId={id}
         visible={conditionModalVisible}
         onClose={() => setConditionModalVisible(false)}
+      />
+
+      {/* Report a problem with the trail itself */}
+      <TrailProblemModal
+        trailId={id}
+        visible={problemModalVisible}
+        onClose={() => setProblemModalVisible(false)}
       />
 
       {/* Write Review Modal */}
@@ -448,6 +504,30 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 16,
+    gap: 8,
+  },
+  badgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
+    flexShrink: 1,
+  },
+  unverifiedChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    backgroundColor: Colors.surface,
+  },
+  unverifiedText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: Colors.textSecondary,
   },
   region: {
     fontSize: 14,

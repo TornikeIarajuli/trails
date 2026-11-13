@@ -8,9 +8,19 @@ export type ReportTargetType =
   | 'condition'
   | 'event'
   | 'user'
-  | 'completion';
+  | 'completion'
+  | 'trail';
 
-export type ReportReason = 'spam' | 'offensive' | 'harassment' | 'dangerous' | 'other';
+/** Problems with a trail itself (target_type 'trail'). */
+export type TrailProblemReason = 'wrong_route' | 'path_missing' | 'wrong_info';
+
+export type ReportReason =
+  | 'spam'
+  | 'offensive'
+  | 'harassment'
+  | 'dangerous'
+  | 'other'
+  | TrailProblemReason;
 
 export const REPORT_REASONS: { key: ReportReason; label: string }[] = [
   { key: 'spam', label: 'Spam or advertising' },
@@ -19,6 +29,16 @@ export const REPORT_REASONS: { key: ReportReason; label: string }[] = [
   { key: 'dangerous', label: 'Dangerous or misleading' },
   { key: 'other', label: 'Something else' },
 ];
+
+export const TRAIL_PROBLEM_REASONS: { key: ReportReason; label: string }[] = [
+  { key: 'wrong_route', label: 'Wrong route' },
+  { key: 'path_missing', label: "Path doesn't exist" },
+  { key: 'wrong_info', label: 'Wrong info — distance, time, name…' },
+  { key: 'dangerous', label: 'Dangerous' },
+  { key: 'other', label: 'Other' },
+];
+
+export const REPORT_DETAILS_MAX = 500;
 
 /** True when the API has no moderation endpoints yet (a backend older than this app). */
 export function isModerationUnavailable(err: unknown): boolean {

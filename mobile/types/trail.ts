@@ -26,6 +26,10 @@ export interface Trail {
   start_point?: GeoPoint | null;
   /** `[distance_m, elevation_m]` pairs sampled along the route (trail detail only); null when unmeasured. */
   elevation_profile?: [number, number][] | null;
+  /** When the team checked the route; null = not checked yet, absent = older API (treat as checked). */
+  reviewed_at?: string | null;
+  /** The content pipeline's reasons to check this trail first. */
+  review_flags?: string[];
 }
 
 export interface TrailMedia {
