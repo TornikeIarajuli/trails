@@ -8,6 +8,7 @@ import { Avatar } from '../ui/Avatar';
 import { FeedItem } from '../../types/feed';
 import { useComments } from '../../hooks/useComments';
 import { useLikes, useToggleLike } from '../../hooks/useLikes';
+import { usePrefetchTrail } from '../../hooks/useTrails';
 import { hasLikeSummary } from '../../utils/feedCache';
 import { CommentsSheet } from './CommentsSheet';
 import { ContentMenu } from '../moderation/ContentMenu';
@@ -41,9 +42,10 @@ function getConditionLabel(conditionType: string): string {
   return labels[conditionType] || conditionType;
 }
 
-function PhotoCarousel({ urls, onPress, styles, Colors }: {
+function PhotoCarousel({ urls, onPress, onPressIn, styles, Colors }: {
   urls: string[];
   onPress: () => void;
+  onPressIn?: () => void;
   styles: ReturnType<typeof createStyles>;
   Colors: ColorPalette;
 }) {
@@ -57,12 +59,12 @@ function PhotoCarousel({ urls, onPress, styles, Colors }: {
 
   if (urls.length === 1) {
     return (
-      <TouchableOpacity activeOpacity={0.8} onPress={onPress} accessibilityRole="button" accessibilityLabel="Open trail">
+      <TouchableOpacity activeOpacity={0.8} onPressIn={onPressIn} onPress={onPress} accessibilityRole="button" accessibilityLabel="Open trail">
         <Image
           source={{ uri: urls[0] }}
           placeholder={{ blurhash: 'L76F~B?bWD%M~qxuxEtS%MNFWqxt' }}
           contentFit="cover"
-          transition={300}
+          transition={180}
           cachePolicy="memory-disk"
           style={styles.photo}
         />
@@ -84,12 +86,12 @@ function PhotoCarousel({ urls, onPress, styles, Colors }: {
             onMomentumScrollEnd={onScroll}
           >
             {urls.map((url, i) => (
-              <TouchableOpacity key={i} activeOpacity={0.8} onPress={onPress} accessibilityRole="button" accessibilityLabel="Open trail">
+              <TouchableOpacity key={i} activeOpacity={0.8} onPressIn={onPressIn} onPress={onPress} accessibilityRole="button" accessibilityLabel="Open trail">
                 <Image
                   source={{ uri: url }}
                   placeholder={{ blurhash: 'L76F~B?bWD%M~qxuxEtS%MNFWqxt' }}
                   contentFit="cover"
-                  transition={300}
+                  transition={180}
                   cachePolicy="memory-disk"
                   style={[styles.carouselPhoto, { width }]}
                 />
@@ -147,7 +149,9 @@ export const ActivityCard = React.memo(function ActivityCard({ item }: { item: F
   const toggleLike = useToggleLike();
 
   const config = ACTION_CONFIG[item.activity_type] ?? UNKNOWN_ACTION;
+  const prefetchTrail = usePrefetchTrail();
   const openTrail = () => router.push(`/trail/${item.trail_id}`);
+  const warmTrail = () => prefetchTrail(item.trail_id);
   const openUser = () => router.push(`/trail/user/${item.user_id}`);
   const stars = Math.min(5, Math.max(0, parseInt(item.extra_text ?? '', 10) || 0));
 
@@ -178,7 +182,7 @@ export const ActivityCard = React.memo(function ActivityCard({ item }: { item: F
               {item.user_username}
             </Text>
             {' '}{config.verb}{' '}
-            <Text style={styles.trailName} onPress={openTrail}>
+            <Text style={styles.trailName} onPressIn={warmTrail} onPress={openTrail}>
               {item.trail_name_en}
             </Text>
           </Text>
@@ -205,11 +209,11 @@ export const ActivityCard = React.memo(function ActivityCard({ item }: { item: F
 
         {/* Photos — carousel if multiple, single if one */}
         {item.activity_type === 'completion' && item.photo_urls && item.photo_urls.length > 0 ? (
-          <PhotoCarousel urls={item.photo_urls} onPress={openTrail} styles={styles} Colors={Colors} />
+          <PhotoCarousel urls={item.photo_urls} onPress={openTrail} onPressIn={warmTrail} styles={styles} Colors={Colors} />
         ) : item.photo_url ? (
-          <PhotoCarousel urls={[item.photo_url]} onPress={openTrail} styles={styles} Colors={Colors} />
+          <PhotoCarousel urls={[item.photo_url]} onPress={openTrail} onPressIn={warmTrail} styles={styles} Colors={Colors} />
         ) : item.trail_cover_image_url && item.activity_type === 'completion' ? (
-          <PhotoCarousel urls={[item.trail_cover_image_url]} onPress={openTrail} styles={styles} Colors={Colors} />
+          <PhotoCarousel urls={[item.trail_cover_image_url]} onPress={openTrail} onPressIn={warmTrail} styles={styles} Colors={Colors} />
         ) : null}
 
         {/* Actions row: like + comment */}

@@ -14,7 +14,8 @@ import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors, ColorPalette } from '../../../constants/colors';
 import { useRegionProgress } from '../../../hooks/useRegionProgress';
-import { useTrails } from '../../../hooks/useTrails';
+import { useTrails, usePrefetchTrail } from '../../../hooks/useTrails';
+import { haptics } from '../../../utils/haptics';
 import { useSettingsStore } from '../../../store/settingsStore';
 import { ErrorState } from '../../../components/ui/ErrorState';
 import { Skeleton } from '../../../components/ui/Skeleton';
@@ -77,6 +78,7 @@ function RegionTrailList({
   const language = useSettingsStore((s) => s.language);
   const params = useMemo(() => ({ region, limit: 100 }), [region]);
   const { data, isLoading, isError, error, refetch, isRefetching } = useTrails(params);
+  const prefetchTrail = usePrefetchTrail();
 
   const trails = useMemo(() => {
     const inRegion = filterTrailsToRegion(data?.pages[0]?.data ?? [], region);
@@ -108,7 +110,11 @@ function RegionTrailList({
           <TouchableOpacity
             key={trail.id}
             style={styles.trailRow}
-            onPress={() => router.push(`/trail/${trail.id}` as any)}
+            onPressIn={() => prefetchTrail(trail.id)}
+            onPress={() => {
+              haptics.tap();
+              router.push(`/trail/${trail.id}` as any);
+            }}
             activeOpacity={0.7}
             accessibilityRole="button"
             accessibilityLabel={`${name}${done ? ', completed' : ''}`}

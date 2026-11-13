@@ -6,6 +6,7 @@ import { useIsBookmarked, useToggleBookmark, useUpdateBookmark } from '../../hoo
 import { useAuthStore } from '../../store/authStore';
 import { BookmarkCategory, CATEGORY_ICONS, CATEGORY_LABELS } from '../../services/bookmarks';
 import { ActionSheet, ActionSheetOption } from '../ui/ActionSheet';
+import { haptics } from '../../utils/haptics';
 
 const CATEGORY_ORDER: BookmarkCategory[] = ['saved', 'want_to_hike', 'in_progress', 'favorites'];
 
@@ -58,7 +59,12 @@ export function BookmarkButton({ trailId, style }: BookmarkButtonProps) {
     <>
       <TouchableOpacity
         style={[styles.button, style]}
-        onPress={() => toggleBookmark.mutate({ trailId })}
+        onPress={() =>
+          toggleBookmark.mutate(
+            { trailId },
+            { onSuccess: (result) => (result?.bookmarked ? haptics.success() : haptics.tap()) },
+          )
+        }
         onLongPress={() => setShowCategories(true)}
         disabled={busy}
         accessibilityLabel={isBookmarked ? 'Remove bookmark' : 'Bookmark trail'}

@@ -76,7 +76,7 @@ export function CommunityPhotos({
 
         {photos.slice(0, 6).map((photo) => (
           <TouchableOpacity key={photo.id} style={styles.photoCard} onPress={onViewAll}>
-            <Image source={{ uri: photo.url }} style={styles.photo} cachePolicy="memory-disk" />
+            <Image source={{ uri: photo.url }} style={styles.photo} cachePolicy="memory-disk" transition={180} />
             {photo.likes_count > 0 && (
               <View style={styles.likeBadge}>
                 <Ionicons name="heart" size={10} color="#fff" />

@@ -13,6 +13,8 @@ import { Stack, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors, ColorPalette } from '../../../constants/colors';
 import { useBookmarkList, useToggleBookmark, useUpdateBookmark } from '../../../hooks/useBookmarks';
+import { usePrefetchTrail } from '../../../hooks/useTrails';
+import { haptics } from '../../../utils/haptics';
 import { DifficultyBadge } from '../../../components/trail/DifficultyBadge';
 import { TrailCover } from '../../../components/trail/TrailCover';
 import { ErrorState } from '../../../components/ui/ErrorState';
@@ -53,6 +55,7 @@ export default function BookmarksScreen() {
     isFetchingNextPage,
   } = useBookmarkList(activeCategory);
   const updateBookmark = useUpdateBookmark();
+  const prefetchTrail = usePrefetchTrail();
   const toggleBookmark = useToggleBookmark();
 
   const bookmarks = useMemo(() => {
@@ -83,7 +86,11 @@ export default function BookmarksScreen() {
     <TouchableOpacity
       style={styles.card}
       activeOpacity={0.8}
-      onPress={() => router.push(`/trail/${item.trails.id}`)}
+      onPressIn={() => prefetchTrail(item.trails.id)}
+      onPress={() => {
+        haptics.tap();
+        router.push(`/trail/${item.trails.id}`);
+      }}
       onLongPress={() => setEditing(item)}
       accessibilityRole="button"
       accessibilityLabel={item.trails.name_en}
@@ -209,7 +216,10 @@ export default function BookmarksScreen() {
                   styles.filterChip,
                   isActive && { backgroundColor: Colors.primary + '20', borderColor: Colors.primary },
                 ]}
-                onPress={() => setActiveCategory(cat)}
+                onPress={() => {
+                  haptics.select();
+                  setActiveCategory(cat);
+                }}
                 accessibilityRole="button"
                 accessibilityState={{ selected: isActive }}
               >

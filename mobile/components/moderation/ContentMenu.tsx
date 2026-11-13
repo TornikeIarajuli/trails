@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useColors } from '../../constants/colors';
 import { useAuthStore } from '../../store/authStore';
 import { ActionSheet, ActionSheetOption } from '../ui/ActionSheet';
+import { haptics } from '../../utils/haptics';
 import { REPORT_REASONS, ReportReason, ReportTargetType } from '../../services/moderation';
 import {
   moderationErrorMessage,
@@ -75,6 +76,7 @@ export function ContentMenu({
     setStep({ name: 'working' });
     try {
       await report.mutateAsync({ target_type: targetType, target_id: targetId, reason });
+      haptics.success();
       setStep({
         name: 'result',
         title: 'Report sent',

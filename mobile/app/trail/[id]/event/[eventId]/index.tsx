@@ -18,6 +18,8 @@ import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useColors, ColorPalette } from '../../../../../constants/colors';
 import { useEvent, useJoinEvent, useLeaveEvent, useDeleteEvent } from '../../../../../hooks/useEvents';
+import { usePrefetchTrail } from '../../../../../hooks/useTrails';
+import { haptics } from '../../../../../utils/haptics';
 import { useComments, useAddComment, useDeleteComment } from '../../../../../hooks/useComments';
 import { useWithoutBlocked } from '../../../../../hooks/useModeration';
 import { useAuthStore } from '../../../../../store/authStore';
@@ -53,6 +55,7 @@ export default function EventDetailScreen() {
   const joinEvent = useJoinEvent();
   const leaveEvent = useLeaveEvent();
   const deleteEvent = useDeleteEvent();
+  const prefetchTrail = usePrefetchTrail();
 
   // Comments — inline, no modal
   const commentsQuery = useComments(eventId);
@@ -146,6 +149,7 @@ export default function EventDetailScreen() {
 
       <TouchableOpacity
         style={styles.section}
+        onPressIn={() => prefetchTrail(event.trail_id)}
         onPress={() => router.push(`/trail/${event.trail_id}` as any)}
         activeOpacity={0.7}
         accessibilityRole="button"
@@ -194,6 +198,8 @@ export default function EventDetailScreen() {
                 source={{ uri: p.profiles.avatar_url }}
                 style={styles.avatar}
                 contentFit="cover"
+                cachePolicy="memory-disk"
+                transition={150}
               />
             ) : (
               <View style={[styles.avatar, styles.avatarFallback]}>
@@ -221,7 +227,7 @@ export default function EventDetailScreen() {
           ) : (
             <Button
               title={isFull ? 'Event Full' : 'Join Hike'}
-              onPress={() => joinEvent.mutate(eventId)}
+              onPress={() => joinEvent.mutate(eventId, { onSuccess: () => haptics.success() })}
               loading={joinEvent.isPending}
               disabled={isFull}
             />

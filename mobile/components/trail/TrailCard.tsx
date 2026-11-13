@@ -16,7 +16,9 @@ import { DifficultyBadge } from './DifficultyBadge';
 import { TrailCover } from './TrailCover';
 import { formatDistance, formatDuration, formatElevation } from '../../utils/formatters';
 import { localName } from '../../utils/i18n';
+import { haptics } from '../../utils/haptics';
 import { useSettingsStore } from '../../store/settingsStore';
+import { usePrefetchTrail } from '../../hooks/useTrails';
 
 interface TrailCardProps {
   trail: TrailSummary;
@@ -29,6 +31,7 @@ export const TrailCard = React.memo(function TrailCard({ trail, index = 0 }: Tra
   const language = useSettingsStore((s) => s.language);
   const name = localName(trail.name_en, trail.name_ka, language);
 
+  const prefetchTrail = usePrefetchTrail();
   const reducedMotion = useReducedMotion();
   const scale = useSharedValue(1);
   const animatedStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
@@ -40,9 +43,16 @@ export const TrailCard = React.memo(function TrailCard({ trail, index = 0 }: Tra
     <Animated.View entering={entering} style={animatedStyle}>
       <Pressable
         style={styles.card}
-        onPressIn={() => { if (!reducedMotion) scale.value = withSpring(0.97, { damping: 15 }); }}
+        onPressIn={() => {
+          // A touch, not a scroll past: start loading the detail while the finger is down
+          prefetchTrail(trail.id);
+          if (!reducedMotion) scale.value = withSpring(0.97, { damping: 15 });
+        }}
         onPressOut={() => { if (!reducedMotion) scale.value = withSpring(1, { damping: 15 }); }}
-        onPress={() => router.push(`/trail/${trail.id}`)}
+        onPress={() => {
+          haptics.tap();
+          router.push(`/trail/${trail.id}`);
+        }}
         accessibilityRole="button"
         accessibilityLabel={name}
         testID="trail-card"
@@ -52,7 +62,6 @@ export const TrailCard = React.memo(function TrailCard({ trail, index = 0 }: Tra
           style={styles.image}
           iconSize={36}
           showLabel
-          transition={300}
         />
         <View style={styles.content}>
           {trail.status && trail.status !== 'open' && (

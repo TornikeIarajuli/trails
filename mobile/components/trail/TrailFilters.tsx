@@ -10,6 +10,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useColors, ColorPalette } from '../../constants/colors';
 import { TrailDifficulty } from '../../types/trail';
+import { haptics } from '../../utils/haptics';
 
 const DIFFICULTIES: (TrailDifficulty | null)[] = [null, 'easy', 'medium', 'hard', 'ultra'];
 
@@ -59,7 +60,10 @@ export function TrailFilters({
           <TouchableOpacity
             key={d ?? 'all'}
             style={[styles.chip, difficulty === d && styles.chipActive]}
-            onPress={() => onDifficultyChange(d)}
+            onPress={() => {
+              haptics.select();
+              onDifficultyChange(d);
+            }}
           >
             <Text style={[styles.chipText, difficulty === d && styles.chipTextActive]}>
               {d ? d.charAt(0).toUpperCase() + d.slice(1) : 'All'}
@@ -71,7 +75,10 @@ export function TrailFilters({
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chips}>
           <TouchableOpacity
             style={[styles.chip, styles.regionChip, region === null && styles.regionChipActive]}
-            onPress={() => onRegionChange(null)}
+            onPress={() => {
+              haptics.select();
+              onRegionChange(null);
+            }}
           >
             <Ionicons
               name="map-outline"
@@ -87,7 +94,10 @@ export function TrailFilters({
             <TouchableOpacity
               key={r}
               style={[styles.chip, styles.regionChip, region === r && styles.regionChipActive]}
-              onPress={() => onRegionChange(r)}
+              onPress={() => {
+                haptics.select();
+                onRegionChange(r);
+              }}
             >
               <Text style={[styles.chipText, region === r && styles.regionChipTextActive]}>
                 {r}

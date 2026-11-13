@@ -92,7 +92,68 @@ export function FeedItemSkeleton() {
   );
 }
 
+/** A two-column grid of product cards, matching the shop grid's layout. */
+export function ProductGridSkeleton({ count = 6 }: { count?: number }) {
+  const Colors = useColors();
+  return (
+    <View style={skeletonStyles.productGrid}>
+      {Array.from({ length: count }).map((_, i) => (
+        <View
+          key={i}
+          style={[skeletonStyles.productCard, { backgroundColor: Colors.card, borderColor: Colors.borderLight }]}
+        >
+          <Skeleton height={140} borderRadius={0} />
+          <View style={skeletonStyles.productBody}>
+            <Skeleton height={14} widthPercent="85%" borderRadius={6} />
+            <Skeleton height={14} widthPercent="40%" borderRadius={6} />
+          </View>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+/** A notification row: round icon, title and two body lines. */
+export function NotificationRowSkeleton() {
+  const Colors = useColors();
+  return (
+    <View style={[skeletonStyles.notificationRow, { backgroundColor: Colors.surface }]}>
+      <Skeleton width={44} height={44} borderRadius={22} />
+      <View style={{ flex: 1, gap: 6 }}>
+        <Skeleton height={14} widthPercent="55%" borderRadius={6} />
+        <Skeleton height={12} widthPercent="90%" borderRadius={6} />
+        <Skeleton height={12} widthPercent="70%" borderRadius={6} />
+      </View>
+    </View>
+  );
+}
+
 const skeletonStyles = StyleSheet.create({
+  productGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    padding: 12,
+  },
+  productCard: {
+    width: '48.5%',
+    borderRadius: 12,
+    overflow: 'hidden',
+    marginBottom: 12,
+    borderWidth: 1,
+  },
+  productBody: {
+    padding: 10,
+    gap: 6,
+  },
+  notificationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    marginBottom: StyleSheet.hairlineWidth,
+  },
   card: {
     marginHorizontal: 16,
     marginBottom: 12,

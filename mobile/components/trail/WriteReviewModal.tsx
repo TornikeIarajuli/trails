@@ -13,6 +13,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useColors, ColorPalette } from '../../constants/colors';
 import { useSubmitReview } from '../../hooks/useReviews';
+import { haptics } from '../../utils/haptics';
 
 interface Props {
   trailId: string;
@@ -42,6 +43,7 @@ export function WriteReviewModal({ trailId, visible, onClose }: Props) {
       {
         // Errors are reported by the hook
         onSuccess: () => {
+          haptics.success();
           setRating(0);
           setComment('');
           onClose();

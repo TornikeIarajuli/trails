@@ -76,6 +76,7 @@ const ReviewItem = React.memo(function ReviewItem({ review, trailId }: { review:
               source={{ uri: review.profiles.avatar_url }}
               style={styles.avatar}
               cachePolicy="memory-disk"
+              transition={150}
             />
           ) : (
             <View style={styles.avatarPlaceholder}>

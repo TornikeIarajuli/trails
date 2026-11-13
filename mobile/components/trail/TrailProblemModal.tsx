@@ -21,6 +21,7 @@ import {
   TRAIL_PROBLEM_REASONS,
 } from '../../services/moderation';
 import { TRAIL_REPORT_THANKS, trailReportErrorMessage } from '../../utils/trailReview';
+import { haptics } from '../../utils/haptics';
 
 interface TrailProblemModalProps {
   trailId: string;
@@ -54,6 +55,7 @@ export function TrailProblemModal({ trailId, visible, onClose }: TrailProblemMod
       { target_type: 'trail', target_id: trailId, reason, details: text || undefined },
       {
         onSuccess: () => {
+          haptics.success();
           reset();
           onClose();
           Alert.alert('Report sent', TRAIL_REPORT_THANKS);

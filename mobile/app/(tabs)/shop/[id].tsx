@@ -57,7 +57,7 @@ export default function ProductDetailScreen() {
     <View style={styles.container}>
       <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}>
         {product.image_url ? (
-          <Image source={{ uri: product.image_url }} style={styles.heroImage} cachePolicy="memory-disk" />
+          <Image source={{ uri: product.image_url }} style={styles.heroImage} cachePolicy="memory-disk" transition={180} />
         ) : (
           <View style={[styles.heroImage, styles.placeholder]}>
             <Ionicons name="image-outline" size={48} color={Colors.textLight} />

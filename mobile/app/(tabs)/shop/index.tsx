@@ -17,7 +17,7 @@ import { formatPrice } from '../../../utils/formatters';
 import { availableCategories, filterProducts, shopNames } from '../../../utils/shopFilters';
 import { haptics } from '../../../utils/haptics';
 import { ErrorState } from '../../../components/ui/ErrorState';
-import { LoadingSpinner } from '../../../components/ui/LoadingSpinner';
+import { ProductGridSkeleton } from '../../../components/ui/Skeleton';
 
 const NO_PRODUCTS: Product[] = [];
 
@@ -77,13 +77,16 @@ export default function ShopScreen() {
     return (
       <TouchableOpacity
         style={styles.card}
-        onPress={() => router.push(`/(tabs)/shop/${item.id}`)}
+        onPress={() => {
+          haptics.tap();
+          router.push(`/(tabs)/shop/${item.id}`);
+        }}
         activeOpacity={0.7}
         accessibilityRole="button"
         accessibilityLabel={price ? `${item.name}, ${price}` : item.name}
       >
         {item.image_url ? (
-          <Image source={{ uri: item.image_url }} style={styles.image} cachePolicy="memory-disk" />
+          <Image source={{ uri: item.image_url }} style={styles.image} cachePolicy="memory-disk" transition={180} />
         ) : (
           <View style={[styles.image, styles.placeholder]}>
             <Text style={styles.placeholderText}>No Image</Text>
@@ -101,7 +104,7 @@ export default function ShopScreen() {
   if (isLoading) {
     return (
       <View style={styles.container}>
-        <LoadingSpinner />
+        <ProductGridSkeleton />
       </View>
     );
   }

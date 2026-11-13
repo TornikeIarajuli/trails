@@ -26,6 +26,7 @@ export function Avatar({ uri, name, size = 40 }: AvatarProps) {
       <Image
         source={{ uri }}
         cachePolicy="memory-disk"
+        transition={150}
         style={[styles.image, { width: size, height: size, borderRadius: size / 2 }]}
       />
     );

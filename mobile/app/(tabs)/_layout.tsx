@@ -7,6 +7,7 @@ import Animated, { useSharedValue, useAnimatedStyle, useReducedMotion, withSprin
 import { useColors, ColorPalette } from '../../constants/colors';
 import { useNetworkStatus } from '../../hooks/useNetworkStatus';
 import { useUnreadNotificationCount } from '../../hooks/useNotificationCenter';
+import { haptics } from '../../utils/haptics';
 
 type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -151,7 +152,10 @@ function BottomTabBar() {
         return (
           <AnimatedTabButton
             key={tab.name}
-            onPress={() => router.navigate(tab.route as any)}
+            onPress={() => {
+              if (!isActive) haptics.select();
+              router.navigate(tab.route as any);
+            }}
             isActive={isActive}
             icon={tab.icon}
             activeIcon={tab.activeIcon}
@@ -177,7 +181,10 @@ export default function TabsLayout() {
       {!isSubScreen && <Header />}
       <Tabs
         tabBar={() => null}
-        screenOptions={{ headerShown: false }}
+        // freezeOnBlur: hidden tabs stop re-rendering. Nothing that must keep running lives
+        // in a tab screen — the header, tab bar and unread badge render outside the tabs,
+        // and hike tracking runs in a background task and its store.
+        screenOptions={{ headerShown: false, freezeOnBlur: true }}
         // Android Back on a tab returns to the tab the user came from
         backBehavior="history"
       >

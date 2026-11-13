@@ -19,6 +19,7 @@ import {
 import { ConditionType, SeverityLevel, TrailPhoto } from '../types/community';
 import { PaginatedResponse } from '../types/api';
 import { showError } from '../utils/showError';
+import { haptics } from '../utils/haptics';
 import { queryKeys } from '../utils/queryKeys';
 
 export function useTrailConditions(trailId: string) {
@@ -98,6 +99,7 @@ export function useAddTrailPhoto(trailId: string) {
       setIsUploading(true);
       const { fileName, mimeType } = describeImageUpload(asset);
       await mediaService.uploadHikePhoto(trailId, asset.uri, fileName, mimeType);
+      haptics.success();
 
       queryClient.invalidateQueries({ queryKey: queryKeys.photos.trail(trailId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.trail.detail(trailId) });

@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useColors, ColorPalette } from '../../constants/colors';
 import { useReportCondition } from '../../hooks/useCommunity';
 import { ConditionType, SeverityLevel } from '../../types/community';
+import { haptics } from '../../utils/haptics';
 
 interface ReportConditionModalProps {
   trailId: string;
@@ -67,6 +68,7 @@ export function ReportConditionModal({
       {
         // Errors are reported by the hook
         onSuccess: () => {
+          haptics.success();
           setConditionType(null);
           setSeverity('info');
           setDescription('');

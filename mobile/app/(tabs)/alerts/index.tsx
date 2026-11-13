@@ -19,6 +19,8 @@ import { useNotificationFeed } from '../../../hooks/useNotificationCenter';
 import { useAuthStore } from '../../../store/authStore';
 import { AppNotification } from '../../../services/notifications';
 import { ErrorState } from '../../../components/ui/ErrorState';
+import { NotificationRowSkeleton } from '../../../components/ui/Skeleton';
+import { haptics } from '../../../utils/haptics';
 import { getNotificationTarget, mapLinks } from '../../../utils/notificationTarget';
 
 const TYPE_CONFIG: Record<string, { icon: string; color: string; bg: string }> = {
@@ -181,6 +183,7 @@ export default function AlertsScreen() {
 
   const handlePress = (item: AppNotification) => {
     if (!item.read_at) markRead.mutate(item.id);
+    haptics.tap();
     openNotification(item);
   };
 
@@ -188,7 +191,13 @@ export default function AlertsScreen() {
   if (!isAuthenticated) {
     content = <SignedOut styles={styles} Colors={Colors} />;
   } else if (isLoading) {
-    content = <ActivityIndicator style={{ marginTop: 60 }} color={Colors.primary} size="large" />;
+    content = (
+      <View>
+        {Array.from({ length: 6 }).map((_, i) => (
+          <NotificationRowSkeleton key={i} />
+        ))}
+      </View>
+    );
   } else if (isError && notifications.length === 0) {
     content = (
       <ErrorState

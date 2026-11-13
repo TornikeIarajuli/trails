@@ -22,6 +22,7 @@ import { useAuthStore } from '../../../store/authStore';
 import { useSettingsStore } from '../../../store/settingsStore';
 import { TrailEvent } from '../../../services/events';
 import { ErrorState } from '../../../components/ui/ErrorState';
+import { haptics } from '../../../utils/haptics';
 import {
   validateEventForm,
   EVENT_DESCRIPTION_MAX,
@@ -153,7 +154,7 @@ export default function TrailEventsScreen() {
     // Failures are reported by the hook itself
     createEvent.mutate(
       { trail_id: id, ...result.data },
-      { onSuccess: () => { setShowForm(false); resetForm(); } },
+      { onSuccess: () => { haptics.success(); setShowForm(false); resetForm(); } },
     );
   };
 

@@ -102,7 +102,7 @@ function MediaGrid({
       <View style={styles.mediaGrid}>
         {media.map((m) => (
           <View key={m.id} style={styles.mediaItem}>
-            <Image source={{ uri: m.url }} style={styles.mediaImage} cachePolicy="memory-disk" />
+            <Image source={{ uri: m.url }} style={styles.mediaImage} cachePolicy="memory-disk" transition={150} />
             <TouchableOpacity
               style={styles.mediaDeleteBtn}
               onPress={() => {
@@ -385,7 +385,7 @@ export default function TrailEditScreen() {
         />
 
         {form.coverImageUrl.trim() ? (
-          <Image source={{ uri: form.coverImageUrl.trim() }} style={styles.coverPreview} cachePolicy="memory-disk" />
+          <Image source={{ uri: form.coverImageUrl.trim() }} style={styles.coverPreview} cachePolicy="memory-disk" transition={180} />
         ) : null}
 
         <MediaGrid

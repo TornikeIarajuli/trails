@@ -18,7 +18,7 @@ interface TrailCoverProps {
  * A trail's cover photo, or — when the trail has none or it fails to load — a
  * neutral placeholder. Never a stock photo of somewhere else.
  */
-export function TrailCover({ uri, style, iconSize = 24, showLabel = false, transition }: TrailCoverProps) {
+export function TrailCover({ uri, style, iconSize = 24, showLabel = false, transition = 180 }: TrailCoverProps) {
   const Colors = useColors();
   const styles = useMemo(() => createStyles(Colors), [Colors]);
   const [failed, setFailed] = useState(false);

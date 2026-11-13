@@ -12,6 +12,8 @@ import { Stack, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors, ColorPalette } from '../../../constants/colors';
 import { useRecommendations } from '../../../hooks/useRecommendations';
+import { usePrefetchTrail } from '../../../hooks/useTrails';
+import { haptics } from '../../../utils/haptics';
 import { DifficultyBadge } from '../../../components/trail/DifficultyBadge';
 import { TrailCover } from '../../../components/trail/TrailCover';
 import { ErrorState } from '../../../components/ui/ErrorState';
@@ -29,6 +31,7 @@ export default function RecommendationsScreen() {
   const styles = useMemo(() => createStyles(Colors), [Colors]);
 
   const { data, isLoading, isError, error, refetch, isRefetching } = useRecommendations();
+  const prefetchTrail = usePrefetchTrail();
 
   const allCompleted = data?.all_completed ?? false;
   const totalCompleted = data
@@ -66,7 +69,11 @@ export default function RecommendationsScreen() {
     <TouchableOpacity
       style={styles.card}
       activeOpacity={0.8}
-      onPress={() => router.push(`/trail/${item.id}`)}
+      onPressIn={() => prefetchTrail(item.id)}
+      onPress={() => {
+        haptics.tap();
+        router.push(`/trail/${item.id}`);
+      }}
     >
       <TrailCover uri={item.cover_image_url} style={styles.cardImage} iconSize={24} />
       <View style={styles.cardContent}>

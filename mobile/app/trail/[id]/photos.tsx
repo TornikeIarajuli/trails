@@ -93,7 +93,7 @@ export default function PhotoGalleryScreen() {
 
     return (
       <View style={styles.photoCard}>
-        <Image source={{ uri: item.url }} style={styles.photo} cachePolicy="memory-disk" />
+        <Image source={{ uri: item.url }} style={styles.photo} cachePolicy="memory-disk" transition={180} />
         <View style={styles.photoFooter}>
           <View style={styles.userRow}>
             <Avatar

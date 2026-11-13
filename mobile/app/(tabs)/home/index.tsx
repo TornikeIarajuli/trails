@@ -7,25 +7,24 @@ import {
   ScrollView,
   RefreshControl,
   TouchableOpacity,
-  Platform,
   Alert,
   ActivityIndicator,
 } from 'react-native';
-import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { useColors, ColorPalette } from '../../../constants/colors';
-import { useTrails, useRegions, useNearbyTrails } from '../../../hooks/useTrails';
+import { useTrails, useRegions, useNearbyTrails, usePrefetchTrail } from '../../../hooks/useTrails';
 import { useDebounce } from '../../../hooks/useDebounce';
 import { TrailCard } from '../../../components/trail/TrailCard';
 import { TrailFilters } from '../../../components/trail/TrailFilters';
+import { TrailClusterMap } from '../../../components/trail/TrailClusterMap';
 import { ErrorState } from '../../../components/ui/ErrorState';
 import { ActiveHikeBanner } from '../../../components/hike/ActiveHikeBanner';
 import { TrailDifficulty, TrailSummary } from '../../../types/trail';
 import { TrailCardSkeleton } from '../../../components/ui/Skeleton';
-import { toLatLng } from '../../../utils/mapPoint';
 import { Config } from '../../../constants/config';
+import { haptics } from '../../../utils/haptics';
 
 const RADIUS_OPTIONS = [5, 15, 25] as const;
 type Radius = (typeof RADIUS_OPTIONS)[number];
@@ -45,6 +44,7 @@ export default function HomeScreen() {
   const [radius, setRadius] = useState<Radius>(15);
   const [nearbyVersion, setNearbyVersion] = useState(0);
   const debouncedSearch = useDebounce(search, 300);
+  const prefetchTrail = usePrefetchTrail();
 
   const { data: regions } = useRegions();
 
@@ -197,7 +197,10 @@ export default function HomeScreen() {
       >
         <TouchableOpacity
           style={[styles.quickChip, nearbyMode && styles.quickChipActive]}
-          onPress={handleNearbyToggle}
+          onPress={() => {
+            haptics.select();
+            handleNearbyToggle();
+          }}
           disabled={locating}
           accessibilityLabel={
             locating
@@ -223,7 +226,10 @@ export default function HomeScreen() {
 
         <TouchableOpacity
           style={[styles.quickChip, viewMode === 'map' && styles.quickChipActive]}
-          onPress={() => setViewMode(viewMode === 'map' ? 'list' : 'map')}
+          onPress={() => {
+            haptics.select();
+            setViewMode(viewMode === 'map' ? 'list' : 'map');
+          }}
           accessibilityLabel={viewMode === 'map' ? 'Switch to list view' : 'Switch to map view'}
           accessibilityRole="button"
           accessibilityState={{ selected: viewMode === 'map' }}
@@ -242,7 +248,10 @@ export default function HomeScreen() {
             even when the Profile tab has not been opened yet. */}
         <TouchableOpacity
           style={styles.quickChip}
-          onPress={() => router.push('/(tabs)/profile/bookmarks' as any, { withAnchor: true })}
+          onPress={() => {
+            haptics.tap();
+            router.push('/(tabs)/profile/bookmarks' as any, { withAnchor: true });
+          }}
           accessibilityLabel="My bookmarks"
           accessibilityRole="button"
         >
@@ -252,7 +261,10 @@ export default function HomeScreen() {
 
         <TouchableOpacity
           style={styles.quickChip}
-          onPress={() => router.push('/(tabs)/profile/recommendations' as any, { withAnchor: true })}
+          onPress={() => {
+            haptics.tap();
+            router.push('/(tabs)/profile/recommendations' as any, { withAnchor: true });
+          }}
           accessibilityLabel="Trail recommendations for you"
           accessibilityRole="button"
         >
@@ -276,7 +288,10 @@ export default function HomeScreen() {
               <TouchableOpacity
                 key={r}
                 style={[styles.radiusChip, radius === r && styles.radiusChipActive]}
-                onPress={() => setRadius(r)}
+                onPress={() => {
+                  haptics.select();
+                  setRadius(r);
+                }}
                 accessibilityRole="button"
                 accessibilityLabel={`Within ${r} kilometres`}
                 accessibilityState={{ selected: radius === r }}
@@ -334,36 +349,25 @@ export default function HomeScreen() {
           }
         />
       ) : (
-        <MapView
+        <TrailClusterMap
           // Remount when the centre changes: `initialRegion` is only read once
           key={
             nearbyMode && userLocation
               ? `near-${userLocation.latitude}-${userLocation.longitude}-${radius}`
               : 'all'
           }
-          style={styles.map}
-          provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
+          trails={trails}
           initialRegion={
             nearbyMode && userLocation
               ? { ...userLocation, latitudeDelta: nearbyDelta, longitudeDelta: nearbyDelta }
               : Config.DEFAULT_MAP_REGION
           }
-        >
-          {trails.map((trail) => {
-            const coord = toLatLng(trail.start_point);
-            if (!coord) return null;
-            return (
-              <Marker
-                key={trail.id}
-                coordinate={coord}
-                pinColor={Colors.difficulty[trail.difficulty]}
-                title={trail.name_en}
-                description={[trail.difficulty, trail.distance_km != null ? `${trail.distance_km} km` : null].filter(Boolean).join(' · ')}
-                onPress={() => router.push(`/trail/${trail.id}` as any)}
-              />
-            );
-          })}
-        </MapView>
+          onOpenTrail={(trailId) => {
+            prefetchTrail(trailId);
+            haptics.tap();
+            router.push(`/trail/${trailId}` as any);
+          }}
+        />
       )}
     </View>
   );

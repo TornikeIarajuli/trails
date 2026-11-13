@@ -18,6 +18,7 @@ import { UserProfile } from '../../types/user';
 import { queryKeys } from '../../utils/queryKeys';
 import { getUserTitle } from '../../utils/userTitle';
 import { getErrorMessage } from '../../utils/showError';
+import { haptics } from '../../utils/haptics';
 import { UpdateCheckButton } from './UpdateCheckButton';
 
 // Same limits as the API
@@ -56,6 +57,7 @@ export function ProfileCard({ profile }: ProfileCardProps) {
     mutationFn: (data: { full_name?: string; bio?: string; contact_info?: string | null }) =>
       usersService.updateProfile(data),
     onSuccess: () => {
+      haptics.success();
       queryClient.invalidateQueries({ queryKey: queryKeys.profile.root() });
       setEditing(false);
     },
