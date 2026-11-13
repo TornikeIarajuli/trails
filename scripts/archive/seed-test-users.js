@@ -13,7 +13,8 @@ const https = require('https');
 
 const TOKEN = process.env.SUPABASE_MGMT_TOKEN;
 if (!TOKEN) { console.error('Set SUPABASE_MGMT_TOKEN env var'); process.exit(1); }
-const PROJECT = 'neoqkksermbixgeflwjd';
+const PROJECT = process.env.SUPABASE_PROJECT_REF;
+if (!PROJECT) { console.error('Set SUPABASE_PROJECT_REF env var'); process.exit(1); }
 
 function dbQuery(sql) {
   return new Promise((resolve, reject) => {

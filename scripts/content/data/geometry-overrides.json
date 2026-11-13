@@ -1,0 +1,183 @@
+{
+  "_readme": "Hand-checked decisions for 03-existing-geometry.mjs. keep = never rebuild. confirmed = the mapped relation is this trail even though the stored line is too damaged to prove it geometrically. parts = build the line from these pieces in order; a piece with from/to is the walk along that relation's ways between two anchors (a place name near the relation, or [lng, lat]).",
+  "a0000000-0000-0000-0000-000000000001": {
+    "relations": [
+      21149649
+    ],
+    "confirmed": true,
+    "why": "OSM relation 21149649 'Stepantsminda–Gergeti Church' is this hike (it passes 11 m from the church); the stored line has 3 points"
+  },
+  "a0000000-0000-0000-0000-000000000002": {
+    "confirmed": true,
+    "why": "the two Transcaucasian Trail stage relations Mestia–Adishi and Adishi–Ushguli, as mapped in the original import script; the stored line has 7 points"
+  },
+  "a0000000-0000-0000-0000-000000000003": {
+    "parts": [
+      {
+        "relation": 17899876,
+        "from": "Juta",
+        "to": "Roshka"
+      }
+    ],
+    "why": "relation 3817920 'Roshka - Juta' was deleted from OSM; 17899876 'Chaukhi Pass Trail' replaces it and offers one line between the two villages (only a 34 m variant)"
+  },
+  "a0000000-0000-0000-0000-000000000004": {
+    "parts": [
+      {
+        "relation": 21145876,
+        "from": "Omalo",
+        "to": "Dartlo"
+      }
+    ],
+    "why": "no relation of its own; Omalo to Dartlo is the first stage of relation 21145876 'Omalo–Shatili', which has a single line between the two villages; the stored line has 2 points"
+  },
+  "a0000000-0000-0000-0000-000000000005": {
+    "parts": [
+      {
+        "relation": 21149704,
+        "from": [
+          44.4647,
+          42.5814
+        ],
+        "to": [
+          44.374,
+          42.6115
+        ]
+      }
+    ],
+    "why": "relation 21149704 'Truso Valley' from its trailhead at Kvemo Okrokana to Zakagori Fortress (the trail's last checkpoint); the relation's other members are short spurs to springs and viewpoints; the stored line has 2 points"
+  },
+  "a0000000-0000-0000-0000-000000000006": {
+    "keep": true,
+    "why": "the owner redrew this trail in the admin panel (Ninoskhevi Waterfall, 791 points, no jumps); the relation from the original import (Black Grouse Waterfall) no longer applies"
+  },
+  "a0000000-0000-0000-0000-000000000007": {
+    "start": "Likani",
+    "why": "the trail starts at the Likani park entrance (its first checkpoint); OSM draws the relation from the Marelisi end"
+  },
+  "a0000000-0000-0000-0000-000000000008": {
+    "parts": [
+      {
+        "relation": 17899876,
+        "from": "Juta",
+        "to": [
+          44.8171,
+          42.5555
+        ]
+      }
+    ],
+    "why": "the Juta side of relation 17899876 'Chaukhi Pass Trail' up to the Chaukhi Pass node; the stored line was a 4 km piece of the deleted relation 3817920"
+  },
+  "a0000000-0000-0000-0000-000000000010": {
+    "keep": true,
+    "why": "the stored 2-point line lies about 13 km south-west of Okatse Canyon (near the Martvili/Okatse road junction) and no OSM relation exists for the canyon walk; the trail has to be drawn by hand"
+  },
+  "a0000000-0000-0000-0000-000000000011": {
+    "parts": [
+      {
+        "relation": 12211099,
+        "from": "Shatili",
+        "to": "Mutso"
+      }
+    ],
+    "why": "no relation of its own; relation 12211099 'Omalo-Shatili' has a single line between Shatili and Mutso; the stored line has 15 points covering 0.3 km"
+  },
+  "a0000000-0000-0000-0000-000000000012": {
+    "parts": [
+      {
+        "relation": 15354522,
+        "from": "Mukhuri",
+        "to": "Skuri"
+      }
+    ],
+    "why": "relation 15354522 'Mukhuri - Tobavarchkhili Lakes - Skuri' between its two villages; the stored line has 2 points"
+  },
+  "a0000000-0000-0000-0000-000000000025": {
+    "confirmed": true,
+    "why": "relation 15378089 'Lukhi — Okrotskali Lakes Trail' as mapped in the original import; the stored line has 28 points covering a tenth of it"
+  },
+  "a0000000-0000-0000-0000-000000000035": {
+    "parts": [
+      {
+        "relation": 21145876
+      },
+      {
+        "relation": 12211099,
+        "from": [
+          45.27413,
+          42.52868
+        ],
+        "to": "Shatili"
+      }
+    ],
+    "why": "relation 3817760 'Omalo - Atsunta' was deleted from OSM; 21145876 'Omalo–Shatili' now runs from Omalo to the Atsunta Pass node and relation 12211099 continues from that node down to Shatili"
+  },
+  "a0000000-0000-0000-0000-000000000036": {
+    "parts": [
+      {
+        "relation": 12211128,
+        "from": "Omalo",
+        "to": "Diklo"
+      }
+    ],
+    "why": "relation 12211128 'Omalo–Diklo' has a detached piece 576 m away, but a single line between the two villages"
+  },
+  "a0000000-0000-0000-0000-000000000038": {
+    "relations": [
+      13316316,
+      21147132
+    ],
+    "confirmed": true,
+    "why": "the trail is now two relations in OSM that meet in Chigho: 13316316 (Diklo–Chigho) and 21147132 'Diklo–Chigho–Dartlo' (Chigho–Dartlo)"
+  },
+  "a0000000-0000-0000-0000-000000000046": {
+    "confirmed": true,
+    "why": "relation 3740333 'St. Andrew’s Trail' as mapped in the original import; the stored line covers a fifth of it"
+  },
+  "a0000000-0000-0000-0000-000000000047": {
+    "parts": [
+      {
+        "relation": 3740346,
+        "from": [
+          43.25028,
+          41.87169
+        ],
+        "to": [
+          43.12575,
+          41.83366
+        ]
+      }
+    ],
+    "why": "relation 3740346 'Shepherd's trail' is a line with one side branch; the stored route starts and ends at two of its three ends, which leaves exactly one line"
+  },
+  "a0000000-0000-0000-0000-000000000056": {
+    "confirmed": true,
+    "why": "relation 15656966 'Kojori — Kabeni Monastery — Kabeni Waterfalls Trail' as mapped in the original import (the relation has been extended since)"
+  },
+  "a0000000-0000-0000-0000-000000000109": {
+    "confirmed": true,
+    "why": "relation 14078002 'Gulebi Fortress route' (same name); the stored line walks it twice with a 1.8 km jump"
+  },
+  "a0000000-0000-0000-0000-000000000121": {
+    "confirmed": true,
+    "why": "relation 3818361 'Mestia - Zabeshi' (same name); the stored line covers 41% of it"
+  },
+  "a0000000-0000-0000-0000-000000000122": {
+    "confirmed": true,
+    "why": "relation 14916523 (same name); the stored line has a 4.6 km jump"
+  },
+  "a0000000-0000-0000-0000-000000000130": {
+    "parts": [
+      {
+        "relation": 17899876,
+        "from": "Roshka",
+        "to": "Juta"
+      }
+    ],
+    "why": "relation 17899876 (formerly 'Roshka - Juta', now 'Chaukhi Pass Trail') between the two villages"
+  },
+  "a0000000-0000-0000-0000-000000000140": {
+    "confirmed": true,
+    "why": "relation 19410123 'Transcaucasian Trail' (same name); the stored line has 21 points"
+  }
+}

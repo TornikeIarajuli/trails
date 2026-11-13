@@ -1,0 +1,5 @@
+{
+  "_readme": "Hand decisions for 04-new-trails.mjs, keyed by OSM relation id. reject = leave the candidate out (reason shown in the report); keep = accept even if it overlaps a catalogue trail.",
+  "19470233": { "reject": "the OSM mapper notes (fixme) that the route was copied from a map sign and has not been checked on the ground" },
+  "20296500": { "reject": "the relation lists its ways twice: the stitched line is 4.1 km out and back while its own distance tag says 2 km" }
+}

@@ -1,0 +1,7 @@
+# Generated or downloaded by scripts/content/* — reproducible, large, or private to one run.
+images/
+cache/
+backups/
+work/
+# rebuilt on demand by scripts/content/snapshot-to-sql.mjs
+snapshot/*.sql

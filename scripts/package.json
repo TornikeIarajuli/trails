@@ -1,16 +1,18 @@
 {
   "name": "scripts",
   "version": "1.0.0",
-  "description": "",
-  "main": "discover-georgia-trails.js",
+  "private": true,
+  "description": "Trail content pipeline (scripts/content) and one-off maintenance scripts",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node --test content/*.test.mjs",
+    "content:verify": "node content/verify.mjs",
+    "content:apply": "node content/apply.mjs"
   },
-  "keywords": [],
-  "author": "",
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
-    "pg": "^8.18.0"
+    "@supabase/supabase-js": "2.95.3",
+    "pg": "^8.18.0",
+    "sharp": "^0.34.5"
   }
 }

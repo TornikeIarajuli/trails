@@ -1,9 +1,8 @@
--- First clear existing test products
-DELETE FROM public.products;
-
--- Seed shop with real products from CampShare.ge
-INSERT INTO public.products (name, description, image_url, price, shop_name, external_url, is_published, sort_order) VALUES
+-- Shop products from CampShare.ge for local development.
+-- Safe to run more than once: each product has a fixed id and is upserted; nothing is deleted.
+INSERT INTO public.products (id, name, description, image_url, price, shop_name, external_url, is_published, sort_order) VALUES
 (
+  '69bea87e-16f6-5caf-bd53-05f94998c629',
   'Kayland STELLAR GTX',
   'Premium Gore-Tex hiking boot with Vibram outsole for maximum grip on technical terrain. Built for serious Georgian mountain trails.',
   'https://imagedelivery.net/5fsp7txo6EIjmJZsLEpfww/43134a71-c7a0-4777-7423-496cddb8e600/w=600,h=600',
@@ -13,6 +12,7 @@ INSERT INTO public.products (name, description, image_url, price, shop_name, ext
   true, 1
 ),
 (
+  '8345a5bd-3315-5551-8576-d0aee5a9b709',
   'Kayland MIURA GTX',
   'Low-cut hiking shoe with Gore-Tex Extended Comfort waterproofing, suede upper, dual-density EVA midsole, and Vibram Multiverse outsole for mixed terrain.',
   'https://imagedelivery.net/5fsp7txo6EIjmJZsLEpfww/9b53c01a-570d-426b-3006-0e569bbb7500/w=600,h=600',
@@ -22,6 +22,7 @@ INSERT INTO public.products (name, description, image_url, price, shop_name, ext
   true, 2
 ),
 (
+  '0d0799c0-ff4e-5d46-a741-289cc970b12d',
   'Kayland VISION W''s GTX',
   'Women''s high-cut hiking boot with Gore-Tex Extended Comfort waterproofing, suede midfoot, and Vibram Multiverse outsole for mixed terrain grip and stability.',
   'https://imagedelivery.net/5fsp7txo6EIjmJZsLEpfww/dfa16dc6-152e-4453-2f2b-c2a8635f7200/w=600,h=600',
@@ -31,6 +32,7 @@ INSERT INTO public.products (name, description, image_url, price, shop_name, ext
   true, 3
 ),
 (
+  '440882e6-7cfb-5cb4-9a22-e5e8c284e3d6',
   'Trezeta ARGO WP',
   'Waterproof high-top hiking boot with Water Stopper membrane, dual-density EVA midsole, and Vibram Multiland outsole for multi-terrain grip.',
   'https://imagedelivery.net/5fsp7txo6EIjmJZsLEpfww/2d6dcc7d-2966-493b-7021-d2d8b3c41500/w=600,h=600',
@@ -40,6 +42,7 @@ INSERT INTO public.products (name, description, image_url, price, shop_name, ext
   true, 4
 ),
 (
+  '88b40dc3-ac01-51bb-8811-34c9d518a70f',
   'Gregory Wander 50',
   '50L hiking backpack with adjustable torso length, Wishbone alloy frame, hip belt pockets, hydration sleeve, and breathable padded suspension.',
   'https://imagedelivery.net/5fsp7txo6EIjmJZsLEpfww/9031feb7-f73c-4ef4-35b9-83f2a843a300/w=600,h=600',
@@ -49,6 +52,7 @@ INSERT INTO public.products (name, description, image_url, price, shop_name, ext
   true, 5
 ),
 (
+  '71e281a5-58c7-5a38-a2f5-bc045b74160e',
   'ALPS Mountaineering Lynx 4',
   '4-person three-season tent with dual entrances, aluminum poles, and polyester fabric. 1,500mm waterproofing on fly, 2,000mm on floor.',
   'https://imagedelivery.net/5fsp7txo6EIjmJZsLEpfww/2a78644f-16c8-428d-01ee-d6d952948a00/w=600,h=600',
@@ -58,6 +62,7 @@ INSERT INTO public.products (name, description, image_url, price, shop_name, ext
   true, 6
 ),
 (
+  '854acbad-306f-5fc6-84aa-8962b1859ba1',
   'ALPS Mountaineering Lynx 2',
   'Lightweight 2-person backpacking tent with dual entrances, aluminum poles. Weighs 2.6 kg with 3.44 m² floor area. Three-season rated.',
   'https://imagedelivery.net/5fsp7txo6EIjmJZsLEpfww/a5ec7559-0293-4135-1972-74f9b08a8300/w=600,h=600',
@@ -67,6 +72,7 @@ INSERT INTO public.products (name, description, image_url, price, shop_name, ext
   true, 7
 ),
 (
+  '54cd5794-1045-5f4b-97fb-33263e2897a7',
   'ALPS Mountaineering Vibe 40 (+4°C)',
   'Mummy-style 2-season sleeping bag rated to +4°C. TechLoft Micro synthetic insulation with ripstop polyester shell and insulated chest baffle.',
   'https://imagedelivery.net/5fsp7txo6EIjmJZsLEpfww/b75739ff-cc14-4384-c337-3af14d0d2800/w=600,h=600',
@@ -76,6 +82,7 @@ INSERT INTO public.products (name, description, image_url, price, shop_name, ext
   true, 8
 ),
 (
+  '545567b2-6f03-5b97-9a74-c8045ea440d6',
   'ALPS Mountaineering Genesis 30 (-1°C)',
   'Three-season sleeping bag with recycled TechLoft Micro insulation, recycled polyester ripstop shell, dual zippers for ventilation. Rated to -1°C.',
   'https://imagedelivery.net/5fsp7txo6EIjmJZsLEpfww/0c9b4d6e-3b4e-4b7b-3edd-70a256514b00/w=600,h=600',
@@ -83,4 +90,13 @@ INSERT INTO public.products (name, description, image_url, price, shop_name, ext
   'CampShare',
   'https://campshare.ge/shop/product/579/alps-mountaineering-genesis-30-1-deg-c',
   true, 9
-);
+)
+ON CONFLICT (id) DO UPDATE SET
+  name = EXCLUDED.name,
+  description = EXCLUDED.description,
+  image_url = EXCLUDED.image_url,
+  price = EXCLUDED.price,
+  shop_name = EXCLUDED.shop_name,
+  external_url = EXCLUDED.external_url,
+  is_published = EXCLUDED.is_published,
+  sort_order = EXCLUDED.sort_order;

@@ -2,13 +2,15 @@ const https = require('https');
 
 const TOKEN = process.env.SUPABASE_MGMT_TOKEN;
 if (!TOKEN) { console.error('Set SUPABASE_MGMT_TOKEN env var'); process.exit(1); }
+const PROJECT = process.env.SUPABASE_PROJECT_REF;
+if (!PROJECT) { console.error('Set SUPABASE_PROJECT_REF env var'); process.exit(1); }
 
 function query(sql) {
   return new Promise((resolve, reject) => {
     const body = JSON.stringify({ query: sql });
     const options = {
       hostname: 'api.supabase.com',
-      path: '/v1/projects/neoqkksermbixgeflwjd/database/query',
+      path: `/v1/projects/${PROJECT}/database/query`,
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${TOKEN}`,

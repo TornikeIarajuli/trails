@@ -1,0 +1,17 @@
+{
+  "_readme": "Hand corrections for 09-build-dataset.mjs, keyed by trail id. name_en / name_ka / description_* replace the value; regenerate lists hand-written fields that are wrong and get the generated factual text instead; reject drops a new trail. Every Georgian string written here is listed in REPORT.md for review.",
+  "a0000000-0000-0000-0000-000000000033": {
+    "regenerate": ["description_en"],
+    "why": "the description placed the trail in the Svaneti highlands; the route is in Borjomi municipality (Nedzvi Managed Reserve)"
+  },
+  "a0000000-0000-0000-0000-000000000034": {
+    "regenerate": ["description_en", "description_ka"],
+    "why": "both descriptions placed the trail in Svaneti; the route is in Borjomi municipality (Nedzvi Managed Reserve)"
+  },
+  "a0000000-0000-0000-0000-000000000044": {
+    "name_en": "Yew Tree and Tbikeli Lake",
+    "name_ka": "უთხოვარი და ტბიყელის ტბა",
+    "regenerate": ["description_en", "description_ka"],
+    "why": "the trail is in Adjara (Kintrishi), not in Lagodekhi: OSM relation 10543228 'Yew tree and lake Tbikeli'; the Georgian name joins the OSM names 'ხე უთხოვარი' and 'ტბიყელის ტბა' (the old one said Lagodekhi and beech)"
+  }
+}

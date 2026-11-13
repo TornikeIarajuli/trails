@@ -1,0 +1,725 @@
+{
+ "a0000000-0000-0000-0000-000000000001": {
+  "relations": [],
+  "source": "scripts/archive/fetch-all-routes.js",
+  "note": "no relation: built from paths near a point, later replaced by a name search (refetch-bad-routes.js)"
+ },
+ "a0000000-0000-0000-0000-000000000002": {
+  "relations": [
+   13703284,
+   13703285
+  ],
+  "note": "two TCT stage relations joined (Mestia-Adishi + Adishi-Ushguli)",
+  "source": "scripts/archive/fetch-all-routes.js"
+ },
+ "a0000000-0000-0000-0000-000000000003": {
+  "relations": [
+   3817920
+  ],
+  "source": "scripts/archive/fetch-all-routes.js"
+ },
+ "a0000000-0000-0000-0000-000000000004": {
+  "relations": [],
+  "source": "scripts/archive/fetch-all-routes.js",
+  "note": "no relation: built from paths near a point, later replaced by a name search (refetch-bad-routes.js)"
+ },
+ "a0000000-0000-0000-0000-000000000005": {
+  "relations": [],
+  "source": "scripts/archive/fetch-all-routes.js",
+  "note": "no relation: built from paths near a point, later replaced by a name search (refetch-bad-routes.js)"
+ },
+ "a0000000-0000-0000-0000-000000000006": {
+  "relations": [
+   10543218
+  ],
+  "source": "scripts/archive/fetch-all-routes.js"
+ },
+ "a0000000-0000-0000-0000-000000000007": {
+  "relations": [
+   3740297
+  ],
+  "source": "scripts/archive/fetch-all-routes.js"
+ },
+ "a0000000-0000-0000-0000-000000000008": {
+  "relations": [
+   3817920
+  ],
+  "partial": true,
+  "note": "first 55% of the Roshka-Juta relation (Juta side up to the pass)",
+  "source": "scripts/archive/fetch-all-routes.js"
+ },
+ "a0000000-0000-0000-0000-000000000009": {
+  "relations": [],
+  "source": "scripts/archive/fetch-all-routes.js",
+  "note": "no relation: built from paths near a point, later replaced by a name search (refetch-bad-routes.js)"
+ },
+ "a0000000-0000-0000-0000-000000000010": {
+  "relations": [],
+  "source": "scripts/archive/fetch-all-routes.js",
+  "note": "no relation: built from paths near a point, later replaced by a name search (refetch-bad-routes.js)"
+ },
+ "a0000000-0000-0000-0000-000000000011": {
+  "relations": [],
+  "source": "scripts/archive/fetch-all-routes.js",
+  "note": "no relation: built from paths near a point, later replaced by a name search (refetch-bad-routes.js)"
+ },
+ "a0000000-0000-0000-0000-000000000012": {
+  "relations": [
+   15354522,
+   15354656
+  ],
+  "note": "two relations joined (Mukhuri-Tobavarchkhili-Skuri + Skuri-Tobavarchkhili)",
+  "source": "scripts/archive/fetch-all-routes.js"
+ },
+ "a0000000-0000-0000-0000-000000000013": {
+  "relations": [
+   3684676
+  ],
+  "source": "scripts/archive/fetch-new-routes.js",
+  "old_name": "Koruldi Lakes"
+ },
+ "a0000000-0000-0000-0000-000000000014": {
+  "relations": [
+   3671427
+  ],
+  "source": "scripts/archive/fetch-new-routes.js",
+  "old_name": "Mestia to Chalaadi Glacier"
+ },
+ "a0000000-0000-0000-0000-000000000015": {
+  "relations": [
+   2418279
+  ],
+  "source": "scripts/archive/fetch-new-routes.js",
+  "old_name": "Mazeri to Ushba Glacier"
+ },
+ "a0000000-0000-0000-0000-000000000016": {
+  "relations": [
+   2418280
+  ],
+  "source": "scripts/archive/fetch-new-routes.js",
+  "old_name": "Mestia - Guli Pass - Mazeri"
+ },
+ "a0000000-0000-0000-0000-000000000017": {
+  "relations": [
+   2418278
+  ],
+  "source": "scripts/archive/fetch-new-routes.js",
+  "old_name": "Ushguli to Chvelpi"
+ },
+ "a0000000-0000-0000-0000-000000000018": {
+  "relations": [
+   3720225
+  ],
+  "source": "scripts/archive/fetch-new-routes.js",
+  "old_name": "Ushguli to Shkhara Glacier"
+ },
+ "a0000000-0000-0000-0000-000000000019": {
+  "relations": [
+   10507483
+  ],
+  "source": "scripts/archive/fetch-new-routes.js",
+  "old_name": "Laila Glacier Trail"
+ },
+ "a0000000-0000-0000-0000-000000000020": {
+  "relations": [
+   10507503
+  ],
+  "source": "scripts/archive/fetch-new-routes.js",
+  "old_name": "Zhabeshi to Tviberi Glacier"
+ },
+ "a0000000-0000-0000-0000-000000000021": {
+  "relations": [
+   13078189
+  ],
+  "source": "scripts/archive/fetch-new-routes.js",
+  "old_name": "Mazeri - Meziri Lake - Etseri"
+ },
+ "a0000000-0000-0000-0000-000000000022": {
+  "relations": [
+   15351445
+  ],
+  "source": "scripts/archive/fetch-new-routes.js",
+  "old_name": "Mestia - Hatsvali - Zuruldi"
+ },
+ "a0000000-0000-0000-0000-000000000023": {
+  "relations": [
+   15352304
+  ],
+  "source": "scripts/archive/fetch-new-routes.js",
+  "old_name": "Mount Laila Traverse"
+ },
+ "a0000000-0000-0000-0000-000000000024": {
+  "relations": [
+   15352496
+  ],
+  "source": "scripts/archive/fetch-new-routes.js",
+  "old_name": "Khaishi to Lakumura Lake"
+ },
+ "a0000000-0000-0000-0000-000000000025": {
+  "relations": [
+   15378089
+  ],
+  "source": "scripts/archive/fetch-new-routes.js",
+  "old_name": "Okrostskali Lakes"
+ },
+ "a0000000-0000-0000-0000-000000000026": {
+  "relations": [
+   15394285
+  ],
+  "source": "scripts/archive/fetch-new-routes.js",
+  "old_name": "Lake Memuli"
+ },
+ "a0000000-0000-0000-0000-000000000027": {
+  "relations": [
+   10507501
+  ],
+  "source": "scripts/archive/fetch-new-routes.js",
+  "old_name": "Latali to Mheer Church"
+ },
+ "a0000000-0000-0000-0000-000000000028": {
+  "relations": [
+   10544195
+  ],
+  "source": "scripts/archive/fetch-new-routes.js",
+  "old_name": "Chvabiani to Adishi"
+ },
+ "a0000000-0000-0000-0000-000000000029": {
+  "relations": [
+   11115965
+  ],
+  "source": "scripts/archive/fetch-new-routes.js",
+  "old_name": "Kala to Latpari Pass"
+ },
+ "a0000000-0000-0000-0000-000000000030": {
+  "relations": [
+   15650596
+  ],
+  "source": "scripts/archive/fetch-new-routes.js",
+  "old_name": "Mestia Cross Trail"
+ },
+ "a0000000-0000-0000-0000-000000000031": {
+  "relations": [
+   14639513
+  ],
+  "source": "scripts/archive/fetch-new-routes.js",
+  "old_name": "Etseri to Bak Pass"
+ },
+ "a0000000-0000-0000-0000-000000000032": {
+  "relations": [
+   15398157
+  ],
+  "source": "scripts/archive/fetch-new-routes.js",
+  "old_name": "Leiraki Waterfall Trail"
+ },
+ "a0000000-0000-0000-0000-000000000033": {
+  "relations": [
+   15913814
+  ],
+  "source": "scripts/archive/fetch-new-routes.js",
+  "old_name": "Shuano Mountain Trail"
+ },
+ "a0000000-0000-0000-0000-000000000034": {
+  "relations": [
+   15913873
+  ],
+  "source": "scripts/archive/fetch-new-routes.js",
+  "old_name": "Gvirgvina Mountain Trail"
+ },
+ "a0000000-0000-0000-0000-000000000035": {
+  "relations": [
+   3817760
+  ],
+  "source": "scripts/archive/fetch-new-routes.js",
+  "old_name": "Atsunta Pass (Omalo to Shatili)"
+ },
+ "a0000000-0000-0000-0000-000000000036": {
+  "relations": [
+   12211128
+  ],
+  "source": "scripts/archive/fetch-new-routes.js",
+  "old_name": "Omalo to Diklo"
+ },
+ "a0000000-0000-0000-0000-000000000037": {
+  "relations": [
+   12211175
+  ],
+  "source": "scripts/archive/fetch-new-routes.js",
+  "old_name": "Omalo Round Trail"
+ },
+ "a0000000-0000-0000-0000-000000000038": {
+  "relations": [
+   13316316
+  ],
+  "source": "scripts/archive/fetch-new-routes.js",
+  "old_name": "Diklo to Dartlo Red Trail"
+ },
+ "a0000000-0000-0000-0000-000000000039": {
+  "relations": [
+   10485517
+  ],
+  "source": "scripts/archive/fetch-new-routes.js",
+  "old_name": "Omalo to Nakle Kholi Pass"
+ },
+ "a0000000-0000-0000-0000-000000000040": {
+  "relations": [
+   10506208
+  ],
+  "source": "scripts/archive/fetch-new-routes.js",
+  "old_name": "Oreti Lake Hike"
+ },
+ "a0000000-0000-0000-0000-000000000041": {
+  "relations": [
+   14205880
+  ],
+  "source": "scripts/archive/fetch-new-routes.js",
+  "old_name": "Juta Waterfall and Lake"
+ },
+ "a0000000-0000-0000-0000-000000000042": {
+  "relations": [
+   14224776
+  ],
+  "source": "scripts/archive/fetch-new-routes.js",
+  "old_name": "Arsha to Stepantsminda"
+ },
+ "a0000000-0000-0000-0000-000000000043": {
+  "relations": [
+   10543211
+  ],
+  "source": "scripts/archive/fetch-new-routes.js",
+  "old_name": "Lagodekhi Black Rock Lake"
+ },
+ "a0000000-0000-0000-0000-000000000044": {
+  "relations": [
+   10543228
+  ],
+  "source": "scripts/archive/fetch-new-routes.js",
+  "old_name": "Lagodekhi Yew Tree and Tbikeli Lake"
+ },
+ "a0000000-0000-0000-0000-000000000045": {
+  "relations": [
+   3740332
+  ],
+  "source": "scripts/archive/fetch-new-routes.js",
+  "old_name": "Borjomi Panorama Trail"
+ },
+ "a0000000-0000-0000-0000-000000000046": {
+  "relations": [
+   3740333
+  ],
+  "source": "scripts/archive/fetch-new-routes.js",
+  "old_name": "St. Andrews Trail"
+ },
+ "a0000000-0000-0000-0000-000000000047": {
+  "relations": [
+   3740346
+  ],
+  "source": "scripts/archive/fetch-new-routes.js",
+  "old_name": "Shepherds Trail"
+ },
+ "a0000000-0000-0000-0000-000000000048": {
+  "relations": [
+   3740348
+  ],
+  "source": "scripts/archive/fetch-new-routes.js",
+  "old_name": "Pure Pristine Forest Trail"
+ },
+ "a0000000-0000-0000-0000-000000000049": {
+  "relations": [
+   3740353
+  ],
+  "source": "scripts/archive/fetch-new-routes.js",
+  "old_name": "Following Wildlife Traces"
+ },
+ "a0000000-0000-0000-0000-000000000050": {
+  "relations": [
+   5576945
+  ],
+  "source": "scripts/archive/fetch-new-routes.js",
+  "old_name": "Sairme Pass Trail"
+ },
+ "a0000000-0000-0000-0000-000000000051": {
+  "relations": [
+   15081599
+  ],
+  "source": "scripts/archive/fetch-new-routes.js",
+  "old_name": "Mtatsminda to Narikala Fortress"
+ },
+ "a0000000-0000-0000-0000-000000000052": {
+  "relations": [
+   14077975
+  ],
+  "source": "scripts/archive/fetch-new-routes.js",
+  "old_name": "Tbilisi National Park Trail"
+ },
+ "a0000000-0000-0000-0000-000000000053": {
+  "relations": [
+   15658326
+  ],
+  "source": "scripts/archive/fetch-new-routes.js",
+  "old_name": "Mtatsminda to Kojori"
+ },
+ "a0000000-0000-0000-0000-000000000054": {
+  "relations": [
+   15656924
+  ],
+  "source": "scripts/archive/fetch-new-routes.js",
+  "old_name": "Betania to Kveseti"
+ },
+ "a0000000-0000-0000-0000-000000000055": {
+  "relations": [
+   15656937
+  ],
+  "source": "scripts/archive/fetch-new-routes.js",
+  "old_name": "Kiketi to Kabeni Monastery"
+ },
+ "a0000000-0000-0000-0000-000000000056": {
+  "relations": [
+   15656966
+  ],
+  "source": "scripts/archive/fetch-new-routes.js",
+  "old_name": "Kojori to Kabeni Monastery and Waterfalls"
+ },
+ "a0000000-0000-0000-0000-000000000100": {
+  "relations": [
+   3685972
+  ],
+  "source": "scripts/all_discovered_routes.json",
+  "old_name": "Adishi - Iprali"
+ },
+ "a0000000-0000-0000-0000-000000000101": {
+  "relations": [
+   16616254
+  ],
+  "source": "scripts/all_discovered_routes.json",
+  "old_name": "Adventure track"
+ },
+ "a0000000-0000-0000-0000-000000000102": {
+  "relations": [
+   14639514
+  ],
+  "source": "scripts/all_discovered_routes.json",
+  "old_name": "Bak Pass - Dolasvipi"
+ },
+ "a0000000-0000-0000-0000-000000000103": {
+  "relations": [
+   14639515
+  ],
+  "source": "scripts/all_discovered_routes.json",
+  "old_name": "Bak Pass - Mazeri"
+ },
+ "a0000000-0000-0000-0000-000000000104": {
+  "relations": [
+   7403048
+  ],
+  "source": "scripts/all_discovered_routes.json",
+  "old_name": "Black"
+ },
+ "a0000000-0000-0000-0000-000000000105": {
+  "relations": [
+   19282065
+  ],
+  "source": "scripts/all_discovered_routes.json",
+  "old_name": "Children Learning Track"
+ },
+ "a0000000-0000-0000-0000-000000000106": {
+  "relations": [
+   17899924
+  ],
+  "source": "scripts/all_discovered_routes.json",
+  "old_name": "Dartlo–Kvavlo"
+ },
+ "a0000000-0000-0000-0000-000000000107": {
+  "relations": [
+   14639546
+  ],
+  "source": "scripts/all_discovered_routes.json",
+  "old_name": "Dolasvipi - Latali"
+ },
+ "a0000000-0000-0000-0000-000000000108": {
+  "relations": [
+   14639547
+  ],
+  "source": "scripts/all_discovered_routes.json",
+  "old_name": "Ebudi - Dolasvipi"
+ },
+ "a0000000-0000-0000-0000-000000000109": {
+  "relations": [
+   14078002
+  ],
+  "source": "scripts/all_discovered_routes.json",
+  "old_name": "Gulebi Fortress route"
+ },
+ "a0000000-0000-0000-0000-000000000110": {
+  "relations": [
+   9953509
+  ],
+  "source": "scripts/all_discovered_routes.json",
+  "old_name": "Guli glacier and Ushba base path"
+ },
+ "a0000000-0000-0000-0000-000000000111": {
+  "relations": [
+   3685989
+  ],
+  "source": "scripts/all_discovered_routes.json",
+  "old_name": "Iprari - Ushguli"
+ },
+ "a0000000-0000-0000-0000-000000000112": {
+  "relations": [
+   14192152
+  ],
+  "source": "scripts/all_discovered_routes.json",
+  "old_name": "Jokolo => Duisi"
+ },
+ "a0000000-0000-0000-0000-000000000113": {
+  "relations": [
+   17899816
+  ],
+  "source": "scripts/all_discovered_routes.json",
+  "old_name": "Kachou Fortress"
+ },
+ "a0000000-0000-0000-0000-000000000114": {
+  "relations": [
+   14277181
+  ],
+  "source": "scripts/all_discovered_routes.json",
+  "old_name": "Khikhadziri village - Shuamta lakes - Khikhani fortress"
+ },
+ "a0000000-0000-0000-0000-000000000115": {
+  "relations": [
+   15351593
+  ],
+  "source": "scripts/all_discovered_routes.json",
+  "old_name": "Lentekhi - Matskhvarishi"
+ },
+ "a0000000-0000-0000-0000-000000000116": {
+  "relations": [
+   15351831
+  ],
+  "source": "scripts/all_discovered_routes.json",
+  "old_name": "Mami - Latpri pass"
+ },
+ "a0000000-0000-0000-0000-000000000117": {
+  "relations": [
+   14696809
+  ],
+  "source": "scripts/all_discovered_routes.json",
+  "old_name": "Mazeri - Hiker-Inn"
+ },
+ "a0000000-0000-0000-0000-000000000118": {
+  "relations": [
+   13103614
+  ],
+  "source": "scripts/all_discovered_routes.json",
+  "old_name": "Mestia - Adishi"
+ },
+ "a0000000-0000-0000-0000-000000000119": {
+  "relations": [
+   3684715
+  ],
+  "source": "scripts/all_discovered_routes.json",
+  "old_name": "Mestia - Heshkili - Ieli - Tsvirmi - Tetnuldi Ski Lift"
+ },
+ "a0000000-0000-0000-0000-000000000120": {
+  "relations": [
+   13103549
+  ],
+  "source": "scripts/all_discovered_routes.json",
+  "old_name": "Mestia - Koruldi Lakes - Becho"
+ },
+ "a0000000-0000-0000-0000-000000000121": {
+  "relations": [
+   3818361
+  ],
+  "source": "scripts/all_discovered_routes.json",
+  "old_name": "Mestia - Zabeshi"
+ },
+ "a0000000-0000-0000-0000-000000000122": {
+  "relations": [
+   14916523
+  ],
+  "source": "scripts/all_discovered_routes.json",
+  "old_name": "Mindazeebi village - Kikibo pastures (yaylas)"
+ },
+ "a0000000-0000-0000-0000-000000000123": {
+  "relations": [
+   17899815
+  ],
+  "source": "scripts/all_discovered_routes.json",
+  "old_name": "Mutso castle"
+ },
+ "a0000000-0000-0000-0000-000000000124": {
+  "relations": [
+   13095213
+  ],
+  "source": "scripts/all_discovered_routes.json",
+  "old_name": "N1 Tsvirmi - Ieli"
+ },
+ "a0000000-0000-0000-0000-000000000125": {
+  "relations": [
+   18160418
+  ],
+  "source": "scripts/all_discovered_routes.json",
+  "old_name": "Nasabajvari trail"
+ },
+ "a0000000-0000-0000-0000-000000000126": {
+  "relations": [
+   3718445
+  ],
+  "source": "scripts/all_discovered_routes.json",
+  "old_name": "National Park Information Tail"
+ },
+ "a0000000-0000-0000-0000-000000000127": {
+  "relations": [
+   12211099
+  ],
+  "source": "scripts/all_discovered_routes.json",
+  "old_name": "Omalo-Shatili"
+ },
+ "a0000000-0000-0000-0000-000000000128": {
+  "relations": [
+   14222035
+  ],
+  "source": "scripts/all_discovered_routes.json",
+  "old_name": "Oniore Waterfalls tourist trails"
+ },
+ "a0000000-0000-0000-0000-000000000129": {
+  "relations": [
+   18233310
+  ],
+  "source": "scripts/all_discovered_routes.json",
+  "old_name": "Path to King David's tower"
+ },
+ "a0000000-0000-0000-0000-000000000130": {
+  "relations": [
+   17899876
+  ],
+  "source": "scripts/all_discovered_routes.json",
+  "old_name": "Roshka - Juta"
+ },
+ "a0000000-0000-0000-0000-000000000131": {
+  "relations": [
+   18232325
+  ],
+  "source": "scripts/all_discovered_routes.json",
+  "old_name": "Sairme pillars trail"
+ },
+ "a0000000-0000-0000-0000-000000000132": {
+  "relations": [
+   18919475
+  ],
+  "source": "scripts/all_discovered_routes.json",
+  "old_name": "Samshvilde canyon trail"
+ },
+ "a0000000-0000-0000-0000-000000000133": {
+  "relations": [
+   5576796
+  ],
+  "source": "scripts/all_discovered_routes.json",
+  "old_name": "Snow Shoes Trail"
+ },
+ "a0000000-0000-0000-0000-000000000134": {
+  "relations": [
+   19282639
+  ],
+  "source": "scripts/all_discovered_routes.json",
+  "old_name": "Sulda Wetland"
+ },
+ "a0000000-0000-0000-0000-000000000135": {
+  "relations": [
+   15068997
+  ],
+  "source": "scripts/all_discovered_routes.json",
+  "old_name": "Tbilsi Hiking trail"
+ },
+ "a0000000-0000-0000-0000-000000000136": {
+  "relations": [
+   10544212
+  ],
+  "source": "scripts/all_discovered_routes.json",
+  "old_name": "Tetnuldi Ski Resort - Adishi"
+ },
+ "a0000000-0000-0000-0000-000000000137": {
+  "relations": [
+   14078003
+  ],
+  "source": "scripts/all_discovered_routes.json",
+  "old_name": "Tivasula fortress path"
+ },
+ "a0000000-0000-0000-0000-000000000138": {
+  "relations": [
+   14222034
+  ],
+  "source": "scripts/all_discovered_routes.json",
+  "old_name": "Toba-Oniore"
+ },
+ "a0000000-0000-0000-0000-000000000139": {
+  "relations": [
+   6269165
+  ],
+  "source": "scripts/all_discovered_routes.json",
+  "old_name": "Trail 1: 19th c."
+ },
+ "a0000000-0000-0000-0000-000000000140": {
+  "relations": [
+   19410123
+  ],
+  "source": "scripts/all_discovered_routes.json",
+  "old_name": "Transcaucasian Trail"
+ },
+ "a0000000-0000-0000-0000-000000000141": {
+  "relations": [
+   11122654
+  ],
+  "source": "scripts/all_discovered_routes.json",
+  "old_name": "Transcaucasian Trail: Upper Svaneti 2 (Alternate)"
+ },
+ "a0000000-0000-0000-0000-000000000142": {
+  "relations": [
+   11113781
+  ],
+  "source": "scripts/all_discovered_routes.json",
+  "old_name": "Transcaucasian Trail: Upper Svaneti 4 (Alternate)"
+ },
+ "a0000000-0000-0000-0000-000000000143": {
+  "relations": [
+   15351338
+  ],
+  "source": "scripts/all_discovered_routes.json",
+  "old_name": "Tsaleri - Kichkhuldashi"
+ },
+ "a0000000-0000-0000-0000-000000000144": {
+  "relations": [
+   15351337
+  ],
+  "source": "scripts/all_discovered_routes.json",
+  "old_name": "Tsaleri - mount Kva - Place Zagari"
+ },
+ "a0000000-0000-0000-0000-000000000145": {
+  "relations": [
+   13095214
+  ],
+  "source": "scripts/all_discovered_routes.json",
+  "old_name": "Tsvirmi - Zuruldi Ski Lift - Heshkili - Lemsia"
+ },
+ "a0000000-0000-0000-0000-000000000146": {
+  "relations": [
+   12216816
+  ],
+  "source": "scripts/all_discovered_routes.json",
+  "old_name": "Tusheti Omalo 2-3 Nights Round Trail"
+ },
+ "a0000000-0000-0000-0000-000000000147": {
+  "relations": [
+   14119538
+  ],
+  "source": "scripts/all_discovered_routes.json",
+  "old_name": "Two Mountains Trail"
+ },
+ "a0000000-0000-0000-0000-000000000148": {
+  "relations": [
+   14639545
+  ],
+  "source": "scripts/all_discovered_routes.json",
+  "old_name": "Ushkhvanari - Latali"
+ }
+}
