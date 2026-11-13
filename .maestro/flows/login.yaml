@@ -1,26 +1,32 @@
 appId: com.gzatrails.app
 ---
 # Login Flow
-# Prerequisite: test account must exist in Supabase (test@example.com / TestPass123)
+# Prerequisite: test account must exist (test@example.com / TestPass123)
 
 - launchApp:
     clearState: true
 
+# A fresh install starts with the onboarding pages
+- tapOn:
+    id: "onboarding-skip"
+    optional: true
+
 # Wait for login screen
 - assertVisible: "Log In"
 
-# Fill in credentials
-- tapOn:
-    text: "Email"
+# Fill in credentials (the inputs are found by their placeholders)
+- tapOn: "your@email.com"
 - inputText: "test@example.com"
 
-- tapOn:
-    text: "Password"
+- tapOn: "Enter your password"
 - inputText: "TestPass123"
+- hideKeyboard
 
 # Submit
 - tapOn: "Log In"
 
-# Verify landing on home tab
-- assertVisible: "Trails"
-- assertVisible: "Explore Georgia's Best Trails"
+# Verify landing on the Explore tab
+- extendedWaitUntil:
+    visible: "Mikiri Trails"
+    timeout: 15000
+- assertVisible: "Near Me"

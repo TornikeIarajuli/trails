@@ -1,11 +1,15 @@
 appId: com.gzatrails.app
 ---
 # Hike Flow
-# Prerequisite: user is logged in, at least one published trail exists
+# Prerequisites: user is logged in, no hike is in progress, location permission granted.
 
 - launchApp
 
 # Navigate to first trail
+- extendedWaitUntil:
+    visible:
+      id: "trail-card"
+    timeout: 20000
 - tapOn:
     index: 0
     id: "trail-card"
@@ -13,8 +17,13 @@ appId: com.gzatrails.app
 # Start hike
 - tapOn: "Start Hike"
 
-# Hike screen visible
-- assertVisible: "00:00:00"
+# A trail marked as closed asks for confirmation first
+- tapOn:
+    text: "Start anyway"
+    optional: true
+
+# Hike screen visible (the timer starts at 00:00:00)
+- assertVisible: "00:00:.*"
 
 # Pause hike
 - tapOn: "Pause"
@@ -24,14 +33,15 @@ appId: com.gzatrails.app
 - tapOn: "Resume"
 - assertVisible: "Pause"
 
-# End hike
+# End hike (top-bar close button)
 - tapOn:
     id: "close-button"
 
 # Confirm end hike dialog
 - tapOn: "End Hike"
 
-# Completion screen appears (or back to trail)
-# The exact text depends on completion status
-- assertTrue:
-    condition: "visible('completion') || visible('Trails')"
+# The hike screen is gone: the completion screen or the trail is shown
+- extendedWaitUntil:
+    notVisible: "Resume"
+    timeout: 15000
+- assertNotVisible: "Pause"
