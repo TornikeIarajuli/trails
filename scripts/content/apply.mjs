@@ -11,7 +11,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import {
-  BUCKET, CACHE_CONTROL_SECONDS, STORAGE_PREFIX,
+  ADDED_TRAIL_COLUMNS, BUCKET, CACHE_CONTROL_SECONDS, STORAGE_PREFIX,
   describePlan, parseArgs, planHasWrites, planTrail, summarize, validateDataset,
 } from './apply-lib.mjs';
 
@@ -145,6 +145,12 @@ export async function run({ db, dataset, opts, imagesDir, backupsDir, log = cons
   const liveCps = group(live.checkpoints, 'trail_id');
   const liveMedia = group(live.media, 'trail_id');
   log(`Live:    ${live.trails.length} of these trails, ${live.checkpoints.length} checkpoints, ${live.media.length} media rows\n`);
+  // columns added by later migrations must exist before anything is planned (PostgREST simply leaves them out)
+  const missingColumns = Object.entries(ADDED_TRAIL_COLUMNS).filter(([c]) => live.trails.length && live.trails.every((t) => !(c in t)));
+  if (missingColumns.length) {
+    log(`The database has no ${missingColumns.map(([c, m]) => `trails.${c} (migration ${m})`).join(' and ')} — apply the migrations first. Nothing was done.`);
+    return { exitCode: 1, plans: [], failures: [], summary: null };
+  }
 
   // ---- plan ----
   const plans = trails.map((t) =>

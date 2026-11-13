@@ -15,7 +15,18 @@ export const TRAIL_SCALARS = [
   'distance_km', 'elevation_gain_m', 'estimated_hours', 'start_address',
 ];
 export const TRAIL_GEOMS = ['route', 'start_point', 'end_point'];
-export const TRAIL_FIELDS = [...TRAIL_SCALARS, ...TRAIL_GEOMS];
+/** jsonb columns, compared by value */
+export const TRAIL_JSON = ['elevation_profile'];
+/** text[] columns (NOT NULL DEFAULT '{}'), compared as sets; a blank value means the empty array */
+export const TRAIL_ARRAYS = ['review_flags'];
+export const TRAIL_FIELDS = [...TRAIL_SCALARS, ...TRAIL_JSON, ...TRAIL_ARRAYS, ...TRAIL_GEOMS];
+/** columns added by later migrations: the apply tool refuses a database that does not have them yet */
+export const ADDED_TRAIL_COLUMNS = { elevation_profile: '051', review_flags: '052' };
+/** trails.review_flags codes, in the order they are written (meanings in scripts/README.md) */
+export const REVIEW_FLAG_CODES = [
+  'manual_review', 'main_line', 'rebuilt', 'reversed', 'generated_name', 'machine_georgian', 'near_border', 'overlap',
+  'synthetic_elevation', 'estimated_checkpoints', 'unconfirmed_facility', 'no_photo', 'area_photo',
+];
 export const CHECKPOINT_FIELDS = [
   'name_en', 'name_ka', 'description_en', 'description_ka', 'type', 'coordinates',
   'elevation_m', 'sort_order', 'is_checkable',
@@ -97,6 +108,18 @@ export function validateDataset(dataset) {
     if (t.elevation_gain_m != null && !Number.isInteger(t.elevation_gain_m)) problems.push(`${where}: elevation_gain_m must be an integer`);
     if (!Array.isArray(t.route) || t.route.length < 2) problems.push(`${where}: route needs at least 2 points`);
     else if (!t.route.every(inGeorgia)) problems.push(`${where}: route has a point outside Georgia`);
+    if (t.elevation_profile != null) {
+      const p = t.elevation_profile;
+      const pairs = Array.isArray(p) && p.length >= 2 && p.length <= 120 && p.every((x) => Array.isArray(x) && x.length === 2 && Number.isInteger(x[0]) && Number.isInteger(x[1]));
+      if (!pairs) problems.push(`${where}: elevation_profile must be 2–120 [distance_m, elevation_m] integer pairs`);
+      else if (p[0][0] !== 0 || p.some((x, i) => i > 0 && x[0] < p[i - 1][0])) problems.push(`${where}: elevation_profile must start at 0 m and never go back`);
+    }
+    if (t.review_flags != null) {
+      const f = t.review_flags;
+      if (!Array.isArray(f) || f.some((c) => !REVIEW_FLAG_CODES.includes(c)) || new Set(f).size !== f.length) {
+        problems.push(`${where}: review_flags must be distinct codes from ${REVIEW_FLAG_CODES.join(', ')}`);
+      }
+    }
     if (!inGeorgia(t.start_point) || !inGeorgia(t.end_point)) problems.push(`${where}: start/end point missing or outside Georgia`);
     if (!Array.isArray(t.changed)) problems.push(`${where}: changed[] missing`);
     else {
@@ -178,17 +201,49 @@ export function matchesSignature(coords, sig) {
 
 /** Live value (as PostgREST returns it) → the comparable form the dataset uses. */
 export function normalizeLive(field, value) {
+  if (TRAIL_ARRAYS.includes(field)) return parseTextArray(value);
+  if (TRAIL_JSON.includes(field) && typeof value === 'string') {
+    try {
+      return JSON.parse(value);
+    } catch {
+      return value;
+    }
+  }
   if (field === 'route' || field === 'start_point' || field === 'end_point' || field === 'coordinates') return geoJsonCoords(value);
   if (NUMERIC.has(field)) return blank(value) ? null : Number(value);
   return blank(value) ? null : value;
 }
 
+/** text[] as PostgREST (JSON array) or Postgres ('{a,b}') writes it; blank is the column default, the empty array. */
+export function parseTextArray(value) {
+  if (blank(value)) return [];
+  if (Array.isArray(value)) return value;
+  if (typeof value === 'string') {
+    const s = value.trim();
+    if (s.startsWith('[')) {
+      try {
+        return JSON.parse(s);
+      } catch {
+        return value;
+      }
+    }
+    if (s.startsWith('{') && s.endsWith('}')) return s.slice(1, -1).split(',').map((x) => x.trim().replace(/^"(.*)"$/, '$1')).filter(Boolean);
+  }
+  return value;
+}
+
 export function valuesEqual(field, a, b) {
+  if (TRAIL_ARRAYS.includes(field)) {
+    const x = parseTextArray(a);
+    const y = parseTextArray(b);
+    return Array.isArray(x) && Array.isArray(y) && JSON.stringify([...x].sort()) === JSON.stringify([...y].sort());
+  }
   if (blank(a) && blank(b)) return true;
   if (blank(a) || blank(b)) return false;
   if (field === 'route') return sameLine(a, b);
   if (field === 'start_point' || field === 'end_point' || field === 'coordinates') return sameCoord(a, b);
   if (NUMERIC.has(field)) return Math.abs(Number(a) - Number(b)) < 1e-9;
+  if (TRAIL_JSON.includes(field)) return JSON.stringify(a) === JSON.stringify(b);
   return a === b;
 }
 
@@ -199,6 +254,7 @@ export function equalsBaseline(field, live, baseline) {
 }
 
 export function toDbValue(field, value) {
+  if (TRAIL_ARRAYS.includes(field)) return blank(value) ? [] : value;
   if (blank(value)) return null;
   if (field === 'route') return lineEwkt(value);
   if (field === 'start_point' || field === 'end_point' || field === 'coordinates') return pointEwkt(value);
@@ -207,12 +263,20 @@ export function toDbValue(field, value) {
 
 /** Short human form of a value for the dry-run diff. */
 export function show(field, value) {
+  if (TRAIL_ARRAYS.includes(field)) {
+    const v = parseTextArray(value);
+    return Array.isArray(v) ? `{${v.join(',')}}` : String(v);
+  }
   if (blank(value)) return 'null';
   if (field === 'route') {
     if (!Array.isArray(value)) return `${value.points} pts, ${(value.length_m / 1000).toFixed(2)} km`;
     return `${value.length} pts, ${(lineLengthM(value) / 1000).toFixed(2)} km`;
   }
   if (field === 'start_point' || field === 'end_point' || field === 'coordinates') return `${value[1].toFixed(5)},${value[0].toFixed(5)}`;
+  if (field === 'elevation_profile' && Array.isArray(value)) {
+    const els = value.map((p) => p[1]);
+    return `${value.length} pts, ${Math.min(...els)}–${Math.max(...els)} m over ${(value[value.length - 1][0] / 1000).toFixed(2)} km`;
+  }
   if (typeof value === 'string') return JSON.stringify(value.length > 70 ? `${value.slice(0, 67)}...` : value);
   return String(value);
 }
@@ -282,7 +346,9 @@ export function planTrail(ds, live, opts) {
     for (const f of managed) {
       const liveValue = normalizeLive(f, live.trail[f]);
       const desired = blank(ds[f]) ? null : ds[f];
-      if (ds.is_new) {
+      // a new trail published earlier: a field with a recorded baseline (e.g. a column added since) is
+      // updated like on an existing trail; anything else needs --update-new
+      if (ds.is_new && !(ds.baseline && f in ds.baseline)) {
         if (valuesEqual(f, liveValue, desired)) continue;
         if (opts.updateNew) {
           patch[f] = toDbValue(f, desired);

@@ -1,5 +1,5 @@
 {
-  "_readme": "Decisions after looking at the contact sheets (07-photos.mjs applies them): rejected = Commons title -> reason; cover = trail id -> title used as cover; noPhotos = trail id -> reason; maxPhotos = trail id -> limit where only town scenes remain.",
+  "_readme": "Decisions after looking at the contact sheets (07-photos.mjs applies them): rejected = Commons title -> reason; cover = trail id -> title used as cover; noPhotos = trail id -> reason; maxPhotos = trail id -> limit; placeOnly = trail id -> only photos of named places (Wikidata) may be used; placeSearch = trail id -> Wikidata lookup anchored at a given point (06b-photo-places.mjs).",
   "rejected": {
     "File:Veratrum lobelianum Bernh. – შხამა.jpg": "close-up of a plant",
     "File:ISS021-E-36380 - View of Earth.jpg": "taken from an aircraft",
@@ -323,7 +323,66 @@
     "File:2014 Kutaisi, Wielka Synagoga (02).jpg": "town building",
     "File:Friday @ the Synagogue, Kutaisi.jpg": "town building",
     "File:ერეკლეს აბანო ეზოს მხრიდან.jpg": "derelict building",
-    "File:Borjomi, Georgia - panoramio (13).jpg": "town attraction"
+    "File:Borjomi, Georgia - panoramio (13).jpg": "town attraction",
+    "File:STS126-E-24283 - View of Earth.jpg": "taken from orbit",
+    "File:Ekzekov M H 3.jpg": "portrait of a person",
+    "File:სლესის (მოქცევის) ციხე (18).jpg": "over-processed colours",
+    "File:აწყურის ღვთისმშობლის ეკლესია (10).jpg": "town with a construction site",
+    "File:Подъёмник на гору Чегет, июль 2008 - panoramio.jpg": "close-up of people on a lift",
+    "File:Racha-Lechkhumi and Lower Svaneti, Georgia - panoramio (7).jpg": "date stamp",
+    "File:Ambrolauri, center of Khvanchkara wine.jpg": "town square with cars",
+    "File:2015-08-28 (75) Ambrolauri.jpg": "town square",
+    "File:2015-08-28 (78) Ambrolauri.jpg": "dark night shot",
+    "File:Alvani–Abano, 20240701 145541.jpg": "car and person in fog",
+    "File:Abano Pass 2021 (1).jpg": "not this valley",
+    "File:აჯამეთი.jpg": "night shot",
+    "File:ბუღდაშენი9.jpg": "birds on a lake by a town",
+    "File:ფრინველების გადაფრენა.jpg": "birds in the sky",
+    "File:Strawberries in my hand !.jpg": "close-up of fruit",
+    "File:Samtskhe-Javakheti, Georgia - panoramio (1).jpg": "date stamp",
+    "File:აბასთუმნის ეკლესია.jpg": "date stamp",
+    "File:აბასთუმანი ზამთარში (G.N. 2012)-2.jpg": "date stamp",
+    "File:Abastumani (14716835612).jpg": "close-up of a statue",
+    "File:Pshaveli-Abano-Omalo, Georgia - panoramio.jpg": "toy in the foreground",
+    "File:შ43, Zemo Alvani, Georgia - panoramio.jpg": "date stamp",
+    "File:აწყურის ღვთისმშობლის ეკლესია (14).jpg": "close-up of a stone carving",
+    "File:Экстрим на горе Чегет, Приэльбрусье, июль 2008 - panoramio.jpg": "person on a bike in the foreground",
+    "File:2015-08-28 (5) Ambrolauri.jpg": "road bridge",
+    "File:2015-08-27 (36) Ambrolauri.jpg": "road with a billboard",
+    "File:Abano, 20240701 152041.jpg": "fog, nothing visible",
+    "File:Rioni railway station.jpg": "railway station",
+    "File:ობსერვატორიის გზა - panoramio.jpg": "date stamp",
+    "File:აბასთუმანი ზამთარში (G.N. 2012).jpg": "building in a town",
+    "File:Akhali Zarzma church, Abastumani 11.jpg": "close-up of a facade",
+    "File:Matani, Georgia - panoramio.jpg": "street with a date stamp",
+    "File:აწყურის ღვთისმშობლის ეკლესია (12).jpg": "construction site",
+    "File:Glaciers of the south-eastern slope of Elbrus.jpg": "distant peak across the border",
+    "File:Ambrolauri - Kost'avas kucha.jpg": "cows on a road bridge",
+    "File:Akhali Zarzma church, Abastumani 04.jpg": "close-up of a facade",
+    "File:აწყურის ღვთისმშობლის ეკლესია (8).jpg": "close-up of a wall",
+    "File:Ночь на Чегете.jpg": "night shot",
+    "File:2015-08-28 (71) Ambrolauri.jpg": "town square",
+    "File:აწყურის ღვთისმშობლის ეკლესია (15).jpg": "close-up of a stone carving",
+    "File:Temporary bridge in road to Shatili Sh26 (km44).jpg": "roadworks: a temporary bridge on the Shatili road, not the trail",
+    "File:Bridge renewal in road to Shatili Sh26 (km44).jpg": "roadworks: bridge construction on the Shatili road",
+    "File:Temporary bridge in road to Shatili Sh26 (km43).jpg": "roadworks: a temporary bridge on the Shatili road",
+    "File:Em1017 a061799.jpg": "a town street",
+    "File:Morning in Lagodekhi 2023-08-13.jpg": "a town street",
+    "File:Churchkhela - grape and nut dried on string in sun.jpg": "food close-up (churchkhela)",
+    "File:Гудаури - panoramio (42).jpg": "winter paragliding at the ski resort, not the trail",
+    "File:Гудаури - panoramio (3).jpg": "ski lift and snow-tubing area of the resort",
+    "File:Salome Zourabichvili and Nata Kajaia.jpg": "people (a portrait on a bridge)",
+    "File:Blick entlang der Hauptstraße.jpg": "a village street with a truck",
+    "File:Гудаури - panoramio.jpg": "ski lift and snow-tubing area of the resort",
+    "File:Road to Shatili Sh26 between Korsha and Ghelisvake (km55).jpg": "just the paved road",
+    "File:Shatili Sheep (8044102344).jpg": "sheep close-up",
+    "File:Salome Zourabichvili on Khobistskhali Bridge of Mukhiani.jpg": "people (portraits on the bridge)",
+    "File:Shatili Sheep (8044103134).jpg": "sheep close-up",
+    "File:Shatili Sheep (8044091765).jpg": "sheep close-up",
+    "File:Гудаури - panoramio (5).jpg": "ski lift of the resort",
+    "File:Roshka, Khevsureti.jpg": "a car on the village road",
+    "File:Гудаури - panoramio (6).jpg": "ski lift station of the resort",
+    "File:გუდაური - panoramio (1).jpg": "ski resort buildings"
   },
   "cover": {
     "a0000000-0000-0000-0000-000000000001": "File:Stepantsminda-Sameba, Georgia - panoramio (3).jpg",
@@ -343,15 +402,61 @@
     "a0000000-0000-0000-0000-000000000121": "File:Svaneti, Georgia. 2018 01.jpg",
     "a0000000-0000-0000-0000-000000000122": "File:Ghorjomistskali (at the confluence).jpg",
     "49b15a08-d430-5356-8287-d5d98c8cf6e8": "File:Chaukhi Mountain, view from above.jpg",
-    "b077c795-2b63-571f-b8b9-f930d408e3fa": "File:Akhalkalak fortress (2).jpg"
+    "b077c795-2b63-571f-b8b9-f930d408e3fa": "File:Akhalkalak fortress (2).jpg",
+    "a0000000-0000-0000-0000-000000000010": "File:Okatse canyon.jpg",
+    "e59bd7ab-1d66-5cc3-9dcb-971364ad11a8": "File:Imereti, Georgia - panoramio (1).jpg",
+    "a0000000-0000-0000-0000-000000000026": "File:Роща тиса ягодного в Махарском ущелье.jpg",
+    "4b3f1849-2a0f-52ca-bb14-4f965082ccad": "File:View to Ambrolauri - panoramio.jpg",
+    "d24e636f-180d-553d-b202-baa1b3feaf08": "File:Waterfall in Mtirala National Park.JPG",
+    "fec5448e-46ca-51f8-83d2-e8becaf2bda6": "File:Lopota Rd, Georgia - panoramio (2).jpg",
+    "374dda80-f430-50a4-bb8b-5f7f629ce6eb": "File:Lagodekhi Managed Reserve 2023-08-12.jpg",
+    "1b96a9c8-cde7-5a92-b4b3-9c4cede775dc": "File:Khada Rd, Tskere, Georgia - panoramio.jpg"
   },
-  "noPhotos": {
-    "a0000000-0000-0000-0000-000000000010": "the stored route is about 13 km from Okatse Canyon, so photos near it would show somewhere else",
-    "4b3f1849-2a0f-52ca-bb14-4f965082ccad": "only street and road photos were found near the route",
-    "aae55625-2d23-5793-8fde-2762a4cf67bd": "the photos near the route are observatory buildings, close-ups or carry date stamps"
-  },
+  "noPhotos": {},
   "maxPhotos": {
     "5ec7081a-123f-5075-8e17-a86435cd50c4": 3,
-    "5829cb59-c2b2-5bf3-a6de-00615041a00f": 3
+    "5829cb59-c2b2-5bf3-a6de-00615041a00f": 3,
+    "a0000000-0000-0000-0000-000000000046": 3,
+    "a0000000-0000-0000-0000-000000000144": 3,
+    "4b3f1849-2a0f-52ca-bb14-4f965082ccad": 3,
+    "1b96a9c8-cde7-5a92-b4b3-9c4cede775dc": 2,
+    "d46343f8-45b1-5092-8fc2-ae5029c4ead3": 3
+  },
+  "placeOnly": {
+    "a0000000-0000-0000-0000-000000000010": "the stored route is about 13 km from Okatse Canyon; only photos of the canyon itself are used"
+  },
+  "placeSearch": {
+    "a0000000-0000-0000-0000-000000000010": {
+      "text": "Okatse Canyon",
+      "near": [
+        42.5491,
+        42.4545
+      ],
+      "radius_m": 5000
+    },
+    "817a5588-434c-5b3b-b192-09dd5646cd8d": {
+      "text": "Ajameti Managed Reserve",
+      "near": [
+        42.768,
+        42.106
+      ],
+      "radius_m": 5000
+    },
+    "5e513c72-d7da-55ac-8caf-9f6f92652f77": {
+      "text": "Ajameti Managed Reserve",
+      "near": [
+        42.768,
+        42.106
+      ],
+      "radius_m": 5000
+    },
+    "e59bd7ab-1d66-5cc3-9dcb-971364ad11a8": {
+      "text": "Ajameti Managed Reserve",
+      "near": [
+        42.768,
+        42.106
+      ],
+      "radius_m": 5000
+    }
   }
 }

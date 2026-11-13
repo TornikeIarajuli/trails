@@ -4,7 +4,7 @@
 //   node scripts/content/11-report.mjs
 import fs from 'node:fs';
 import path from 'node:path';
-import { LineIndex, bbox, bboxesIntersect, overlapShare } from './lib/geo.mjs';
+import { REVIEW_FLAG_CODES } from './apply-lib.mjs';
 import { CACHE, CONTENT, DATA, IMAGES, REPO, WORK, latestSnapshotPath, readJson, readJsonIfExists } from './lib/paths.mjs';
 
 const dataset = readJson(path.join(CONTENT, 'trails.json'));
@@ -61,8 +61,8 @@ const unconfirmedFacilities = cpExisting.filter((c) => c.unconfirmed_facility);
 const notCheckable = cpExisting.filter((c) => c.changed.includes('is_checkable') && !c.is_checkable);
 const positionUnverified = cpExisting.filter((c) => c.flags.some((f) => f.startsWith('position not confirmed')));
 const elevFilled = cps.filter((c) => c.changed.includes('elevation_m') || c.is_new).length;
-const coverClass = { 'on-trail': 0, nearby: 0, area: 0, none: 0 };
-const allClass = { 'on-trail': 0, nearby: 0, area: 0 };
+const coverClass = { 'on-trail': 0, nearby: 0, area: 0, place: 0, none: 0 };
+const allClass = { 'on-trail': 0, nearby: 0, area: 0, place: 0 };
 const licenceMix = {};
 for (const t of dataset.trails) {
   const cover = t.photos.find((p) => p.role === 'cover') ?? t.photos[0];
@@ -98,7 +98,9 @@ L.push(`- Values changed (existing trails): ${Object.entries(fieldCounts).sort((
 L.push(`- Routes rebuilt from OpenStreetMap: **${rebuilt.length}**; routes kept: ${geomList.length - rebuilt.length} (of which ${reversed.filter((g) => g.decision !== 'rebuilt').length} only reversed to run in the direction of the trail name); routes left for manual review: **${review.length}** (${geomList.filter((g) => !g.measurable).length} of them not measurable, so their distance/ascent/time/difficulty are unchanged and unverified).`);
 L.push(`- New trails: **${fresh.length}** accepted from ${fresh.length + build.rejected.length} OSM hiking/foot relations not yet in the catalogue; ${build.rejected.length} rejected (reasons below).`);
 L.push(`- Checkpoints: ${cpExisting.length} existing (${moved.length} moved, ${confirmed.length} confirmed against named OSM features, shelters/springs/camps **not** confirmable in OSM (now not checkable): ${unconfirmedFacilities.length}, ${positionUnverified.length} with an unverifiable position left in place), ${cps.length - cpExisting.length} new; elevation filled for ${elevFilled} from SRTM.`);
-L.push(`- Photos: ${credits.length} real Wikimedia Commons photos for ${dataset.trails.length - noPhoto.length} of ${dataset.trails.length} trails. Cover match: on-trail ${coverClass['on-trail']}, nearby ${coverClass.nearby}, area ${coverClass.area}, no photo ${coverClass.none}. All photos: on-trail ${allClass['on-trail']}, nearby ${allClass.nearby}, area ${allClass.area}. Licences: ${Object.entries(licenceMix).map(([k, v]) => `${k} ${v}`).join(', ')}. \`content/images\`: ${imageFiles} WebP files, ${(imageBytes / 1048576).toFixed(1)} MB.`);
+L.push(`- Photos: ${credits.length} real Wikimedia Commons photos for ${dataset.trails.length - noPhoto.length} of ${dataset.trails.length} trails. Cover match: on-trail ${coverClass['on-trail']}, nearby ${coverClass.nearby}, area ${coverClass.area}, place ${coverClass.place}, no photo ${coverClass.none}. All photos: on-trail ${allClass['on-trail']}, nearby ${allClass.nearby}, area ${allClass.area}, place ${allClass.place}. Licences: ${Object.entries(licenceMix).map(([k, v]) => `${k} ${v}`).join(', ')}. \`content/images\`: ${imageFiles} WebP files, ${(imageBytes / 1048576).toFixed(1)} MB.`);
+L.push(`- Elevation profiles (\`elevation_profile\`, ≤ 120 [distance_m, elevation_m] points along the published route, smoothed like the ascent): **${dataset.trails.filter((t) => t.elevation_profile).length}** of ${dataset.trails.length} trails; null for the ${dataset.trails.filter((t) => !t.elevation_profile).length} trails whose route could not be measured.`);
+L.push(`- Review flags (\`review_flags\`, migration 052): **${dataset.trails.filter((t) => t.review_flags.length).length}** of ${dataset.trails.length} trails carry at least one reason to look first (codes below).`);
 L.push(`- OpenTopoData requests used: ${Object.entries(budget).map(([d, n]) => `${n} on ${d}`).join(', ') || '0'} (limit 1000/day). No route was left unmeasured for lack of budget.`, '');
 
 L.push('## How the values were obtained (measured vs estimated)', '');
@@ -108,6 +110,31 @@ L.push('- **Time** — DIN 33466 (4 km/h horizontal, 300 m/h up, 500 m/h down; t
 L.push('- **Difficulty** — effort = km + ascent/100: easy < 12, medium 12–25, hard 25–45, ultra > 45, one level up when the highest point is above 3000 m. Applied to the synthesised trails (ids …100–…148); hand-curated trails kept theirs unless the formula differs by two or more levels (listed below).');
 L.push('- **Region** — OSM municipality boundaries mapped to the app vocabulary (Svaneti, Tusheti, Kakheti, Kazbegi, Khevsureti, Borjomi-Kharagauli, Tbilisi, Imereti, Samegrelo, Adjara, Racha, Samtskhe-Javakheti, Kvemo Kartli, Shida Kartli, Mtskheta-Mtianeti, Guria). Changed only when the start and the middle of the route (or 80 % of it) agree on another region. Trails starting within 15 km of the Tbilisi city boundary keep or get "Tbilisi", matching how the catalogue already used it.');
 L.push('- **Checkpoints** — a checkpoint whose name is a real place was looked up among named OSM features within 1.5 km of the route and moved to the route point nearest that feature. Shelters, water sources and campsites need a mapped hut / spring / camp site within 150 m of the route; otherwise they were made not checkable and are listed below. Elevations are SRTM values at the checkpoint.', '');
+
+const FLAG_MEANING = {
+  manual_review: 'the stored route could not be checked or rebuilt (broken line, no usable OSM relation) and was kept as it was; distance, ascent, time and difficulty may be unverified',
+  main_line: 'recovered from a branching or broken OSM relation: the main line was picked and side or parallel ways left out',
+  rebuilt: 'the route was rebuilt from OpenStreetMap, replacing the stored line',
+  reversed: 'the route was turned round to run in the direction of the trail name',
+  generated_name: 'the OSM relation had no name; the name was built from the OSM places at its ends',
+  machine_georgian: 'Georgian text written by the pipeline (template description, name joined from OSM name:ka, or written by hand) — needs a native speaker',
+  near_border: 'the route comes within 3 km of the occupation line or the state border',
+  overlap: 'same name as another trail, or at least 80 % of one of the two lines runs within 100 m of the other',
+  synthetic_elevation: 'elevation_gain_m is still the old synthetic distance × 60 / × 40 (the route could not be measured)',
+  estimated_checkpoints: 'at least one checkpoint position could not be verified (placed by the original import at a fixed fraction of the route, or off the route)',
+  unconfirmed_facility: 'a shelter, water source or campsite checkpoint has no matching OSM feature on the route (made not checkable)',
+  no_photo: 'no photo at all (nothing usable on Commons and no upload by the owner)',
+  area_photo: 'the cover photo was taken more than 5 km from the route, or shows a named place and has no location',
+};
+L.push('## Review flags (`trails.review_flags`)', '');
+L.push('Short, stable codes the pipeline writes to `trails.review_flags` (migration 052) so the admin panel can show what to look at first. `apply.mjs` publishes them like any other field, against the empty array every trail has today; `reviewed_at` and `review_notes` belong to the admins and are never written. The same list is in `scripts/README.md`.', '');
+L.push('| Code | Meaning | Trails |', '|---|---|---|');
+for (const c of REVIEW_FLAG_CODES) {
+  const list = dataset.trails.filter((t) => t.review_flags.includes(c));
+  const names = list.length && list.length <= 30 ? `: ${list.map((t) => `${short(t.id)} ${md(t.name_en)}`).join('; ')}` : '';
+  L.push(`| \`${c}\` | ${FLAG_MEANING[c]} | ${list.length}${names} |`);
+}
+L.push('');
 
 L.push('## Every existing trail', '');
 L.push('Values are old → **new**; unchanged values are shown once. Route: rebuilt / kept / reversed; **review** = needs a human (see the next sections).', '');
@@ -130,23 +157,11 @@ L.push('Each was rebuilt by stitching the relation\'s member ways into one conti
 for (const g of rebuilt) L.push(`- **${short(g.id)} ${md(g.name)}** — ${md(g.reason)}; ${g.stored.points} → ${g.final.points} points, ${g.stored.length_km} → ${g.final.length_km} km, longest segment ${g.stored.max_segment_m} → ${g.final.max_segment_m} m.${g.flags.filter((f) => !f.startsWith('route reversed')).length ? ` ${md(g.flags.filter((f) => !f.startsWith('route reversed')).join('; '))}.` : ''}`);
 L.push('');
 
-// near-duplicates among the existing trails: same name, or most of one line runs along the other
-const lines = existing.map((t) => ({ t, index: new LineIndex(t.route), box: bbox(t.route) }));
-const dupes = [];
-for (let i = 0; i < lines.length; i++) {
-  for (let j = i + 1; j < lines.length; j++) {
-    const a = lines[i];
-    const b = lines[j];
-    const sameName = a.t.name_en.toLowerCase() === b.t.name_en.toLowerCase();
-    if (!sameName && !bboxesIntersect(a.box, b.box, 0.003)) continue;
-    const ab = overlapShare(a.t.route, b.index, 100, 100);
-    const ba = overlapShare(b.t.route, a.index, 100, 100);
-    if (sameName || Math.max(ab, ba) >= 0.8) dupes.push({ a: a.t, b: b.t, ab, ba });
-  }
-}
-L.push(`## Existing trails that overlap (${dupes.length} pairs)`, '');
-L.push('Pairs where at least 80 % of one line lies within 100 m of the other (or the names are equal). Nothing was merged or removed; several are deliberate (a shorter stage of a longer trek, the same walk in the other direction) — decide by hand.', '');
-for (const d of dupes) L.push(`- ${short(d.a.id)} ${md(d.a.name_en)} ↔ ${short(d.b.id)} ${md(d.b.name_en)}: ${Math.round(d.ab * 100)} % / ${Math.round(d.ba * 100)} % overlap`);
+// pairs found by the builder over all trails (the same rule sets the `overlap` review flag)
+const dupes = build.overlaps ?? [];
+L.push(`## Trails that overlap (${dupes.length} pairs)`, '');
+L.push('Pairs with the same name, or where at least 80 % of one line lies within 100 m of the other; both trails of a pair carry the `overlap` review flag. Nothing was merged or removed; several are deliberate (a shorter stage of a longer trek, the same walk in the other direction) — decide by hand.', '');
+for (const d of dupes) L.push(`- ${short(d.a)} ${md(d.a_name)}${d.a_new ? ' (new)' : ''} ↔ ${short(d.b)} ${md(d.b_name)}${d.b_new ? ' (new)' : ''}: ${Math.round(d.ab * 100)} % / ${Math.round(d.ba * 100)} % overlap${d.same_name ? ', same name' : ''}`);
 L.push('');
 
 L.push(`## Routes reversed (${reversed.length})`, '');
@@ -196,11 +211,31 @@ L.push('Generic labels ("Switchback Viewpoint", "Forest Bridge", "Panorama Point
 L.push(positionUnverified.map((c) => `${short(c.trail)} "${md(c.name)}"`).join(' · '), '');
 
 L.push(`## New trails (${fresh.length})`, '');
-L.push('Accepted only if: usable name; members stitch into one continuous line (gaps ≤ 150 m); 2–120 km; entirely inside Georgian-controlled territory and at least 1 km from the occupation line; not a duplicate or variant (≥ 80 % of the line along an existing or longer new trail, or same ends ±300 m and length ±15 %); DEM data available. Ids are RFC 4122 v5 UUIDs of `osm-relation-<id>`. Values are measured/derived as above; checkpoints are Start, End and named OSM features within 150 m of the line, at their real positions.', '');
+L.push('Accepted only if: usable name; members stitch into one continuous line (gaps ≤ 150 m); 2–120 km; entirely inside Georgian-controlled territory and at least 1 km from the occupation line (2 km for the recovered ones below); not a duplicate or variant (≥ 80 % of the line along an existing or longer new trail, or same ends ±300 m and length ±15 %); DEM data available. Ids are RFC 4122 v5 UUIDs of `osm-relation-<id>`. Values are measured/derived as above; checkpoints are Start, End and named OSM features within 150 m of the line, at their real positions.', '');
 L.push('| Trail | OSM relation | region | km | ascent m | max m | hours | difficulty | checkpoints | notes |');
 L.push('|---|---|---|---|---|---|---|---|---|---|');
 for (const f of build.fresh) L.push(`| ${md(f.name)}${f.name_ka ? `<br>${md(f.name_ka)}` : ''} | ${osmLink(f.relation)} | ${f.region} | ${f.distance_km} | ${f.ascent} | ${f.max_m} | ${f.hours} | ${f.difficulty} | ${f.checkpoints} | ${md(f.flags.join('; '))} |`);
 L.push('');
+
+// recovered candidates: unnamed relations named after their ends, branching relations reduced to a main line
+const rec = build.fresh.filter((f) => f.recovered);
+const recNo = build.rejected.filter((r) => r.recovered_group);
+L.push(`### Recovered candidates (${rec.length}) — please review the generated names`, '');
+L.push('Second pass over two groups of rejected candidates, with every gate above applied again and a wider margin of 2 km to the occupation line:');
+L.push(`- **Unnamed relations** (${rec.filter((f) => f.recovered === 'unnamed').length} recovered of ${rec.filter((f) => f.recovered === 'unnamed').length + recNo.filter((r) => r.recovered_group === 'unnamed').length}): named "Start – End" after the nearest named village, hamlet, lake, peak, pass, glacier, waterfall, hut, fortress or church within 2 km of each end ("<Place> Loop" for a loop); \`name_ka\` from the same features' Georgian names. Recorded as \`name_source: "generated"\` in the provenance.`);
+L.push(`- **Branching or broken relations** (${rec.filter((f) => f.recovered === 'broken').length} recovered of ${rec.filter((f) => f.recovered === 'broken').length + recNo.filter((r) => r.recovered_group === 'broken').length}): the main line is the walk between the places named in the route name, or between the two most distant ends of its largest connected part; side branches and parallel alternatives are left out; gaps up to 300 m were joined only where both sides continue straight towards each other. The relation keeps its own name.`, '');
+L.push('| Group | Name | OSM relation | km | how the line or name was made |');
+L.push('|---|---|---|---|---|');
+for (const f of rec) {
+  const how = f.recovered === 'unnamed' ? `named after ${(f.name_from ?? []).join('; ')}` : `${f.method}; ${f.dropped_m} m of side/parallel ways left out`;
+  L.push(`| ${f.recovered} | ${md(f.name)}${f.name_ka ? `<br>${md(f.name_ka)}` : ''} | ${osmLink(f.relation)} | ${f.distance_km} | ${md(how)} |`);
+}
+L.push('');
+L.push(`Rejected again (${recNo.length}): ${Object.entries(recNo.reduce((m, r) => {
+  const k = r.reason.replace(/\d+(\.\d+)?/g, 'N').replace(/"[^"]*"/g, '"…"');
+  (m[k] ??= []).push(r);
+  return m;
+}, {})).map(([k, list]) => `${md(k)} — ${list.length} (${list.map((r) => osmLink(r.relation)).join(', ')})`).join('; ')}.`, '');
 L.push(`### Rejected candidates (${build.rejected.length})`, '');
 const byReason = {};
 for (const r of build.rejected) {
@@ -214,6 +249,8 @@ L.push('');
 
 L.push('## Photos', '');
 L.push(`Geotagged Wikimedia Commons files were searched in a 1.5 km corridor along each route, widened to 10 km when that found fewer than four usable files. Accepted: JPEG, ≥ 1600 px wide, landscape 1.2–2.2, Public Domain / CC0 / CC BY / CC BY-SA with a named author; maps, interiors, people, plants, animals, night shots and similar were filtered by title and category, and every chosen photo was checked by eye on contact sheets (rejections are recorded in \`scripts/content/data/photo-review.json\`). One cover + up to three gallery photos per trail, at least 300 m apart. Match: on-trail ≤ 1.5 km from the route, nearby ≤ 5 km, area ≤ 10 km.`, '');
+const fallbackTrails = dataset.trails.filter((t) => t.photos.some((p) => p.match === 'place' || (p.match === 'area' && p.dist_m > 10000)));
+L.push(`For trails that found nothing usable within 10 km, the search was widened (\`06b-photo-places.mjs\`): geotagged files up to 25 km from the trailhead or the destination (still "area"), and photos of the named places on the route — the destination lake, peak, pass, village, fortress or protected area — found through the Wikidata items linked from OpenStreetMap or a name search checked against the item's coordinates (image P18 and Commons category P373). Those are marked "place" whatever their geotag. ${fallbackTrails.length} trails got photos this way: ${fallbackTrails.map((t) => `${short(t.id)} ${md(t.name_en)} (${[...new Set(t.photos.map((p) => (p.match === 'place' ? `place: ${p.place}` : p.match)))].join(', ')})`).join('; ')}.`, '');
 const photoReview = readJsonIfExists(path.join(DATA, 'photo-review.json'), { rejected: {}, cover: {}, noPhotos: {} });
 const reasons = {};
 for (const why of Object.values(photoReview.rejected)) reasons[why] = (reasons[why] ?? 0) + 1;

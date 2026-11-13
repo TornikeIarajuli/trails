@@ -16,6 +16,7 @@ node content/03-existing-geometry.mjs   # sanity of every stored route; rebuild 
 node content/04-new-trails.mjs      # OSM relations not in the catalogue, quality gates          -> work/new-geometry.json
 node content/05-elevation.mjs       # SRTM profile per route (OpenTopoData, 1000 requests/day)    -> work/elevation.json
 node content/06-photo-candidates.mjs    # geotagged Commons files along each route               -> work/photo-candidates.json
+node content/06b-photo-places.mjs   # trails with nothing within 10 km: 25 km geotags + Wikidata places (same file)
 node content/07-photos.mjs          # pick + resize photos -> content/images/<trail-id>/*.webp, contact sheets in work/sheets/
 node content/09-build-dataset.mjs   # corrected values, checkpoints, provenance                    -> content/trails.json
 node content/10-seed.mjs            # supabase/seed.sql (trails + checkpoints, idempotent upserts)
@@ -51,6 +52,33 @@ SUPABASE_URL=… SUPABASE_SERVICE_ROLE_KEY=… node content/apply.mjs --apply   
 - Re-running is safe; a failing trail does not stop the others; the exit code is 1 if anything failed.
 - Other flags: `--only <id,…>`, `--skip-images`, `--skip-new`, `--unpublished-new` (insert new trails unpublished),
   `--update-new` (overwrite new trails that already exist), `--dataset`, `--images`, `--backups`.
+- Needs migrations 051 (`trails.elevation_profile`) and 052 (`trails.review_flags`); it refuses a database without
+  them. Columns added after a trail was first published (these two) carry a baseline in `trails.json` (NULL and `{}`),
+  so they are updated on earlier-published new trails without `--update-new`. `reviewed_at` and `review_notes` belong
+  to the admins and are never written.
+
+### Review flags (`trails.review_flags`)
+
+`09-build-dataset.mjs` gives every trail an array of short, stable codes — reasons for an admin to look at it first.
+They are derived from the checks the pipeline already records (`flags`, `provenance`) and written in this order:
+
+| Code | Meaning |
+|---|---|
+| `manual_review` | the stored route could not be checked or rebuilt (broken line, no usable OSM relation) and was kept as it was; distance, ascent, time and difficulty may be unverified |
+| `main_line` | recovered from a branching or broken OSM relation: the main line was picked, side or parallel ways left out |
+| `rebuilt` | the route was rebuilt from OpenStreetMap, replacing the stored line |
+| `reversed` | the route was turned round to run in the direction of the trail name |
+| `generated_name` | the OSM relation had no name; the name was built from the OSM places at its ends |
+| `machine_georgian` | Georgian text written by the pipeline (template description, name joined from OSM `name:ka`, or written by hand) — needs a native speaker |
+| `near_border` | the route comes within 3 km of the occupation line or the state border |
+| `overlap` | same name as another trail, or at least 80 % of one of the two lines runs within 100 m of the other (duplicate, variant, or a stage of a longer trek) |
+| `synthetic_elevation` | `elevation_gain_m` is still the old synthetic distance × 60 / × 40 (the route could not be measured) |
+| `estimated_checkpoints` | at least one checkpoint position could not be verified (placed by the original import at a fixed fraction of the route, or off the route) |
+| `unconfirmed_facility` | a shelter, water source or campsite checkpoint has no matching OSM feature on the route (made not checkable) |
+| `no_photo` | no photo at all (nothing usable on Commons and no upload by the owner) |
+| `area_photo` | the cover photo was taken more than 5 km from the route, or shows a named place and has no location |
+
+The list is `REVIEW_FLAG_CODES` in `content/apply-lib.mjs`; the apply tool refuses a dataset with other codes.
 
 ## Other scripts
 

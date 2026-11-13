@@ -109,3 +109,28 @@ export function difficultyFor(distanceKm, ascentM, maxElevationM) {
 }
 
 export const difficultyGap = (a, b) => Math.abs(DIFFICULTIES.indexOf(a) - DIFFICULTIES.indexOf(b));
+
+/**
+ * Elevation profile for the app's chart: [distance_m, elevation_m] integer pairs, smoothed like the
+ * ascent computation, at most maxPoints, evenly thinned but always keeping the first, the last, the
+ * lowest and the highest sample. `elevs` are evenly spaced samples along a line of lengthM metres.
+ */
+export function elevationProfile(elevs, lengthM, maxPoints = 120) {
+  const filled = fillGaps(elevs);
+  if (!filled || filled.length < 2 || !(lengthM > 0)) return null;
+  const sm = smooth(filled);
+  const n = sm.length;
+  let lo = 0;
+  let hi = 0;
+  sm.forEach((v, i) => {
+    if (v < sm[lo]) lo = i;
+    if (v > sm[hi]) hi = i;
+  });
+  const keep = new Set([0, n - 1, lo, hi]);
+  if (n <= maxPoints) for (let i = 0; i < n; i++) keep.add(i);
+  else {
+    const slots = maxPoints - keep.size;
+    for (let k = 1; k <= slots; k++) keep.add(Math.round((k * (n - 1)) / (slots + 1)));
+  }
+  return [...keep].sort((a, b) => a - b).map((i) => [Math.round((lengthM * i) / (n - 1)), Math.round(sm[i])]);
+}

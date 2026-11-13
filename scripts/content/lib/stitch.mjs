@@ -471,3 +471,147 @@ export function pathBetween(allWays, from, to, { maxGapM = 150, maxSnapM = 400 }
     alternatives,
   };
 }
+
+/** Unit direction (projected metres) pointing out of an end node, measured ~50 m back along its chain. */
+function outwardDirection(nodes, end) {
+  let prev = end;
+  let cur = [...end.adj.keys()][0] ? nodes.get([...end.adj.keys()][0]) : null;
+  let len = 0;
+  while (cur && len < 50) {
+    len += haversineM(prev.c, cur.c);
+    if (cur.adj.size !== 2 || len >= 50) break;
+    const next = [...cur.adj.keys()].map((k) => nodes.get(k)).find((n) => n !== prev);
+    prev = cur;
+    cur = next;
+  }
+  if (!cur) return null;
+  const k = Math.cos((end.c[1] * Math.PI) / 180);
+  const dx = (end.c[0] - cur.c[0]) * k;
+  const dy = end.c[1] - cur.c[1];
+  const n = Math.hypot(dx, dy);
+  return n ? [dx / n, dy / n] : null;
+}
+
+/** Joins dangling ends of different parts when the gap is short and both sides point at each other. */
+function bridgeStraightGaps(nodes, maxGapM, maxAngleDeg = 45) {
+  const bridged = [];
+  const cosMax = Math.cos((maxAngleDeg * Math.PI) / 180);
+  for (;;) {
+    const comps = components(nodes);
+    if (comps.length < 2) break;
+    const compOf = new Map();
+    comps.forEach((c, i) => c.forEach((n) => compOf.set(n.k, i)));
+    const ends = [...nodes.values()].filter((n) => n.adj.size === 1);
+    let best = null;
+    for (const a of ends) {
+      const da = outwardDirection(nodes, a);
+      if (!da) continue;
+      for (const b of ends) {
+        if (compOf.get(a.k) === compOf.get(b.k) || a.k >= b.k) continue;
+        const d = haversineM(a.c, b.c);
+        if (d > maxGapM || (best && d >= best.d)) continue;
+        const db = outwardDirection(nodes, b);
+        if (!db) continue;
+        const k = Math.cos((a.c[1] * Math.PI) / 180);
+        const gx = (b.c[0] - a.c[0]) * k;
+        const gy = b.c[1] - a.c[1];
+        const gn = Math.hypot(gx, gy) || 1;
+        // a keeps heading towards b, and b's outward direction points back at a
+        if ((da[0] * gx + da[1] * gy) / gn < cosMax || (-(db[0] * gx + db[1] * gy)) / gn < cosMax) continue;
+        best = { a, b, d };
+      }
+    }
+    if (!best) break;
+    best.a.adj.set(best.b.k, best.d);
+    best.b.adj.set(best.a.k, best.d);
+    bridged.push(Math.round(best.d));
+  }
+  return bridged;
+}
+
+function dijkstra(nodes, startKey) {
+  const dist = new Map([[startKey, 0]]);
+  const parent = new Map();
+  const heap = new MinHeap();
+  heap.push([0, startKey]);
+  while (heap.size) {
+    const [d, k] = heap.pop();
+    if (d > dist.get(k)) continue;
+    for (const [nk, len] of nodes.get(k).adj) {
+      const nd = d + len;
+      if (nd < (dist.get(nk) ?? Infinity)) {
+        dist.set(nk, nd);
+        parent.set(nk, k);
+        heap.push([nd, nk]);
+      }
+    }
+  }
+  return { dist, parent };
+}
+
+/**
+ * The main line of a relation whose ways branch, run in parallel or have small gaps: the walk between
+ * the two places named in the route name (anchors) or, without them, between the two most distant
+ * ends of its largest connected part. Gaps up to maxGapM are bridged only where both sides continue
+ * straight towards each other. A pure ring is returned as a loop.
+ */
+export function mainLine(allWays, { maxGapM = 300, anchors = null, maxSnapM = 1500 } = {}) {
+  const ways = mainWays(allWays.filter((w) => w.coords && w.coords.length >= 2));
+  if (!ways.length) return { ok: false, reason: 'relation has no way members with geometry' };
+  const nodes = buildGraph(ways);
+  const bridged = bridgeStraightGaps(nodes, maxGapM);
+  const comps = components(nodes)
+    .map((c) => ({ c, len: c.reduce((n, x) => n + [...x.adj.values()].reduce((m, l) => m + l, 0), 0) / 2 }))
+    .sort((a, b) => b.len - a.len);
+  const totalM = comps.reduce((n, c) => n + c.len, 0);
+  const main = comps[0];
+  if (main.len < 0.6 * totalM) {
+    return { ok: false, reason: `its largest connected part holds only ${Math.round((main.len / totalM) * 100)}% of the ways (gaps over ${maxGapM} m or not straight)` };
+  }
+  const inMain = new Set(main.c.map((n) => n.k));
+  const sub = new Map(main.c.map((n) => [n.k, n]));
+  const path = (fromKey, toKey) => {
+    const { dist, parent } = dijkstra(sub, fromKey);
+    if (!dist.has(toKey)) return null;
+    const keys = [];
+    for (let k = toKey; k !== undefined; k = parent.get(k)) keys.push(k);
+    return { coords: keys.reverse().map((k) => sub.get(k).c), lengthM: dist.get(toKey) };
+  };
+  const base = { ok: true, shape: 'line', maxGapM: bridged.length ? Math.max(...bridged) : 0, gaps: bridged };
+
+  if (anchors) {
+    const snap = (p) => {
+      let best = null;
+      for (const n of main.c) {
+        const d = haversineM(n.c, p);
+        if (!best || d < best.d) best = { n, d };
+      }
+      return best;
+    };
+    const a = snap(anchors[0]);
+    const b = snap(anchors[1]);
+    if (a && b && a.d <= maxSnapM && b.d <= maxSnapM && a.n !== b.n) {
+      const p = path(a.n.k, b.n.k);
+      if (p) return { ...base, coords: p.coords, method: 'main-line-between-named-places', droppedM: Math.round(totalM - p.lengthM) };
+    }
+  }
+
+  const ends = main.c.filter((n) => n.adj.size === 1);
+  if (ends.length >= 2) {
+    let best = null;
+    for (const e of ends) {
+      const { dist } = dijkstra(sub, e.k);
+      for (const f of ends) {
+        if (f === e || !dist.has(f.k)) continue;
+        if (!best || dist.get(f.k) > best.d) best = { e, f, d: dist.get(f.k) };
+      }
+    }
+    const p = path(best.e.k, best.f.k);
+    return { ...base, coords: p.coords, method: 'main-line-between-farthest-ends', droppedM: Math.round(totalM - p.lengthM) };
+  }
+  if (ends.length === 0 && main.c.every((n) => n.adj.size === 2) && inMain.size >= 3) {
+    const start = main.c[0];
+    return { ...base, coords: walk(sub, start), shape: 'loop', method: 'main-line-loop', droppedM: Math.round(totalM - main.len) };
+  }
+  return { ok: false, reason: 'no clear main line (loops without free ends)' };
+}

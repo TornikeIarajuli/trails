@@ -142,3 +142,16 @@ export function authorOf(meta) {
   if (a.length > 120) a = `${a.slice(0, 117)}...`;
   return a;
 }
+
+/** File titles directly in a Commons category (no subcategories). */
+export async function categoryFiles(category, limit = 200) {
+  const res = await api({
+    action: 'query',
+    list: 'categorymembers',
+    cmtitle: `Category:${category.replace(/^Category:/, '')}`,
+    cmtype: 'file',
+    cmnamespace: '6',
+    cmlimit: String(Math.min(500, limit)),
+  });
+  return (res.query?.categorymembers ?? []).map((m) => m.title);
+}

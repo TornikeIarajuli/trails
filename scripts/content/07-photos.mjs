@@ -29,7 +29,7 @@ const GOOD_CATEGORY = /landscape|mountain|valley|lake|glacier|gorge|canyon|water
 const QUALITY = /quality images|featured pictures|valued images|pictures of the day/i;
 const TAXA = /anisoptera|zygoptera|odonata|lepidoptera|coleoptera|hymenoptera|diptera|orthoptera|hemiptera|araneae|squamata|reptil|amphibia|mammalia|\baves\b|fungi|lichens?\b|bryophyt|(flora|fauna|plants|animals|insects|birds|spiders|butterflies|moths|mushrooms) of /i;
 // photos taken from orbit or from an aircraft are geotagged with the ground point below them
-const FROM_ABOVE = /\bISS\b|\biss0|international space station|astronaut|from space|expedition \d|from (the )?(air|plane|airplane|aircraft)|airplane|aircraft|in-flight|flight over|views from airplanes/i;
+const FROM_ABOVE = /\bISS\b|\biss0|\bSTS-?\d+|view of earth|international space station|astronaut|from space|expedition \d|from (the )?(air|plane|airplane|aircraft)|airplane|aircraft|in-flight|flight over|views from airplanes/i;
 
 function usable(f) {
   if (!f || f.missing || !f.licence || !f.author || f.mime !== 'image/jpeg') return false;
@@ -46,11 +46,28 @@ function usable(f) {
   return true;
 }
 
-const matchOf = (d) => (d <= 1500 ? 'on-trail' : d <= 5000 ? 'nearby' : d <= 10000 ? 'area' : null);
+// Trails that found nothing within 10 km get a wider search (06b): geotags up to 25 km ('area') and
+// photos of named places on the route found through Wikidata ('place', whatever their geotag).
+const fallback = new Set(cand.fallback ?? []);
 
-function score(c, f) {
-  const cls = c.dist_m <= 1500 ? 3 : c.dist_m <= 5000 ? 2 : 1;
-  let s = cls * 10 - c.dist_m / 1500;
+function matchOf(c, trailId) {
+  const d = c.dist_m;
+  if (review.placeOnly?.[trailId]) return c.place ? 'place' : null;
+  if (d != null && d <= 1500) return 'on-trail';
+  if (d != null && d <= 5000) return 'nearby';
+  if (d != null && d <= 10000) return 'area';
+  if (!fallback.has(trailId)) return null;
+  if (c.place) return 'place';
+  return d != null && d <= 25000 ? 'area' : null;
+}
+
+function score(c, f, match) {
+  let s;
+  if (match === 'place') s = 25 + (c.place.role === 'destination' ? 4 : c.place.role === 'named' ? 2 : 0);
+  else {
+    const cls = match === 'on-trail' ? 3 : match === 'nearby' ? 2 : 1;
+    s = cls * 10 - c.dist_m / 1500;
+  }
   s += Math.min(f.width, 4000) / 8000;
   if (f.categories.some((x) => GOOD_CATEGORY.test(x))) s += 0.6;
   if (f.categories.some((x) => QUALITY.test(x))) s += 0.8;
@@ -59,20 +76,25 @@ function score(c, f) {
 
 const trails = [
   ...Object.values(existing).map((e) => ({ id: e.id, name: e.name })),
-  ...accepted.map((a) => ({ id: a.id, name: a.name_en })),
+  ...accepted.map((a) => ({ id: a.id, name: a.name_en, recovered: !!a.recovered })),
 ];
 
 const used = new Map(); // title -> [trail ids]
 const selection = {};
-for (const t of trails) {
+// trails recovered from rejected candidates pick after the whole catalogue, and within each group trails on the
+// wider fallback search pick last, so neither takes a photo a trail before them already uses
+const pickOrder = (t) => (t.recovered ? 2 : 0) + (fallback.has(t.id) ? 1 : 0);
+for (const t of [...trails].sort((x, y) => pickOrder(x) - pickOrder(y))) {
   const list = (cand.trails[t.id] ?? [])
     .map((c) => ({ c, f: cand.files[c.title] }))
-    .filter(({ c, f }) => usable(f) && matchOf(c.dist_m))
-    .map(({ c, f }) => {
-      let s = score(c, f);
+    .map(({ c, f }) => ({ c, f, match: usable(f) ? matchOf(c, t.id) : null }))
+    .filter(({ match }) => match)
+    .map(({ c, f, match }) => {
+      let s = score(c, f, match);
       const others = used.get(c.title) ?? [];
-      if (others.length) s -= c.dist_m <= 1500 ? 5 : 100; // the same file twice only for a genuinely shared place
-      return { c, f, s };
+      // the same file twice only for a genuinely shared place
+      if (others.length) s -= match === 'on-trail' || match === 'place' ? 5 : 100;
+      return { c, f, s, match };
     })
     .filter((x) => x.s > -50)
     .sort((a, b) => b.s - a.s);
@@ -87,7 +109,7 @@ for (const t of trails) {
   if (review.noPhotos?.[t.id]) list.length = 0;
   for (const x of list) {
     if (chosen.length >= (review.maxPhotos?.[t.id] ?? MAX_PHOTOS)) break;
-    if (chosen.some((y) => haversineM(y.c.coord, x.c.coord) < MIN_APART_M)) continue;
+    if (chosen.some((y) => y.c.coord && x.c.coord && haversineM(y.c.coord, x.c.coord) < MIN_APART_M)) continue;
     const n = perAuthor.get(x.f.author) ?? 0;
     if (n >= 2) continue;
     perAuthor.set(x.f.author, n + 1);
@@ -116,8 +138,8 @@ let downloaded = 0;
 for (const t of trails) {
   const chosen = selection[t.id];
   const dir = path.join(IMAGES, t.id);
-  fs.rmSync(dir, { recursive: true, force: true });
   if (!chosen.length) {
+    fs.rmSync(dir, { recursive: true, force: true });
     photosOut.trails[t.id] = [];
     continue;
   }
@@ -126,16 +148,25 @@ for (const t of trails) {
   for (const [i, x] of chosen.entries()) {
     const role = i === 0 ? 'cover' : 'gallery';
     const file = i === 0 ? 'cover.webp' : `photo-${i}.webp`;
-    const src = await request(x.f.thumburl, { as: 'buffer', bucket: 'photos', throttleKey: 'upload.wikimedia.org', minIntervalMs: 400, timeoutMs: 120_000, retries: 4 });
-    downloaded++;
-    const enc = await encode(src, role === 'cover' ? COVER : GALLERY);
-    fs.writeFileSync(path.join(dir, file), enc.data);
+    const target = path.join(dir, file);
+    // the same file in the same slot as last time: keep the existing WebP instead of encoding it again
+    const prev = (previous.trails[t.id] ?? []).find((p) => p.file === file && p.title === x.f.title);
+    let enc;
+    if (prev && fs.existsSync(target) && crypto.createHash('sha1').update(fs.readFileSync(target)).digest('hex') === prev.sha1) {
+      enc = { data: fs.readFileSync(target), info: { width: prev.width, height: prev.height }, quality: prev.quality, over: prev.over_size_target };
+    } else {
+      const src = await request(x.f.thumburl, { as: 'buffer', bucket: 'photos', throttleKey: 'upload.wikimedia.org', minIntervalMs: 400, timeoutMs: 120_000, retries: 4 });
+      downloaded++;
+      enc = await encode(src, role === 'cover' ? COVER : GALLERY);
+      fs.writeFileSync(target, enc.data);
+    }
     rows.push({
       file,
       role,
       title: x.f.title,
-      match: matchOf(x.c.dist_m),
-      dist_m: x.c.dist_m,
+      match: x.match,
+      dist_m: x.c.dist_m ?? null,
+      ...(x.match === 'place' ? { place: x.c.place.label, place_qid: x.c.place.qid } : {}),
       author: x.f.author,
       license: x.f.licence.short,
       license_url: x.f.licence.url,
@@ -151,6 +182,7 @@ for (const t of trails) {
     });
   }
   photosOut.trails[t.id] = rows;
+  for (const f of fs.readdirSync(dir)) if (!rows.some((r) => r.file === f)) fs.rmSync(path.join(dir, f));
 }
 writeJson(path.join(WORK, 'photos.json'), photosOut, true);
 
@@ -185,7 +217,7 @@ for (let s = 0; s * ROWS < withPhotos.length; s++) {
   await sharp({ create: { width, height, channels: 3, background: '#000' } }).composite(comps).jpeg({ quality: 72 }).toFile(path.join(sheetDir, `sheet-${String(s + 1).padStart(2, '0')}.jpg`));
 }
 
-const counts = { trails: trails.length, with_photos: 0, photos: 0, 'on-trail': 0, nearby: 0, area: 0, none: 0 };
+const counts = { trails: trails.length, with_photos: 0, photos: 0, 'on-trail': 0, nearby: 0, area: 0, place: 0, none: 0 };
 for (const t of trails) {
   const rows = photosOut.trails[t.id];
   if (!rows.length) counts.none++;

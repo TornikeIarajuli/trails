@@ -8,11 +8,11 @@ import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
 import {
   STORAGE_PREFIX, describePlan, matchesSignature, parseArgs, planHasWrites, planTrail, publicUrl, routeSignature,
-  summarize, validateDataset, valuesEqual,
+  REVIEW_FLAG_CODES, summarize, validateDataset, valuesEqual,
 } from './apply-lib.mjs';
 import { run } from './apply.mjs';
 import { geoJsonCoords, lineEwkt, pointEwkt } from './lib/ewkt.mjs';
-import { dinHours, difficultyFor, ascentDescent, roundHours } from './lib/hiking.mjs';
+import { dinHours, difficultyFor, ascentDescent, elevationProfile, roundHours } from './lib/hiking.mjs';
 import { isRfc4122, trailIdForRelation, uuidv5 } from './lib/uuid.mjs';
 import { stitchWays } from './lib/stitch.mjs';
 
@@ -76,13 +76,13 @@ function liveRows() {
         id: T1, name_en: 'Gergeti', name_ka: 'გერგეტი', description_en: 'd', description_ka: null, difficulty: 'easy', region: 'Kazbegi',
         distance_km: 6, elevation_gain_m: 500, estimated_hours: 3, start_address: null, route: geo('LineString', oldRoute),
         start_point: geo('Point', oldRoute[0]), end_point: geo('Point', oldRoute[2]),
-        cover_image_url: 'https://images.unsplash.com/photo-1?w=800', is_published: true,
+        cover_image_url: 'https://images.unsplash.com/photo-1?w=800', is_published: true, elevation_profile: null, review_flags: [],
       },
       {
         id: T2, name_en: 'Owner trail', name_ka: null, description_en: null, description_ka: null, difficulty: 'hard', region: 'Tusheti',
         distance_km: 10, elevation_gain_m: 900, estimated_hours: 5, start_address: null, route: geo('LineString', oldRoute),
         start_point: geo('Point', oldRoute[0]), end_point: geo('Point', oldRoute[2]),
-        cover_image_url: `${SUPA}/storage/v1/object/public/trail-media/covers/${T2}/own.jpg`, is_published: true,
+        cover_image_url: `${SUPA}/storage/v1/object/public/trail-media/covers/${T2}/own.jpg`, is_published: true, elevation_profile: null, review_flags: [],
       },
     ],
     trail_checkpoints: [
@@ -306,6 +306,81 @@ test('new trails are inserted (published unless asked otherwise) and never overw
   assert.equal(again.trail.action, 'none');
 });
 
+test('elevation profiles are thinned to 120 integer pairs and keep the ends and extremes', () => {
+  const samples = Array.from({ length: 400 }, (_, i) => 1500 + Math.round(400 * Math.sin(i / 60)));
+  const p = elevationProfile(samples, 39_900);
+  assert.ok(p.length <= 120 && p.length >= 100);
+  assert.deepEqual(p[0][0], 0);
+  assert.equal(p[p.length - 1][0], 39_900);
+  assert.ok(p.every((x, i) => Number.isInteger(x[0]) && Number.isInteger(x[1]) && (i === 0 || x[0] > p[i - 1][0])));
+  const smoothedMax = Math.max(...samples.map((v, i, a) => (i === 0 || i === a.length - 1 ? v : (a[i - 1] + 2 * v + a[i + 1]) / 4)));
+  assert.equal(Math.max(...p.map((x) => x[1])), Math.round(smoothedMax));
+  assert.equal(elevationProfile([100, null, null, 130], 1000), null); // too many voids
+});
+
+test('elevation_profile is published as a jsonb field with the snapshot NULL as its baseline', () => {
+  const live = liveRows();
+  const t1 = dataset().trails[0];
+  const profile = [[0, 1750], [2000, 1990], [5400, 2170]];
+  t1.elevation_profile = profile;
+  t1.changed.push('elevation_profile');
+  t1.baseline.elevation_profile = null;
+  assert.deepEqual(validateDataset({ trails: [t1] }), []);
+  const plan = planTrail(t1, { trail: live.trails[0], checkpoints: [], media: [] }, baseOpts({ skipImages: true }));
+  assert.deepEqual(plan.trail.patch.elevation_profile, profile);
+  // already published (PostgREST returns jsonb parsed, sometimes as text): nothing to do
+  const same = planTrail(t1, { trail: { ...live.trails[0], elevation_profile: JSON.stringify(profile) }, checkpoints: [], media: [] }, baseOpts({ skipImages: true }));
+  assert.ok(!('elevation_profile' in (same.trail.patch ?? {})));
+  // changed by someone else since the snapshot: reported, not overwritten
+  const edited = planTrail(t1, { trail: { ...live.trails[0], elevation_profile: [[0, 1], [10, 2]] }, checkpoints: [], media: [] }, baseOpts({ skipImages: true }));
+  assert.equal(edited.trail.conflicts.find((c) => c.field === 'elevation_profile')?.field, 'elevation_profile');
+  const bad = structuredClone(t1);
+  bad.elevation_profile = [[5, 1700], [0, 1800]];
+  assert.match(validateDataset({ trails: [bad] }).join(' | '), /must start at 0 m/);
+});
+
+test('a new trail published earlier gets fields that have a baseline without --update-new', () => {
+  const ds = dataset();
+  const n = ds.trails[2];
+  n.elevation_profile = [[0, 1200], [12300, 1900]];
+  n.baseline = { elevation_profile: null };
+  const ins = planTrail(n, { trail: null, checkpoints: [], media: [] }, baseOpts());
+  const liveRow = { ...ins.trail.row, elevation_profile: null, route: geo('LineString', newRoute), start_point: geo('Point', newRoute[0]), end_point: geo('Point', newRoute[3]) };
+  const plan = planTrail(n, { trail: liveRow, checkpoints: [], media: [] }, baseOpts({ skipImages: true }));
+  assert.deepEqual(plan.trail.patch, { elevation_profile: n.elevation_profile });
+  assert.equal(plan.trail.conflicts.length, 0);
+});
+
+test('review_flags is published as a text[] with the empty array as its baseline', () => {
+  const live = liveRows();
+  const t1 = dataset().trails[0];
+  t1.review_flags = ['rebuilt', 'near_border'];
+  t1.changed.push('review_flags');
+  t1.baseline.review_flags = [];
+  assert.deepEqual(validateDataset({ trails: [t1] }), []);
+  const opts = baseOpts({ skipImages: true });
+  const plan = planTrail(t1, { trail: live.trails[0], checkpoints: [], media: [] }, opts);
+  assert.deepEqual(plan.trail.patch.review_flags, ['rebuilt', 'near_border']);
+  // the column default as Postgres prints it is the same empty baseline
+  const literal = planTrail(t1, { trail: { ...live.trails[0], review_flags: '{}' }, checkpoints: [], media: [] }, opts);
+  assert.deepEqual(literal.trail.patch.review_flags, ['rebuilt', 'near_border']);
+  // already published, in any order: nothing to do
+  const same = planTrail(t1, { trail: { ...live.trails[0], review_flags: ['near_border', 'rebuilt'] }, checkpoints: [], media: [] }, opts);
+  assert.ok(!('review_flags' in (same.trail.patch ?? {})));
+  // flags set by hand since the snapshot are reported, not overwritten
+  const edited = planTrail(t1, { trail: { ...live.trails[0], review_flags: '{manual_review}' }, checkpoints: [], media: [] }, opts);
+  assert.equal(edited.trail.conflicts.find((c) => c.field === 'review_flags')?.live, '{manual_review}');
+  assert.ok(!('review_flags' in (edited.trail.patch ?? {})));
+  // a new trail without flags is inserted with the empty array, never NULL
+  const n = dataset().trails[2];
+  const ins = planTrail(n, { trail: null, checkpoints: [], media: [] }, baseOpts());
+  assert.deepEqual(ins.trail.row.review_flags, []);
+  const bad = structuredClone(t1);
+  bad.review_flags = ['rebuilt', 'rebuilt', 'looks_odd'];
+  assert.match(validateDataset({ trails: [bad] }).join(' | '), /review_flags must be distinct codes/);
+  assert.ok(REVIEW_FLAG_CODES.includes('manual_review') && REVIEW_FLAG_CODES.includes('area_photo'));
+});
+
 test('a trail that disappeared from the database is reported, not recreated', () => {
   const plan = planTrail(dataset().trails[0], { trail: null, checkpoints: [], media: [] }, baseOpts());
   assert.equal(plan.trail.action, 'missing');
@@ -383,6 +458,18 @@ test('--only, --skip-new and missing image files are honoured', async () => {
   assert.equal(res.exitCode, 1); // T1 fails its local image check
   assert.equal(db.tables.trails.find((t) => t.id === T1).distance_km, 6);
   assert.ok(!db.tables.trails.some((t) => t.id === NEW));
+});
+
+test('a database without the columns of migrations 051/052 is refused before anything is planned', async () => {
+  const ds = dataset();
+  const rows = liveRows();
+  for (const t of rows.trails) delete t.review_flags;
+  const db = fakeDb(rows);
+  const logs = [];
+  const res = await run({ db, dataset: ds, opts: baseOpts({ apply: true }), imagesDir: '.', backupsDir: '.', log: (l) => logs.push(l) });
+  assert.equal(res.exitCode, 1);
+  assert.deepEqual(db.writes, []);
+  assert.match(logs.join('\n'), /trails\.review_flags \(migration 052\)/);
 });
 
 test('an invalid dataset is refused before anything is read', async () => {

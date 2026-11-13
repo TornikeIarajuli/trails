@@ -7,15 +7,15 @@
 //   node scripts/content/09-build-dataset.mjs
 import fs from 'node:fs';
 import path from 'node:path';
-import { routeSignature } from './apply-lib.mjs';
+import { REVIEW_FLAG_CODES, routeSignature } from './apply-lib.mjs';
 import { elevations } from './lib/dem.mjs';
 import { geoJsonCoords, roundCoord } from './lib/ewkt.mjs';
 import { FACILITY_KIND, Features, KINDS_FOR_TYPE, TYPE_FOR_KIND, endParts, englishLabel, featureLabel, hasProperName, labelMatches, placeNear } from './lib/features.mjs';
-import { cumulativeM, haversineM, lineLengthM, nearestOnLine, sampleAlong } from './lib/geo.mjs';
-import { difficultyFor, difficultyGap, dinHours, roundHours } from './lib/hiking.mjs';
+import { LineIndex, bbox, bboxesIntersect, cumulativeM, haversineM, lineLengthM, nearestOnLine, overlapShare, sampleAlong } from './lib/geo.mjs';
+import { difficultyFor, difficultyGap, dinHours, elevationProfile, roundHours } from './lib/hiking.mjs';
 import { cleanName, georgianName, hasGeorgian, latinNames, sameToponym } from './lib/names.mjs';
 import { CONTENT, DATA, WORK, latestSnapshotPath, readJson, readJsonIfExists, writeJson } from './lib/paths.mjs';
-import { distanceToTbilisiM, regionProfile } from './lib/regions.mjs';
+import { distanceToBorderM, distanceToOccupiedM, distanceToTbilisiM, regionProfile } from './lib/regions.mjs';
 import { checkpointId } from './lib/uuid.mjs';
 
 const snapshotPath = latestSnapshotPath();
@@ -147,6 +147,7 @@ function photosFor(id) {
     path: `content/${id}/${p.file}`,
     caption: p.caption,
     match: p.match,
+    ...(p.place ? { place: p.place, place_qid: p.place_qid } : {}),
     dist_m: p.dist_m,
     author: p.author,
     license: p.license,
@@ -229,7 +230,10 @@ for (const t of snapshot.trails) {
     else keep('elevation_gain_m', `within 25% of the measured ${gain} m`);
   } else {
     keep('elevation_gain_m', 'not measured');
-    if (synthetic) flags.push(`elevation_gain_m (${ds.elevation_gain_m} m) is the synthetic distance × 60/40 and could not be measured`);
+    if (synthetic) {
+      flags.push(`elevation_gain_m (${ds.elevation_gain_m} m) is the synthetic distance × 60/40 and could not be measured`);
+      ds._syntheticElevation = true;
+    }
   }
 
   // time
@@ -252,6 +256,14 @@ for (const t of snapshot.trails) {
       change('difficulty', f.difficulty, 'formula', `hand-set "${ds.difficulty}" is two or more levels from the formula (effort ${f.effort})`);
     } else keep('difficulty', `hand-curated; formula says ${f.difficulty} (effort ${f.effort})`);
   } else keep('difficulty', 'not measured');
+
+  // elevation profile for the app's chart, along the published route
+  const profile = measured ? elevationProfile(e.profile, lineLengthM(route)) : null;
+  if (profile) change('elevation_profile', profile, 'dem', `${profile.length} points from the SRTM samples, smoothed like the ascent`);
+  else {
+    ds.elevation_profile = null;
+    keep('elevation_profile', 'not measured');
+  }
 
   // region
   const reg = regionFor(full);
@@ -455,7 +467,8 @@ for (const a of newGeom.accepted) {
   const hours = roundHours(dinHours(km, e.ascent_m, e.descent_m));
   const diff = difficultyFor(km, e.ascent_m, e.max_m);
   const nameEn = tov.name_en ?? a.name_en;
-  let nameKa = tov.name_ka ?? (a.name_ka ? cleanName(a.name_ka).name : null);
+  let nameKa = tov.name_ka ?? (a.name_ka ? (a.name_source === 'generated' ? a.name_ka : cleanName(a.name_ka).name) : null);
+  if (a.name_source === 'generated' && nameKa && !tov.name_ka) georgianAuthored.push({ id: a.id, field: 'name_ka', text: nameKa, how: `joined from the OSM names of the features at its ends: ${a.name_from.join('; ')}` });
   if (tov.name_ka) georgianAuthored.push({ id: a.id, field: 'name_ka', text: tov.name_ka, how: 'written by hand' });
   if (!nameKa) {
     const composed = composeKa(nameEn, full);
@@ -516,18 +529,23 @@ for (const a of newGeom.accepted) {
     id: a.id, is_new: true, osm_relation_id: a.osm_relation_id, osm_relation_ids: [a.osm_relation_id],
     name_en: nameEn, name_ka: nameKa, description_en, description_ka,
     difficulty: diff.difficulty, region, distance_km: km, elevation_gain_m: e.ascent_m, estimated_hours: hours, start_address: null,
+    elevation_profile: elevationProfile(e.profile, lineLengthM(route)),
     route, start_point: route[0], end_point: route[route.length - 1],
     checkpoints: cps, photos: photosFor(a.id),
     stats: { ascent_m: e.ascent_m, descent_m: e.descent_m, min_m: e.min_m, max_m: e.max_m, effort: diff.effort, dem_samples: e.samples, dem_spacing_m: e.spacing_m, shape: a.shape },
-    changed: ['name_en', 'name_ka', 'description_en', 'description_ka', 'difficulty', 'region', 'distance_km', 'elevation_gain_m', 'estimated_hours', 'start_address', 'route', 'start_point', 'end_point'],
-    baseline: {},
+    changed: ['name_en', 'name_ka', 'description_en', 'description_ka', 'difficulty', 'region', 'distance_km', 'elevation_gain_m', 'estimated_hours', 'start_address', 'elevation_profile', 'route', 'start_point', 'end_point'],
+    // the 85 trails published first had no elevation_profile column yet: NULL is the value to replace
+    baseline: { elevation_profile: null },
     provenance: {
       route: { source: 'osm', note: `OSM relation ${a.osm_relation_id} (${a.stitch.method}${a.stitch.max_gap_m ? `, gaps up to ${a.stitch.max_gap_m} m` : ''}), Douglas–Peucker ${a.simplify_tolerance_m} m` },
-      name_en: { source: 'osm', note: a.name_en_transliterated ? 'transliterated from name:ka' : 'OSM name' },
-      name_ka: { source: nameKa ? 'osm' : 'kept', note: nameKa ? 'OSM name:ka / toponyms' : 'none in OSM' },
+      name_en: a.name_source === 'generated'
+        ? { source: 'osm', name_source: 'generated', note: `the relation has no name; named after the OSM features at its ends: ${a.name_from.join('; ')}` }
+        : { source: 'osm', note: a.name_en_transliterated ? 'transliterated from name:ka' : 'OSM name' },
+      name_ka: { source: nameKa ? 'osm' : 'kept', note: nameKa ? (a.name_source === 'generated' ? 'name:ka of the same features' : 'OSM name:ka / toponyms') : 'none in OSM', ...(a.name_source === 'generated' ? { name_source: 'generated' } : {}) },
       distance_km: { source: 'measured', note: 'length of the OSM line' },
       elevation_gain_m: { source: 'dem', note: `SRTM 30 m, ${e.samples} samples every ~${e.spacing_m} m, 10 m hysteresis` },
       estimated_hours: { source: 'formula', note: 'DIN 33466' },
+      elevation_profile: { source: 'dem', note: 'SRTM samples along the route, smoothed like the ascent' },
       difficulty: { source: 'formula', note: `effort ${diff.effort}` },
       region: { source: 'osm', note: `municipality boundaries: ${reg.prof.municipalities.slice(0, 2).join(', ')}` },
       description_en: { source: 'osm', note: 'generated from the route, OSM features and the elevation profile' },
@@ -536,6 +554,8 @@ for (const a of newGeom.accepted) {
     flags: [
       ...flags,
       ...(a.unmarked ? ['OSM says the route has no trail markers'] : []),
+      ...(a.name_source === 'generated' ? ['name generated from the OSM features at its ends — please review'] : []),
+      ...(a.recovered === 'broken' ? [`main line picked from a branching or broken relation (${a.stitch.method}; ${a.stitch.dropped_m} m of side or parallel ways left out${a.stitch.max_gap_m ? `; a ${a.stitch.max_gap_m} m gap joined` : ''})`] : []),
       ...(a.occupation_line_km != null && a.occupation_line_km < 5 ? [`passes within ${a.occupation_line_km} km of the occupation line`] : []),
       ...(a.stitch.dropped_m ? [`side spurs of the relation not included: ${a.stitch.dropped_m} m`] : []),
       ...(a.tags.roundtrip === 'yes' && a.shape === 'line' ? ['OSM marks it as a round trip; the line is one way (walk back the same way)'] : []),
@@ -543,7 +563,7 @@ for (const a of newGeom.accepted) {
     occupation_line_km: a.occupation_line_km,
   };
   trailsOut.push(ds);
-  report.fresh.push({ id: a.id, relation: a.osm_relation_id, name: nameEn, name_ka: nameKa, region, distance_km: km, ascent: e.ascent_m, max_m: e.max_m, hours, difficulty: diff.difficulty, checkpoints: cps.length, flags: ds.flags });
+  report.fresh.push({ recovered: a.recovered ?? null, name_source: a.name_source ?? 'osm', name_from: a.name_from ?? null, dropped_m: a.stitch.dropped_m, method: a.stitch.method, id: a.id, relation: a.osm_relation_id, name: nameEn, name_ka: nameKa, region, distance_km: km, ascent: e.ascent_m, max_m: e.max_m, hours, difficulty: diff.difficulty, checkpoints: cps.length, flags: ds.flags });
 }
 
 // ---------- checkpoint elevations ----------
@@ -564,6 +584,64 @@ pendingElevation.forEach((cp, i) => {
     cp.provenance.elevation_m = { source: 'dem', note: 'SRTM 30 m at the checkpoint' };
   }
 });
+// ---------- review flags (trails.review_flags, migration 052) ----------
+// Short stable codes for what an admin should look at first; meanings in scripts/README.md.
+const NEAR_BORDER_M = 3000;
+const OVERLAP_SHARE = 0.8;
+const AREA_PHOTO_M = 5000;
+const ESTIMATED_CHECKPOINT = /^position not confirmed|not confirmed — not checkable/;
+const authoredKa = new Set(georgianAuthored.map((x) => x.id));
+const freshById = new Map(newGeom.accepted.map((a) => [a.id, a]));
+const lineOf = trailsOut.map((t) => ({ t, box: bbox(t.route), index: new LineIndex(t.route) }));
+// pairs with the same name, or where most of one line runs within 100 m of the other (a duplicate, a variant,
+// or a stage of a longer trek); both trails of a pair are flagged
+report.overlaps = [];
+for (let i = 0; i < lineOf.length; i++) {
+  for (let j = i + 1; j < lineOf.length; j++) {
+    const a = lineOf[i];
+    const b = lineOf[j];
+    const sameName = a.t.name_en.toLowerCase() === b.t.name_en.toLowerCase();
+    if (!sameName && !bboxesIntersect(a.box, b.box, 0.003)) continue;
+    const ab = overlapShare(a.t.route, b.index, 100, 100);
+    const ba = overlapShare(b.t.route, a.index, 100, 100);
+    if (sameName || Math.max(ab, ba) >= OVERLAP_SHARE) {
+      report.overlaps.push({ a: a.t.id, a_name: a.t.name_en, a_new: a.t.is_new, b: b.t.id, b_name: b.t.name_en, b_new: b.t.is_new, ab: Math.round(ab * 100) / 100, ba: Math.round(ba * 100) / 100, same_name: sameName });
+    }
+  }
+}
+for (const t of trailsOut) {
+  const codes = new Set();
+  if (!t.is_new) {
+    const g = geom[t.id];
+    if (g.manual_review) codes.add('manual_review');
+    if (g.decision === 'rebuilt') codes.add('rebuilt');
+    if (g.reversed) codes.add('reversed');
+    if (t._syntheticElevation) codes.add('synthetic_elevation');
+  } else {
+    const a = freshById.get(t.id);
+    if (a.name_source === 'generated') codes.add('generated_name');
+    if (a.recovered === 'broken') codes.add('main_line');
+  }
+  if (authoredKa.has(t.id)) codes.add('machine_georgian');
+  const samples = sampleAlong(t.route, 250, 800).map((s) => s.p);
+  if (distanceToOccupiedM(samples, NEAR_BORDER_M) < NEAR_BORDER_M || distanceToBorderM(samples, NEAR_BORDER_M) < NEAR_BORDER_M) codes.add('near_border');
+  if (report.overlaps.some((o) => o.a === t.id || o.b === t.id)) codes.add('overlap');
+  if (t.checkpoints.some((c) => c.flags.some((f) => ESTIMATED_CHECKPOINT.test(f)))) codes.add('estimated_checkpoints');
+  if (t.checkpoints.some((c) => c.unconfirmedFacility)) codes.add('unconfirmed_facility');
+  // an owner-uploaded cover stays, so such a trail is neither without a photo nor covered from afar
+  const cover = t.photos.find((p) => p.role === 'cover');
+  if (!t.photos.length && !ownerCovers.has(t.id)) codes.add('no_photo');
+  if (cover && !(cover.dist_m != null && cover.dist_m <= AREA_PHOTO_M)) codes.add('area_photo');
+  delete t._syntheticElevation;
+  t.review_flags = REVIEW_FLAG_CODES.filter((c) => codes.has(c));
+  // the column is '{}' everywhere today (new in migration 052): the empty array is the baseline
+  if (t.is_new || t.review_flags.length) {
+    t.changed.push('review_flags');
+    t.baseline.review_flags = [];
+  }
+  t.provenance.review_flags = { source: 'pipeline', note: 'reasons to look first, derived from the checks recorded in flags/provenance; codes in scripts/README.md' };
+}
+
 for (const t of trailsOut) {
   for (const cp of t.checkpoints) {
     if (t.is_new) {
