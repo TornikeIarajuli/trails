@@ -7,6 +7,7 @@ import { PostHogProvider } from 'posthog-react-native';
 import { initAnalytics } from '../utils/analytics';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import { queryPersister } from '../utils/queryPersister';
+import { shouldPersistQuery } from '../utils/queryPersistence';
 import { queryClient } from '../utils/queryClient';
 import * as SplashScreen from 'expo-splash-screen';
 import { useAuthStore } from '../store/authStore';
@@ -87,7 +88,11 @@ function RootLayout() {
   const app = (
     <PersistQueryClientProvider
       client={queryClient}
-      persistOptions={{ persister: queryPersister, maxAge: 24 * 60 * 60 * 1000 }}
+      persistOptions={{
+        persister: queryPersister,
+        maxAge: 24 * 60 * 60 * 1000,
+        dehydrateOptions: { shouldDehydrateQuery: shouldPersistQuery },
+      }}
     >
       <ErrorBoundary onError={() => setHasError(true)}>
         <RootLayoutInner />
