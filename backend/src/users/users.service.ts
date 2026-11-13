@@ -1,21 +1,27 @@
 import { TtlCache } from '../common/ttl-cache';
-import { throwIfError } from '../common/supabase-error';
+import { isMissingRelationError, throwIfError } from '../common/supabase-error';
 const LEADERBOARD_TTL = 15 * 60 * 1000;
 
 import {
   BadRequestException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { SupabaseService } from '../config/supabase.config';
 import { NotificationsService } from '../notifications/notifications.service';
 import { TrailsService } from '../trails/trails.service';
 import { RegionProgressResponse, regionProgress } from '../trails/region-stats';
+import {
+  MISSING_SOURCE_WARNING,
+  withSource,
+} from '../completions/completion-source';
 
 export type SosOutcome = 'ok' | 'no_contact' | 'contact_unreachable';
 
 @Injectable()
 export class UsersService {
+  private readonly logger = new Logger(UsersService.name);
   // One entry per requested size (1-100)
   private cache = new TtlCache(100);
   constructor(
@@ -116,20 +122,40 @@ export class UsersService {
     if (cached) return cached;
 
     const admin = this.supabaseService.getAdminClient();
+    // Ranked by trails hiked with the app: self-reported past hikes do not count.
+    const query = (column: string) =>
+      admin
+        .from('profiles')
+        .select(`id, username, full_name, avatar_url, ${column}`)
+        .gt(column, 0)
+        .order(column, { ascending: false })
+        .limit(limit);
 
-    const { data, error } = await admin
-      .from('profiles')
-      .select('id, username, full_name, avatar_url, total_trails_completed')
-      .gt('total_trails_completed', 0)
-      .order('total_trails_completed', { ascending: false })
-      .limit(limit);
+    let column = 'ranked_trails_completed';
+    let { data, error } = await query(column);
+    if (isMissingRelationError(error)) {
+      // Before migration 054 there is only the total
+      this.logger.warn(
+        'profiles.ranked_trails_completed does not exist yet (migration 054); ranking by total',
+      );
+      column = 'total_trails_completed';
+      ({ data, error } = await query(column));
+    }
 
     throwIfError(error);
 
-    const result = data?.map((user, index) => ({
-      rank: index + 1,
-      ...user,
-    }));
+    // total_trails_completed carries the ranked count too, for released app builds
+    const result = (
+      (data ?? []) as unknown as Array<Record<string, unknown>>
+    ).map((user, index) => {
+      const { [column]: count, ...rest } = user;
+      return {
+        rank: index + 1,
+        ...rest,
+        total_trails_completed: count as number,
+        ranked_trails_completed: count as number,
+      };
+    });
     this.cache.set(cacheKey, result, LEADERBOARD_TTL);
     return result;
   }
@@ -400,19 +426,36 @@ export class UsersService {
     }
 
     // Get all approved completions with trail info and proof photos
-    const { data: completions } = await admin
-      .from('trail_completions')
-      .select(
-        `
+    const completionsQuery = (withSourceColumn: boolean) =>
+      admin
+        .from('trail_completions')
+        .select(
+          `
         id,
         completed_at,
-        proof_photo_url,
+        proof_photo_url,${withSourceColumn ? '\n        source,' : ''}
         trails:trail_id (id, name_en, difficulty, region, cover_image_url, distance_km, elevation_gain_m)
       `,
-      )
-      .eq('user_id', userId)
-      .eq('status', 'approved')
-      .order('completed_at', { ascending: false });
+        )
+        .eq('user_id', userId)
+        .eq('status', 'approved')
+        .order('completed_at', { ascending: false });
+
+    let { data: rows, error: completionsError } = await completionsQuery(true);
+    if (isMissingRelationError(completionsError)) {
+      this.logger.warn(MISSING_SOURCE_WARNING);
+      ({ data: rows, error: completionsError } = await completionsQuery(false));
+    }
+    if (completionsError) {
+      this.logger.warn(
+        `Could not load public completions: ${completionsError.message}`,
+      );
+    }
+    const completions = rows
+      ? (rows as unknown as Array<Record<string, unknown>>).map((c) =>
+          withSource(c),
+        )
+      : null;
 
     // Build stats by difficulty
     const stats = {

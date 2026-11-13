@@ -8,12 +8,16 @@ import {
   Param,
   UseGuards,
   ParseUUIDPipe,
+  HttpStatus,
+  Res,
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
+import type { Response } from 'express';
 import { CompletionsService } from './completions.service';
 import { SubmitCompletionDto } from './dto/submit-completion.dto';
 import { RecordHikeDto } from './dto/record-hike.dto';
 import { ReviewCompletionDto } from './dto/review-completion.dto';
+import { MarkPastHikeDto } from './dto/mark-past-hike.dto';
 import { AuthGuard } from '../common/guards/auth.guard';
 import { AdminGuard } from '../common/guards/admin.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
@@ -34,6 +38,20 @@ export class CompletionsController {
   @Throttle({ default: { ttl: 60000, limit: 10 } })
   recordHike(@CurrentUser('id') userId: string, @Body() dto: RecordHikeDto) {
     return this.completionsService.recordHike(userId, dto);
+  }
+
+  /** 201 when the trail is marked now, 200 when it already was (contract C7). */
+  @Post('past')
+  @UseGuards(AuthGuard)
+  @Throttle({ default: { ttl: 60000, limit: 30 } })
+  async markPastHike(
+    @CurrentUser('id') userId: string,
+    @Body() dto: MarkPastHikeDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const result = await this.completionsService.markPastHike(userId, dto);
+    res.status(result.already_existed ? HttpStatus.OK : HttpStatus.CREATED);
+    return result;
   }
 
   @Get('me')

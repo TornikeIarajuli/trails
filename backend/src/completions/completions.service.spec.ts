@@ -4,9 +4,11 @@ import {
   ConflictException,
   Logger,
   NotFoundException,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import {
   CompletionsService,
+  pastHikeCompletedAt,
   resolveCompletedAt,
   trackToEwkt,
 } from './completions.service';
@@ -770,6 +772,49 @@ describe('CompletionsService', () => {
       ).rejects.toThrow(BadRequestException);
       expect(mockAdmin.from).not.toHaveBeenCalled();
     });
+
+    it("saves photo submissions with source 'photo'", async () => {
+      onTable('trail_completions', { data: null, error: null });
+      onTable('trails', {
+        data: { id: TRAIL_ID, end_point: null, name_en: 'Test' },
+        error: null,
+      });
+      const insert = onTable('trail_completions', {
+        data: { id: 'comp-1', status: 'pending', source: 'photo' },
+        error: null,
+      });
+
+      const result = await service.submit(USER, submitDto);
+
+      expect(insert.insert).toHaveBeenCalledWith(
+        expect.objectContaining({ source: 'photo' }),
+      );
+      expect(result.source).toBe('photo');
+    });
+
+    it('saves photo submissions without source before migration 054', async () => {
+      onTable('trail_completions', { data: null, error: null });
+      onTable('trails', {
+        data: { id: TRAIL_ID, end_point: null, name_en: 'Test' },
+        error: null,
+      });
+      onTable('trail_completions', {
+        data: null,
+        error: {
+          code: 'PGRST204',
+          message: "Could not find the 'source' column",
+        },
+      });
+      const retry = onTable('trail_completions', {
+        data: { id: 'comp-1', status: 'pending' },
+        error: null,
+      });
+
+      const result = await service.submit(USER, submitDto);
+
+      expect(retry.insert.mock.calls[0][0]).not.toHaveProperty('source');
+      expect(result).toMatchObject({ id: 'comp-1', source: 'hike' });
+    });
   });
 
   // -------------------------------------------------------------------------
@@ -941,6 +986,513 @@ describe('CompletionsService', () => {
       });
       expect(list.limit).toHaveBeenCalledWith(100);
     });
+
+    it('includes each completion source', async () => {
+      const list = onTable('trail_completions', {
+        data: [
+          { id: 'c1', source: 'past' },
+          { id: 'c2', source: 'hike' },
+        ],
+        error: null,
+      });
+
+      const result = await service.getTrailCompletions(TRAIL_ID);
+
+      expect(String(list.select.mock.calls[0][0])).toContain('source');
+      expect(result.map((c) => c.source)).toEqual(['past', 'hike']);
+    });
+
+    it('reads without source (as recorded hikes) before migration 054', async () => {
+      onTable('trail_completions', {
+        data: null,
+        error: { code: '42703', message: 'column source does not exist' },
+      });
+      const retry = onTable('trail_completions', {
+        data: [{ id: 'c1' }],
+        error: null,
+      });
+
+      const result = await service.getTrailCompletions(TRAIL_ID);
+
+      expect(String(retry.select.mock.calls[0][0])).not.toContain('source');
+      expect(result).toEqual([{ id: 'c1', source: 'hike' }]);
+      expect(warnLog).toHaveBeenCalledWith(
+        expect.stringContaining('migration 054'),
+      );
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // getUserCompletions
+  // -------------------------------------------------------------------------
+  describe('getUserCompletions', () => {
+    it('returns every completion with its source', async () => {
+      onTable('trail_completions', {
+        data: [
+          { id: 'c1', source: 'past', status: 'approved' },
+          { id: 'c2', source: 'photo', status: 'pending' },
+        ],
+        error: null,
+      });
+
+      const result = await service.getUserCompletions(USER);
+
+      expect(result.map((c) => c.source)).toEqual(['past', 'photo']);
+      expect(warnLog).not.toHaveBeenCalled();
+    });
+
+    it('treats rows without source as recorded hikes and warns once', async () => {
+      onTable('trail_completions', {
+        data: [{ id: 'c1' }, { id: 'c2' }],
+        error: null,
+      });
+
+      const result = await service.getUserCompletions(USER);
+
+      expect(result).toEqual([
+        { id: 'c1', source: 'hike' },
+        { id: 'c2', source: 'hike' },
+      ]);
+      expect(warnLog).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // markPastHike
+  // -------------------------------------------------------------------------
+  describe('markPastHike', () => {
+    const published = { id: TRAIL_ID, is_published: true };
+
+    it('marks the trail as done in the given year and awards badges', async () => {
+      onTable('trails', { data: published, error: null });
+      onTable('trail_completions', { data: null, error: null });
+      const insert = onTable('trail_completions', {
+        data: {
+          id: 'comp-p',
+          user_id: USER,
+          trail_id: TRAIL_ID,
+          status: 'approved',
+          source: 'past',
+          completed_at: '2019-01-01T12:00:00.000Z',
+          elapsed_seconds: null,
+        },
+        error: null,
+      });
+      const { profile } = expectApprovalSideEffects(9, ['b1']);
+
+      const result = await service.markPastHike(USER, {
+        trail_id: TRAIL_ID,
+        year: 2019,
+      });
+      await flush();
+
+      expect(insert.insert).toHaveBeenCalledWith({
+        user_id: USER,
+        trail_id: TRAIL_ID,
+        status: 'approved',
+        source: 'past',
+        completed_at: '2019-01-01T12:00:00.000Z',
+        elapsed_seconds: null,
+      });
+      expect(profile.update).toHaveBeenCalledWith({
+        total_trails_completed: 9,
+      });
+      expect(result).toMatchObject({
+        id: 'comp-p',
+        user_id: USER,
+        trail_id: TRAIL_ID,
+        status: 'approved',
+        source: 'past',
+        completed_at: '2019-01-01T12:00:00.000Z',
+        new_badge_ids: ['b1'],
+        already_existed: false,
+      });
+      // the badge notification goes to the user, nothing goes to followers
+      expect(mockNotifications.sendToUser).toHaveBeenCalledTimes(1);
+      expect(mockNotifications.sendToUser).toHaveBeenCalledWith(
+        USER,
+        'Badge Earned!',
+        expect.any(String),
+        { badgeIds: ['b1'] },
+        'badge_earned',
+      );
+    });
+
+    it.each([
+      ['does not exist', null],
+      ['is not published', { id: TRAIL_ID, is_published: false }],
+    ])('answers 404 when the trail %s', async (_label, trail) => {
+      onTable('trails', { data: trail, error: null });
+
+      await expect(
+        service.markPastHike(USER, { trail_id: TRAIL_ID, year: 2019 }),
+      ).rejects.toThrow(NotFoundException);
+      expect(mockAdmin.from).toHaveBeenCalledTimes(1);
+    });
+
+    it.each(['hike', 'photo', 'past'])(
+      'returns an existing approved %s completion unchanged',
+      async (source) => {
+        const existing = {
+          id: 'comp-0',
+          user_id: USER,
+          trail_id: TRAIL_ID,
+          status: 'approved',
+          source,
+          completed_at: '2026-06-01T10:00:00.000Z',
+        };
+        onTable('trails', { data: published, error: null });
+        onTable('trail_completions', { data: existing, error: null });
+
+        const result = await service.markPastHike(USER, {
+          trail_id: TRAIL_ID,
+          year: 2015,
+        });
+
+        expect(result).toEqual({
+          ...existing,
+          new_badge_ids: [],
+          already_existed: true,
+        });
+        expect(
+          mockAdmin.from.mock.calls.filter(([t]) => t === 'trail_completions'),
+        ).toHaveLength(1);
+        expect(mockAdmin.rpc).not.toHaveBeenCalled();
+      },
+    );
+
+    it('answers 409 while a recorded hike on the trail waits for review', async () => {
+      onTable('trails', { data: published, error: null });
+      onTable('trail_completions', {
+        data: { id: 'comp-0', user_id: USER, status: 'pending' },
+        error: null,
+      });
+
+      const error = await service
+        .markPastHike(USER, { trail_id: TRAIL_ID, year: 2019 })
+        .catch((e: unknown) => e);
+
+      expect(error).toBeInstanceOf(ConflictException);
+      expect((error as Error).message).toBe(
+        'Your hike on this trail is waiting for review.',
+      );
+    });
+
+    it('turns a rejected completion into the past completion', async () => {
+      onTable('trails', { data: published, error: null });
+      onTable('trail_completions', {
+        data: {
+          id: 'comp-0',
+          user_id: USER,
+          status: 'rejected',
+          source: 'photo',
+          proof_photo_url: 'https://example.test/rejected.jpg',
+        },
+        error: null,
+      });
+      const update = onTable('trail_completions', {
+        data: {
+          id: 'comp-0',
+          user_id: USER,
+          status: 'approved',
+          source: 'past',
+          completed_at: '2021-01-01T12:00:00.000Z',
+        },
+        error: null,
+      });
+      expectApprovalSideEffects(3);
+
+      const result = await service.markPastHike(USER, {
+        trail_id: TRAIL_ID,
+        year: 2021,
+      });
+
+      expect(update.update).toHaveBeenCalledWith({
+        status: 'approved',
+        source: 'past',
+        completed_at: '2021-01-01T12:00:00.000Z',
+        elapsed_seconds: null,
+        reviewer_note: null,
+        proof_photo_url: null,
+        photo_lat: null,
+        photo_lng: null,
+        pending_hike_id: null,
+      });
+      expect(update.eq).toHaveBeenCalledWith('status', 'rejected');
+      expect(result).toMatchObject({
+        id: 'comp-0',
+        status: 'approved',
+        source: 'past',
+        already_existed: false,
+      });
+    });
+
+    it('handles a concurrent insert like an existing completion', async () => {
+      onTable('trails', { data: published, error: null });
+      onTable('trail_completions', { data: null, error: null });
+      onTable('trail_completions', {
+        data: null,
+        error: { code: '23505', message: 'duplicate key' },
+      });
+      onTable('trail_completions', {
+        data: { id: 'comp-9', status: 'approved', source: 'hike' },
+        error: null,
+      });
+
+      const result = await service.markPastHike(USER, {
+        trail_id: TRAIL_ID,
+        year: 2019,
+      });
+
+      expect(result).toMatchObject({ id: 'comp-9', already_existed: true });
+    });
+
+    it('answers 503 instead of saving a normal completion before migration 054', async () => {
+      onTable('trails', { data: published, error: null });
+      onTable('trail_completions', { data: null, error: null });
+      onTable('trail_completions', {
+        data: null,
+        error: {
+          code: 'PGRST204',
+          message: "Could not find the 'source' column",
+        },
+      });
+
+      await expect(
+        service.markPastHike(USER, { trail_id: TRAIL_ID, year: 2019 }),
+      ).rejects.toThrow(ServiceUnavailableException);
+    });
+
+    it('can be deleted by its owner, which recounts the profile', async () => {
+      onTable('trail_completions', {
+        data: { id: 'comp-p', user_id: USER, status: 'approved' },
+        error: null,
+      });
+      const del = onTable('trail_completions', { error: null });
+      onTable('trail_completions', { count: 0, error: null });
+      const profile = onTable('profiles', { error: null });
+
+      const result = await service.deleteCompletion(USER, 'comp-p');
+
+      expect(result).toEqual({ deleted: true });
+      expect(del.delete).toHaveBeenCalled();
+      expect(del.eq).toHaveBeenCalledWith('id', 'comp-p');
+      expect(profile.update).toHaveBeenCalledWith({
+        total_trails_completed: 0,
+      });
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // recordHike on a trail marked as a past hike
+  // -------------------------------------------------------------------------
+  describe('recordHike after a past hike', () => {
+    const past = {
+      id: 'comp-p',
+      user_id: USER,
+      trail_id: TRAIL_ID,
+      status: 'approved',
+      source: 'past',
+      completed_at: '2019-01-01T12:00:00.000Z',
+      elapsed_seconds: null,
+      pending_hike_id: null,
+    };
+
+    it('turns the past completion into a recorded one when the hike verifies', async () => {
+      onTable('trails', { data: TRAIL, error: null });
+      onTable('trail_completions', { data: past, error: null });
+      const upgrade = onTable('trail_completions', {
+        data: { ...past, source: 'hike', elapsed_seconds: 3600 },
+        error: null,
+      });
+      expectApprovalSideEffects(5, []);
+      const hikes = onTable('hikes', { data: { id: 'hike-1' }, error: null });
+
+      const result = await service.recordHike(
+        USER,
+        dto({ track: track(), elapsed_seconds: 3600 }),
+      );
+
+      expect(upgrade.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          source: 'hike',
+          elapsed_seconds: 3600,
+          reviewer_note: null,
+          pending_hike_id: null,
+        }),
+      );
+      expect(upgrade.eq).toHaveBeenCalledWith('source', 'past');
+      expect(upgrade.eq).toHaveBeenCalledWith('status', 'approved');
+      expect(mockAdmin.rpc).toHaveBeenCalledWith('check_and_award_badges', {
+        p_user_id: USER,
+      });
+      expect(hikes.insert).toHaveBeenCalledWith(
+        expect.objectContaining({ completion_id: 'comp-p', verified: true }),
+      );
+      expect(result).toMatchObject({
+        id: 'comp-p',
+        status: 'approved',
+        source: 'hike',
+        verified: true,
+        already_existed: false,
+      });
+    });
+
+    it('keeps the past completion approved and queues an unverified hike for review', async () => {
+      onTable('trails', { data: TRAIL, error: null });
+      onTable('trail_completions', { data: past, error: null });
+      const hikes = onTable('hikes', { data: { id: 'hike-2' }, error: null });
+      const link = onTable('trail_completions', {
+        data: { ...past, pending_hike_id: 'hike-2' },
+        error: null,
+      });
+
+      const result = await service.recordHike(
+        USER,
+        dto({ track: track(0.3), elapsed_seconds: 3600 }),
+      );
+
+      expect(hikes.insert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          completion_id: 'comp-p',
+          verified: false,
+          reason: 'low_coverage',
+        }),
+      );
+      expect(link.update).toHaveBeenCalledWith({ pending_hike_id: 'hike-2' });
+      expect(link.eq).toHaveBeenCalledWith('source', 'past');
+      expect(result).toMatchObject({
+        id: 'comp-p',
+        status: 'approved',
+        source: 'past',
+        pending_hike_id: 'hike-2',
+        verified: true,
+        verification: { reason: 'low_coverage' },
+        new_badge_ids: [],
+        already_existed: true,
+      });
+      // nothing was downgraded, recounted or awarded
+      const updates = mockAdmin.from.mock.results
+        .map((r) => r.value as Record<string, jest.Mock>)
+        .filter((b) => b.update?.mock.calls.length);
+      expect(updates).toEqual([link]);
+      expect(mockAdmin.rpc).not.toHaveBeenCalled();
+    });
+
+    it('still answers when the hike could not be stored', async () => {
+      onTable('trails', { data: TRAIL, error: null });
+      onTable('trail_completions', { data: past, error: null });
+      onTable('hikes', { data: null, error: { message: 'insert failed' } });
+
+      const result = await service.recordHike(USER, dto());
+
+      expect(result).toMatchObject({
+        id: 'comp-p',
+        status: 'approved',
+        source: 'past',
+        already_existed: true,
+      });
+      expect(
+        mockAdmin.from.mock.calls.filter(([t]) => t === 'trail_completions'),
+      ).toHaveLength(1);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // reviewCompletion of a hike recorded on a past-marked trail
+  // -------------------------------------------------------------------------
+  describe('reviewCompletion of a pending hike on a past completion', () => {
+    const pastWithHike = {
+      id: 'comp-p',
+      user_id: USER,
+      trail_id: TRAIL_ID,
+      status: 'approved',
+      source: 'past',
+      pending_hike_id: 'hike-2',
+      trails: { name_en: 'Gergeti Trinity Church' },
+    };
+
+    it('approving turns the completion into a recorded one dated by the hike', async () => {
+      onTable('trail_completions', { data: pastWithHike, error: null });
+      const hike = onTable('hikes', {
+        data: {
+          completed_at: '2026-11-10T15:00:00.000Z',
+          elapsed_seconds: 7200,
+        },
+        error: null,
+      });
+      const update = onTable('trail_completions', {
+        data: {
+          id: 'comp-p',
+          status: 'approved',
+          source: 'hike',
+          pending_hike_id: null,
+        },
+        error: null,
+      });
+      expectApprovalSideEffects(4);
+
+      const result = await service.reviewCompletion('comp-p', 'approved');
+
+      expect(hike.eq).toHaveBeenCalledWith('id', 'hike-2');
+      expect(update.update).toHaveBeenCalledWith({
+        pending_hike_id: null,
+        source: 'hike',
+        completed_at: '2026-11-10T15:00:00.000Z',
+        elapsed_seconds: 7200,
+      });
+      expect(update.eq).toHaveBeenCalledWith('pending_hike_id', 'hike-2');
+      expect(result).toMatchObject({ source: 'hike', status: 'approved' });
+      expect(mockNotifications.sendToUser).toHaveBeenCalledWith(
+        USER,
+        'Hike approved',
+        'Your hike on Gergeti Trinity Church was approved.',
+        { completionId: 'comp-p', trailId: TRAIL_ID },
+        'completion_approved',
+      );
+    });
+
+    it('rejecting only unlinks the hike and keeps the past completion', async () => {
+      onTable('trail_completions', { data: pastWithHike, error: null });
+      const update = onTable('trail_completions', {
+        data: { id: 'comp-p', status: 'approved', source: 'past' },
+        error: null,
+      });
+
+      const result = await service.reviewCompletion(
+        'comp-p',
+        'rejected',
+        'Track does not follow the trail',
+      );
+
+      expect(update.update).toHaveBeenCalledWith({
+        pending_hike_id: null,
+        reviewer_note: 'Track does not follow the trail',
+      });
+      expect(result).toMatchObject({ status: 'approved', source: 'past' });
+      expect(mockNotifications.sendToUser).not.toHaveBeenCalled();
+      expect(mockAdmin.rpc).not.toHaveBeenCalled();
+    });
+
+    it('answers 400 for a past completion without a pending hike', async () => {
+      onTable('trail_completions', {
+        data: { ...pastWithHike, pending_hike_id: null },
+        error: null,
+      });
+
+      await expect(
+        service.reviewCompletion('comp-p', 'approved'),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('answers 409 when the hike was reviewed in the meantime', async () => {
+      onTable('trail_completions', { data: pastWithHike, error: null });
+      onTable('trail_completions', { data: null, error: null });
+
+      await expect(
+        service.reviewCompletion('comp-p', 'rejected'),
+      ).rejects.toThrow(ConflictException);
+    });
   });
 
   // -------------------------------------------------------------------------
@@ -999,6 +1551,13 @@ describe('resolveCompletedAt', () => {
       expect(() => resolveCompletedAt(value, now)).toThrow(BadRequestException);
     },
   );
+});
+
+describe('pastHikeCompletedAt', () => {
+  it('dates a past hike at noon UTC on 1 January of its year', () => {
+    expect(pastHikeCompletedAt(2019)).toBe('2019-01-01T12:00:00.000Z');
+    expect(pastHikeCompletedAt(1950)).toBe('1950-01-01T12:00:00.000Z');
+  });
 });
 
 describe('trackToEwkt', () => {

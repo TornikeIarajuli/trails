@@ -4,13 +4,21 @@ import {
   NotFoundException,
   BadRequestException,
   ConflictException,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import { SupabaseService } from '../config/supabase.config';
 import { NotificationsService } from '../notifications/notifications.service';
 import { SubmitCompletionDto } from './dto/submit-completion.dto';
 import { RecordHikeDto } from './dto/record-hike.dto';
+import { MarkPastHikeDto } from './dto/mark-past-hike.dto';
 import { isMissingRelationError, throwIfError } from '../common/supabase-error';
 import { envNumber } from '../common/env';
+import {
+  CompletionSource,
+  hasSource,
+  MISSING_SOURCE_WARNING,
+  withSource,
+} from './completion-source';
 import {
   HikeThresholds,
   HikeVerificationResult,
@@ -80,7 +88,13 @@ export function trackToEwkt(
 const autoNote = (verification: HikeVerificationResult): string =>
   `auto: ${verification.reason} (${Math.round(verification.coverage * 100)}%)`;
 
+/** 1 January of the year, at noon UTC so it is the same date in every time zone. */
+export function pastHikeCompletedAt(year: number): string {
+  return new Date(Date.UTC(year, 0, 1, 12)).toISOString();
+}
+
 export type RecordedHike = CompletionRow & {
+  source: CompletionSource;
   verified: boolean;
   verification: {
     coverage: number;
@@ -91,12 +105,26 @@ export type RecordedHike = CompletionRow & {
   already_existed: boolean;
 };
 
+export type PastHikeResult = CompletionRow & {
+  source: CompletionSource;
+  new_badge_ids: string[];
+  already_existed: boolean;
+};
+
+export type ReviewedCompletion = CompletionRow & {
+  source: CompletionSource;
+  /** Present when the review approved the hike. */
+  new_badge_ids?: string[];
+};
+
 interface CompletionOutcome {
   row: CompletionRow;
-  /** The completion became approved during this request. */
+  /** The completion became approved (or a past one became a recorded one) just now. */
   approvedNow: boolean;
   /** An approved completion existed before this request; nothing was changed. */
   alreadyApproved: boolean;
+  /** An unverified hike was recorded on an approved past completion: it awaits an admin. */
+  awaitsReview?: boolean;
 }
 
 @Injectable()
@@ -105,11 +133,24 @@ export class CompletionsService {
   // Max distance in meters between proof photo GPS and trail endpoint
   private readonly GPS_PROXIMITY_THRESHOLD_M = 500;
   private missingHikesTableLogged = false;
+  private missingSourceLogged = false;
 
   constructor(
     private supabaseService: SupabaseService,
     private notificationsService: NotificationsService,
   ) {}
+
+  private noteMissingSource() {
+    if (this.missingSourceLogged) return;
+    this.missingSourceLogged = true;
+    this.logger.warn(MISSING_SOURCE_WARNING);
+  }
+
+  /** `withSource`, plus one warning while migration 054 is not applied. */
+  private sourced<T extends object>(row: T): T & { source: CompletionSource } {
+    if (!hasSource(row)) this.noteMissingSource();
+    return withSource(row);
+  }
 
   async submit(userId: string, dto: SubmitCompletionDto) {
     const completedAt = resolveCompletedAt(dto.completed_at);
@@ -158,19 +199,30 @@ export class CompletionsService {
       }
     }
 
-    const { data, error } = await admin
+    const completion = {
+      user_id: userId,
+      trail_id: dto.trail_id,
+      proof_photo_url: dto.proof_photo_url,
+      photo_lat: dto.photo_lat,
+      photo_lng: dto.photo_lng,
+      status,
+      completed_at: completedAt,
+    };
+    let { data, error } = await admin
       .from('trail_completions')
-      .insert({
-        user_id: userId,
-        trail_id: dto.trail_id,
-        proof_photo_url: dto.proof_photo_url,
-        photo_lat: dto.photo_lat,
-        photo_lng: dto.photo_lng,
-        status,
-        completed_at: completedAt,
-      })
+      .insert({ ...completion, source: 'photo' })
       .select()
       .single();
+
+    if (isMissingRelationError(error)) {
+      // Before migration 054 there is no source column
+      this.noteMissingSource();
+      ({ data, error } = await admin
+        .from('trail_completions')
+        .insert(completion)
+        .select()
+        .single());
+    }
 
     if (error?.code === '23505') {
       throw new ConflictException(
@@ -183,13 +235,146 @@ export class CompletionsService {
       status === 'approved' ? await this.onCompletionApproved(userId) : [];
 
     return {
-      ...data,
+      ...this.sourced(data as CompletionRow),
       auto_approved: status === 'approved',
       new_badge_ids: newBadgeIds,
       message:
         status === 'approved'
           ? 'GPS verified! Trail completion approved automatically.'
           : 'Proof submitted. Pending manual review (GPS too far from endpoint).',
+    };
+  }
+
+  /**
+   * Marks a trail as hiked before the user had the app (contract C7). The completion is
+   * self-reported and approved at once; it counts for badges, regions and the profile
+   * total but not for the leaderboard, and it is never shown in the feed.
+   */
+  async markPastHike(
+    userId: string,
+    dto: MarkPastHikeDto,
+  ): Promise<PastHikeResult> {
+    const admin = this.supabaseService.getAdminClient();
+
+    const { data: trail, error: trailError } = await admin
+      .from('trails')
+      .select('id, is_published')
+      .eq('id', dto.trail_id)
+      .maybeSingle();
+
+    throwIfError(trailError);
+    if (!trail || trail.is_published !== true) {
+      throw new NotFoundException('Trail not found');
+    }
+
+    const completedAt = pastHikeCompletedAt(dto.year);
+
+    const { data: existing, error: existingError } = await admin
+      .from('trail_completions')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('trail_id', dto.trail_id)
+      .maybeSingle();
+
+    throwIfError(existingError);
+    if (existing) {
+      return this.applyPastToExisting(admin, existing, completedAt);
+    }
+
+    const { data, error } = await admin
+      .from('trail_completions')
+      .insert({
+        user_id: userId,
+        trail_id: dto.trail_id,
+        status: 'approved',
+        source: 'past',
+        completed_at: completedAt,
+        elapsed_seconds: null,
+      })
+      .select()
+      .single();
+
+    if (error?.code === '23505') {
+      // A concurrent request created a completion first
+      const { data: winner, error: winnerError } = await admin
+        .from('trail_completions')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('trail_id', dto.trail_id)
+        .maybeSingle();
+      throwIfError(winnerError);
+      if (winner) return this.applyPastToExisting(admin, winner, completedAt);
+    }
+    if (isMissingRelationError(error)) {
+      // Without migration 054 the completion would count as a recorded hike
+      this.noteMissingSource();
+      throw new ServiceUnavailableException(
+        'Marking past hikes is not available yet. Please try again later.',
+      );
+    }
+    throwIfError(error);
+
+    return {
+      ...this.sourced(data as CompletionRow),
+      new_badge_ids: await this.onCompletionApproved(userId),
+      already_existed: false,
+    };
+  }
+
+  private async applyPastToExisting(
+    admin: AdminClient,
+    existing: CompletionRow,
+    completedAt: string,
+  ): Promise<PastHikeResult> {
+    if (existing.status === 'approved') {
+      return {
+        ...this.sourced(existing),
+        new_badge_ids: [],
+        already_existed: true,
+      };
+    }
+    if (existing.status === 'pending') {
+      throw new ConflictException(
+        'Your hike on this trail is waiting for review.',
+      );
+    }
+
+    // Rejected: the same row becomes the past completion. Its rejected proof is dropped.
+    const { data, error } = await admin
+      .from('trail_completions')
+      .update({
+        status: 'approved',
+        source: 'past',
+        completed_at: completedAt,
+        elapsed_seconds: null,
+        reviewer_note: null,
+        proof_photo_url: null,
+        photo_lat: null,
+        photo_lng: null,
+        pending_hike_id: null,
+      })
+      .eq('id', existing.id)
+      .eq('status', 'rejected')
+      .select()
+      .maybeSingle();
+
+    if (isMissingRelationError(error)) {
+      this.noteMissingSource();
+      throw new ServiceUnavailableException(
+        'Marking past hikes is not available yet. Please try again later.',
+      );
+    }
+    throwIfError(error);
+    if (!data) {
+      throw new ConflictException(
+        'This trail changed in the meantime. Please try again.',
+      );
+    }
+
+    return {
+      ...this.sourced(data as CompletionRow),
+      new_badge_ids: await this.onCompletionApproved(existing.user_id),
+      already_existed: false,
     };
   }
 
@@ -297,7 +482,7 @@ export class CompletionsService {
       ? await this.onCompletionApproved(userId)
       : [];
 
-    await this.storeHike(admin, {
+    const hikeId = await this.storeHike(admin, {
       user_id: userId,
       trail_id: dto.trail_id,
       completion_id: outcome.row.id ?? null,
@@ -315,9 +500,14 @@ export class CompletionsService {
       reason: verification.reason,
     });
 
+    let row = outcome.row;
+    if (outcome.awaitsReview) {
+      row = await this.markPendingHike(admin, row, hikeId);
+    }
+
     return {
-      ...outcome.row,
-      verified: outcome.row.status === 'approved',
+      ...this.sourced(row),
+      verified: row.status === 'approved',
       verification: {
         coverage: verification.coverage,
         required_coverage: thresholds.minCoverage,
@@ -406,6 +596,23 @@ export class CompletionsService {
     elapsedSeconds: number | null,
   ): Promise<CompletionOutcome> {
     if (existing.status === 'approved') {
+      // A past mark is never lost or downgraded: a verified hike makes it a recorded one,
+      // anything else leaves it approved and waits for an admin.
+      if (existing.source === 'past') {
+        return verification.verified
+          ? this.upgradePastCompletion(
+              admin,
+              existing,
+              completedAt,
+              elapsedSeconds,
+            )
+          : {
+              row: existing,
+              approvedNow: false,
+              alreadyApproved: true,
+              awaitsReview: true,
+            };
+      }
       return { row: existing, approvedNow: false, alreadyApproved: true };
     }
 
@@ -439,14 +646,80 @@ export class CompletionsService {
     return { row: data, approvedNow: true, alreadyApproved: false };
   }
 
-  /** Best effort: a missing table (migration 048 not applied yet) or error is only logged. */
+  /** A past completion becomes a normal recorded one, dated by this hike. */
+  private async upgradePastCompletion(
+    admin: AdminClient,
+    existing: CompletionRow,
+    completedAt: string,
+    elapsedSeconds: number | null,
+  ): Promise<CompletionOutcome> {
+    const { data, error } = await admin
+      .from('trail_completions')
+      .update({
+        source: 'hike',
+        completed_at: completedAt,
+        elapsed_seconds: elapsedSeconds,
+        reviewer_note: null,
+        pending_hike_id: null,
+      })
+      .eq('id', existing.id)
+      .eq('status', 'approved')
+      .eq('source', 'past')
+      .select()
+      .maybeSingle();
+
+    throwIfError(error);
+    if (!data) {
+      // Upgraded by a concurrent request or an admin in the meantime
+      return { row: existing, approvedNow: false, alreadyApproved: true };
+    }
+    return { row: data, approvedNow: true, alreadyApproved: false };
+  }
+
+  /**
+   * Links the hike just stored to the past completion so an admin can review it. Best
+   * effort: without the hike's id the hike is still in `hikes`, only not linked.
+   */
+  private async markPendingHike(
+    admin: AdminClient,
+    completion: CompletionRow,
+    hikeId: string | null,
+  ): Promise<CompletionRow> {
+    if (!hikeId) return completion;
+
+    const { data, error } = await admin
+      .from('trail_completions')
+      .update({ pending_hike_id: hikeId })
+      .eq('id', completion.id)
+      .eq('status', 'approved')
+      .eq('source', 'past')
+      .select()
+      .maybeSingle();
+
+    if (error) {
+      this.logger.warn(
+        `Could not queue a recorded hike for review: ${error.message}`,
+      );
+      return completion;
+    }
+    return data ?? completion;
+  }
+
+  /**
+   * Best effort: a missing table (migration 048 not applied yet) or error is only logged.
+   * Returns the new hike's id, or null when it was not stored.
+   */
   private async storeHike(
     admin: AdminClient,
     hike: Record<string, unknown>,
-  ): Promise<void> {
+  ): Promise<string | null> {
     try {
-      const { error } = await admin.from('hikes').insert(hike);
-      if (!error) return;
+      const { data, error } = await admin
+        .from('hikes')
+        .insert(hike)
+        .select('id')
+        .single();
+      if (!error) return (data as { id?: string } | null)?.id ?? null;
 
       if (isMissingRelationError(error)) {
         if (!this.missingHikesTableLogged) {
@@ -455,7 +728,7 @@ export class CompletionsService {
             'The hikes table does not exist yet (migration 048); recorded tracks are not stored',
           );
         }
-        return;
+        return null;
       }
       this.logger.warn(`Could not store a recorded hike: ${error.message}`);
     } catch (err) {
@@ -463,6 +736,7 @@ export class CompletionsService {
         `Could not store a recorded hike: ${err instanceof Error ? err.message : String(err)}`,
       );
     }
+    return null;
   }
 
   /** Keeps the profile counter and badges in step once a completion is approved. */
@@ -597,50 +871,65 @@ export class CompletionsService {
       .order('completed_at', { ascending: false });
 
     throwIfError(error);
-    return data;
+    return ((data ?? []) as CompletionRow[]).map((row) => this.sourced(row));
   }
 
   /** Public list: no proof photos, photo coordinates or reviewer notes. */
   async getTrailCompletions(trailId: string) {
     const admin = this.supabaseService.getAdminClient();
-
-    const { data, error } = await admin
-      .from('trail_completions')
-      .select(
-        `
+    const query = (withSourceColumn: boolean) =>
+      admin
+        .from('trail_completions')
+        .select(
+          `
         id,
         user_id,
         trail_id,
         completed_at,
-        elapsed_seconds,
+        elapsed_seconds,${withSourceColumn ? '\n        source,' : ''}
         profiles:user_id (id, username, avatar_url)
       `,
-      )
-      .eq('trail_id', trailId)
-      .eq('status', 'approved')
-      .order('completed_at', { ascending: false })
-      .limit(PUBLIC_COMPLETIONS_LIMIT);
+        )
+        .eq('trail_id', trailId)
+        .eq('status', 'approved')
+        .order('completed_at', { ascending: false })
+        .limit(PUBLIC_COMPLETIONS_LIMIT);
+
+    let { data, error } = await query(true);
+    if (isMissingRelationError(error)) {
+      this.noteMissingSource();
+      ({ data, error } = await query(false));
+    }
 
     throwIfError(error);
-    return data ?? [];
+    return ((data ?? []) as CompletionRow[]).map((row) => this.sourced(row));
   }
 
   async reviewCompletion(
     completionId: string,
     status: 'approved' | 'rejected',
     reviewerNote?: string,
-  ) {
+  ): Promise<ReviewedCompletion> {
     const admin = this.supabaseService.getAdminClient();
 
     const { data: completion, error: fetchError } = await admin
       .from('trail_completions')
-      .select('id, user_id, trail_id, status, trails:trail_id (name_en)')
+      .select('*, trails:trail_id (name_en)')
       .eq('id', completionId)
       .maybeSingle();
 
     throwIfError(fetchError);
     if (!completion) {
       throw new NotFoundException('Completion not found');
+    }
+
+    // A hike recorded on a past-marked trail that did not verify automatically
+    if (
+      completion.status === 'approved' &&
+      completion.source === 'past' &&
+      completion.pending_hike_id
+    ) {
+      return this.reviewPendingHike(admin, completion, status, reviewerNote);
     }
 
     if (completion.status !== 'pending') {
@@ -663,8 +952,68 @@ export class CompletionsService {
       throw new ConflictException('Completion already reviewed');
     }
 
-    if (status !== 'approved') return data;
+    if (status !== 'approved') return this.sourced(data as CompletionRow);
 
+    return this.afterReviewApproval(completion, data);
+  }
+
+  /**
+   * Approving the pending hike turns the past completion into a normal one dated by that
+   * hike; rejecting it only unlinks the hike. Either way the trail stays done.
+   */
+  private async reviewPendingHike(
+    admin: AdminClient,
+    completion: CompletionRow,
+    status: 'approved' | 'rejected',
+    reviewerNote?: string,
+  ): Promise<ReviewedCompletion> {
+    const note =
+      reviewerNote !== undefined ? { reviewer_note: reviewerNote } : {};
+    let update: Record<string, unknown> = { pending_hike_id: null, ...note };
+
+    if (status === 'approved') {
+      const { data: hike, error: hikeError } = await admin
+        .from('hikes')
+        .select('completed_at, elapsed_seconds')
+        .eq('id', completion.pending_hike_id)
+        .maybeSingle();
+      throwIfError(hikeError);
+
+      update = {
+        ...update,
+        source: 'hike',
+        ...(hike
+          ? {
+              completed_at: hike.completed_at,
+              elapsed_seconds: hike.elapsed_seconds,
+            }
+          : {}),
+      };
+    }
+
+    const { data, error } = await admin
+      .from('trail_completions')
+      .update(update)
+      .eq('id', completion.id)
+      .eq('source', 'past')
+      .eq('pending_hike_id', completion.pending_hike_id)
+      .select()
+      .maybeSingle();
+
+    throwIfError(error);
+    if (!data) {
+      throw new ConflictException('Completion already reviewed');
+    }
+
+    if (status !== 'approved') return this.sourced(data as CompletionRow);
+    return this.afterReviewApproval(completion, data);
+  }
+
+  /** Counters, badges and the "approved" push after an admin approved a hike. */
+  private async afterReviewApproval(
+    completion: CompletionRow,
+    updated: CompletionRow,
+  ): Promise<ReviewedCompletion> {
     const newBadgeIds = await this.onCompletionApproved(completion.user_id);
 
     const trailName = (completion.trails as { name_en?: string } | null)
@@ -675,11 +1024,11 @@ export class CompletionsService {
       trailName
         ? `Your hike on ${trailName} was approved.`
         : 'Your hike was approved.',
-      { completionId, trailId: completion.trail_id },
+      { completionId: completion.id, trailId: completion.trail_id },
       'completion_approved',
     );
 
-    return { ...data, new_badge_ids: newBadgeIds };
+    return { ...this.sourced(updated), new_badge_ids: newBadgeIds };
   }
 
   async markHikeActive(userId: string, trailId: string) {

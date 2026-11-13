@@ -241,26 +241,83 @@ describe('UsersService', () => {
   // getLeaderboard
   // -------------------------------------------------------------------------
   describe('getLeaderboard', () => {
-    it('returns ranked users', async () => {
-      const users = [
-        { id: 'u1', username: 'first', total_trails_completed: 10 },
-        { id: 'u2', username: 'second', total_trails_completed: 5 },
-      ];
+    const leaderChain = (result: object) => {
+      const c: Record<string, jest.Mock> = {};
+      c.select = jest.fn().mockReturnValue(c);
+      c.gt = jest.fn().mockReturnValue(c);
+      c.order = jest.fn().mockReturnValue(c);
+      c.limit = jest.fn().mockResolvedValue(result);
+      return c;
+    };
 
-      const leaderChain: Record<string, jest.Mock> = {};
-      leaderChain.select = jest.fn().mockReturnValue(leaderChain);
-      leaderChain.gt = jest.fn().mockReturnValue(leaderChain);
-      leaderChain.order = jest.fn().mockReturnValue(leaderChain);
-      leaderChain.limit = jest
-        .fn()
-        .mockResolvedValue({ data: users, error: null });
-      mockAdmin.from.mockReturnValue(leaderChain);
+    it('ranks by trails hiked with the app, not past hikes', async () => {
+      const c = leaderChain({
+        data: [
+          { id: 'u1', username: 'first', ranked_trails_completed: 10 },
+          { id: 'u2', username: 'second', ranked_trails_completed: 5 },
+        ],
+        error: null,
+      });
+      mockAdmin.from.mockReturnValue(c);
 
-      const result = await service.getLeaderboard(20);
+      const result = (await service.getLeaderboard(20)) as any[];
 
-      expect(result).toHaveLength(2);
-      expect((result as any[])[0].rank).toBe(1);
-      expect((result as any[])[1].rank).toBe(2);
+      expect(c.select).toHaveBeenCalledWith(
+        'id, username, full_name, avatar_url, ranked_trails_completed',
+      );
+      expect(c.gt).toHaveBeenCalledWith('ranked_trails_completed', 0);
+      expect(c.order).toHaveBeenCalledWith('ranked_trails_completed', {
+        ascending: false,
+      });
+      // total_trails_completed carries the ranked count for released app builds
+      expect(result).toEqual([
+        {
+          rank: 1,
+          id: 'u1',
+          username: 'first',
+          total_trails_completed: 10,
+          ranked_trails_completed: 10,
+        },
+        {
+          rank: 2,
+          id: 'u2',
+          username: 'second',
+          total_trails_completed: 5,
+          ranked_trails_completed: 5,
+        },
+      ]);
+    });
+
+    it('ranks by the total before migration 054', async () => {
+      const missing = leaderChain({
+        data: null,
+        error: { code: '42703', message: 'column does not exist' },
+      });
+      const fallback = leaderChain({
+        data: [{ id: 'u1', username: 'first', total_trails_completed: 7 }],
+        error: null,
+      });
+      mockAdmin.from.mockReturnValueOnce(missing).mockReturnValueOnce(fallback);
+      const warn = jest
+        .spyOn(Logger.prototype, 'warn')
+        .mockImplementation(() => undefined);
+
+      const result = (await service.getLeaderboard(20)) as any[];
+
+      expect(fallback.order).toHaveBeenCalledWith('total_trails_completed', {
+        ascending: false,
+      });
+      expect(result).toEqual([
+        {
+          rank: 1,
+          id: 'u1',
+          username: 'first',
+          total_trails_completed: 7,
+          ranked_trails_completed: 7,
+        },
+      ]);
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('054'));
+      warn.mockRestore();
     });
 
     it('uses cache on second call', async () => {
@@ -606,6 +663,71 @@ describe('UsersService', () => {
         InternalServerErrorException,
       );
       errorLog.mockRestore();
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // getPublicProfile
+  // -------------------------------------------------------------------------
+  describe('getPublicProfile', () => {
+    const profile = {
+      id: 'u1',
+      username: 'hiker',
+      total_trails_completed: 2,
+    };
+    const completionsChain = (result: object) => {
+      const c: Record<string, jest.Mock> = {};
+      c.select = jest.fn().mockReturnValue(c);
+      c.eq = jest.fn().mockReturnValue(c);
+      c.order = jest.fn().mockResolvedValue(result);
+      return c;
+    };
+
+    it('lists completions with their source, past hikes included', async () => {
+      const list = completionsChain({
+        data: [
+          { id: 'c1', source: 'hike', trails: { difficulty: 'hard' } },
+          { id: 'c2', source: 'past', trails: { difficulty: 'easy' } },
+        ],
+        error: null,
+      });
+      mockAdmin.from
+        .mockReturnValueOnce(chain({ data: profile, error: null }))
+        .mockReturnValueOnce(list);
+
+      const result = await service.getPublicProfile('u1');
+
+      expect(String(list.select.mock.calls[0][0])).toContain('source');
+      expect(result.completions.map((c) => c.source)).toEqual(['hike', 'past']);
+      expect(result.stats).toMatchObject({ total: 2, hard: 1, easy: 1 });
+      expect(result.total_trails_completed).toBe(2);
+    });
+
+    it('reads completions without source before migration 054', async () => {
+      const missing = completionsChain({
+        data: null,
+        error: { code: '42703', message: 'column source does not exist' },
+      });
+      const retry = completionsChain({
+        data: [{ id: 'c1', trails: { difficulty: 'medium' } }],
+        error: null,
+      });
+      mockAdmin.from
+        .mockReturnValueOnce(chain({ data: profile, error: null }))
+        .mockReturnValueOnce(missing)
+        .mockReturnValueOnce(retry);
+      const warn = jest
+        .spyOn(Logger.prototype, 'warn')
+        .mockImplementation(() => undefined);
+
+      const result = await service.getPublicProfile('u1');
+
+      expect(String(retry.select.mock.calls[0][0])).not.toContain('source');
+      expect(result.completions).toEqual([
+        { id: 'c1', trails: { difficulty: 'medium' }, source: 'hike' },
+      ]);
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('054'));
+      warn.mockRestore();
     });
   });
 });
