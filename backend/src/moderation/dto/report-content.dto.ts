@@ -14,6 +14,7 @@ export const REPORT_TARGET_TYPES = [
   'event',
   'user',
   'completion',
+  'trail',
 ] as const;
 
 export const REPORT_REASONS = [
@@ -22,6 +23,10 @@ export const REPORT_REASONS = [
   'harassment',
   'dangerous',
   'other',
+  // About a trail itself (target_type 'trail'), migration 052
+  'wrong_route',
+  'path_missing',
+  'wrong_info',
 ] as const;
 
 export class ReportContentDto {

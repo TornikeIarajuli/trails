@@ -87,6 +87,25 @@ describe('ModerationService', () => {
       });
     });
 
+    it('stores a report about a trail itself', async () => {
+      const insert = onTable('content_reports', { error: null });
+
+      await expect(
+        service.report(ME, {
+          target_type: 'trail',
+          target_id: 'a0000000-0000-0000-0000-000000000014',
+          reason: 'wrong_route',
+          details: 'The path leaves the valley 2 km earlier',
+        }),
+      ).resolves.toEqual({ reported: true });
+      expect(insert.insert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          target_type: 'trail',
+          reason: 'wrong_route',
+        }),
+      );
+    });
+
     it('treats a repeated report as success', async () => {
       onTable('content_reports', {
         error: { code: '23505', message: 'duplicate' },
