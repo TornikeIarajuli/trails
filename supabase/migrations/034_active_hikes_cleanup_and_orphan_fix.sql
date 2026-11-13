@@ -1,3 +1,7 @@
+-- pg_cron must exist before cron.schedule() can be called. It is already enabled on the
+-- hosted project; this line makes the migration replayable on a fresh database.
+create extension if not exists pg_cron with schema pg_catalog;
+
 -- Migration 034: Active hikes auto-cleanup + orphan comment/like prevention
 
 -- ============================================
