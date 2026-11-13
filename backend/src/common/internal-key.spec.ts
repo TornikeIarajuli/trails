@@ -48,9 +48,9 @@ describe('isAuthorizedInternalCall', () => {
         env,
       ),
     ).toBe(false);
-    expect(
-      isAuthorizedInternalCall({ 'x-service-key': 'test-key' }, env),
-    ).toBe(false);
+    expect(isAuthorizedInternalCall({ 'x-service-key': 'test-key' }, env)).toBe(
+      false,
+    );
   });
 
   it('ignores x-internal-key while INTERNAL_API_KEY is not configured', () => {
@@ -82,10 +82,7 @@ describe('isAuthorizedInternalCall', () => {
 
   it('rejects repeated headers', () => {
     expect(
-      isAuthorizedInternalCall(
-        { 'x-internal-key': ['test-key', 'x'] },
-        env,
-      ),
+      isAuthorizedInternalCall({ 'x-internal-key': ['test-key', 'x'] }, env),
     ).toBe(false);
   });
 });
