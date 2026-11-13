@@ -18,6 +18,7 @@ import { UserProfile } from '../../types/user';
 import { queryKeys } from '../../utils/queryKeys';
 import { getUserTitle } from '../../utils/userTitle';
 import { getErrorMessage } from '../../utils/showError';
+import { UpdateCheckButton } from './UpdateCheckButton';
 
 // Same limits as the API
 const NAME_MAX = 100;
@@ -190,6 +191,8 @@ export function ProfileCard({ profile }: ProfileCardProps) {
           <Text style={styles.editProfileText}>Edit Profile</Text>
         </TouchableOpacity>
       )}
+      {/* TEMPORARY: manual over-the-air update check for testing */}
+      {!editing && <UpdateCheckButton />}
     </View>
   );
 }
