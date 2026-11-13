@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { getTrailDetail, saveTrail, uploadTrailPhoto, uploadCoverImage, uploadGpxRoute, getTrailRoute, deleteTrailMedia, deleteCheckpoint, addCheckpoint } from "@/lib/actions";
 import { call } from "@/lib/call";
+import { checkpointPosition } from "@/lib/geo";
 import { uploadSizeError } from "@/lib/uploads";
 import { CHECKPOINT_TYPES, DIFFICULTIES, TRAIL_STATUSES as STATUSES } from "@/lib/types";
 import type { Checkpoint, RouteGeoJSON, Trail, TrailMedia } from "@/lib/types";
@@ -20,7 +21,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Save, Trash2, Upload, Loader2, RouteIcon, Plus, X } from "lucide-react";
+import { ArrowLeft, Save, Trash2, Upload, Loader2, RouteIcon, Plus, X, ClipboardCheck } from "lucide-react";
 import Link from "next/link";
 
 const STATUS_COLORS: Record<string, string> = {
@@ -31,14 +32,6 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 const EMPTY_CP_FORM = { name_en: "", name_ka: "", type: "landmark", lat: "", lng: "", elevation_m: "", is_checkable: false };
-
-// trail_checkpoints.coordinates arrives as a GeoJSON Point ([lng, lat])
-function checkpointPosition(cp: Checkpoint): { lat: number; lng: number } | null {
-  const point: unknown = cp.coordinates?.coordinates;
-  if (!Array.isArray(point)) return null;
-  const [lng, lat] = point;
-  return typeof lat === "number" && typeof lng === "number" ? { lat, lng } : null;
-}
 
 function fileFormData(file: File): FormData {
   const formData = new FormData();
@@ -251,6 +244,11 @@ export function TrailEditor({ paramsPromise }: { paramsPromise: Promise<{ id: st
         <h2 className="text-2xl font-bold flex-1">
           {isNew ? "New Trail" : trail.name_en}
         </h2>
+        {!isNew && (
+          <Link href={`/trails/${id}/review`}>
+            <Button variant="outline"><ClipboardCheck className="h-4 w-4 mr-1" />Review</Button>
+          </Link>
+        )}
         <Button onClick={handleSave} disabled={saving}>
           <Save className="h-4 w-4 mr-1" />
           {saving ? "Saving..." : "Save"}

@@ -15,12 +15,16 @@ import {
   MessageSquare,
   CalendarDays,
   Flag,
+  ClipboardCheck,
+  Activity,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/trails", label: "Trails", icon: Mountain },
+  { href: "/trail-review", label: "Trail review", icon: ClipboardCheck },
+  { href: "/hike-quality", label: "Hike quality", icon: Activity },
   { href: "/users", label: "Users", icon: Users },
   { href: "/completions", label: "Completions", icon: Trophy },
   { href: "/reviews", label: "Reviews", icon: Star },

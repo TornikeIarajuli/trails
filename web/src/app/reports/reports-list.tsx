@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { getReports, setReportStatus } from "@/lib/actions";
 import { call } from "@/lib/call";
+import { reportReasonLabel } from "@/lib/trail-review";
 import { REPORTS_UNAVAILABLE } from "@/lib/types";
 import { usePagedList } from "@/hooks/use-paged-list";
 import { AdminPagination } from "@/components/admin-pagination";
@@ -24,6 +25,7 @@ const FILTERS = [
 // Where the reported item can be found in the panel.
 function targetHref(type: string, id: string): string | null {
   switch (type) {
+    case "trail": return `/trails/${encodeURIComponent(id)}/review`;
     case "user": return `/users/${encodeURIComponent(id)}`;
     case "photo": return "/photos";
     case "comment": return "/comments";
@@ -91,11 +93,16 @@ export function ReportsList() {
                     <TableRow key={r.id}>
                       <TableCell>
                         <Badge variant="outline">{r.target_type}</Badge>
+                        {r.target_name && href && (
+                          <div className="mt-1 text-sm font-medium">
+                            <Link href={href} className="hover:underline">{r.target_name}</Link>
+                          </div>
+                        )}
                         <div className="font-mono text-xs text-muted-foreground mt-1 break-all">
-                          {href ? <Link href={href} className="hover:underline">{r.target_id}</Link> : r.target_id}
+                          {href && !r.target_name ? <Link href={href} className="hover:underline">{r.target_id}</Link> : r.target_id}
                         </div>
                       </TableCell>
-                      <TableCell className="text-sm">{r.reason}</TableCell>
+                      <TableCell className="text-sm">{reportReasonLabel(r.reason)}</TableCell>
                       <TableCell className="max-w-xs text-sm whitespace-normal break-words">{r.details ?? "-"}</TableCell>
                       <TableCell className="text-sm">{r.reporter?.username ?? "-"}</TableCell>
                       <TableCell className="text-sm">{new Date(r.created_at).toLocaleDateString()}</TableCell>

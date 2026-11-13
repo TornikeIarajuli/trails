@@ -213,6 +213,35 @@ export interface ReportRow {
   status: string;
   created_at: string;
   reporter: { username: string } | null;
+  target_name?: string | null; // the trail's name, for target_type 'trail'
+}
+
+// Trail review state and hike quality come from migrations 051 and 052.
+export const REVIEW_UNAVAILABLE = "Trail review needs database migrations 051 and 052 to be applied.";
+export const HIKE_QUALITY_UNAVAILABLE = "The hike quality report needs database migration 052 to be applied.";
+export const REVIEW_NOTES_MAX = 2000;
+
+export interface TrailReviewData {
+  trail: {
+    id: string;
+    name_en: string;
+    name_ka: string | null;
+    region: string;
+    difficulty: string;
+    distance_km: number | null;
+    elevation_gain_m: number | null;
+    estimated_hours: number | null;
+    is_published: boolean;
+    reviewed_at: string | null;
+    review_notes: string | null;
+    review_flags: string[];
+    elevation_profile: unknown;
+  };
+  checkpoints: Checkpoint[];
+  media: TrailMedia[];
+  route: RouteGeoJSON | null;
+  reports: { id: string; reason: string; details: string | null; created_at: string; reporter: { username: string } | null }[];
+  reportsUnavailable: boolean;
 }
 
 export interface ProductListItem {

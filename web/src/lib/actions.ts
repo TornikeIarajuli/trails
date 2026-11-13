@@ -12,12 +12,17 @@ import {
   uploadSizeError,
   type ImageKind,
 } from "./uploads";
+import { buildReviewQueue, REVIEW_FILTERS, type QueueTrail, type ReviewFilter, type ReviewQueuePage } from "./trail-review";
+import { normalizeQualityRow, type HikeQualityRow } from "./hike-quality";
 import {
   CHECKPOINT_TYPES,
   DIFFICULTIES,
+  HIKE_QUALITY_UNAVAILABLE,
   PAGE_SIZE,
   REPORT_STATUSES,
   REPORTS_UNAVAILABLE,
+  REVIEW_NOTES_MAX,
+  REVIEW_UNAVAILABLE,
   TRAIL_STATUSES,
   type AnalyticsData,
   type BookmarkRow,
@@ -44,6 +49,7 @@ import {
   type TrailInput,
   type TrailListItem,
   type TrailMedia,
+  type TrailReviewData,
   type UserBadge,
   type UserCompletion,
   type UserListItem,
@@ -102,11 +108,11 @@ function paged<T>(res: PageResponse): Paged<T> {
 // default), so one request would silently drop the rest; `page` must ask for an exact count.
 async function fetchAll<T>(
   page: (from: number, to: number) => PromiseLike<PageResponse>,
-): Promise<{ rows: T[]; error: string | null }> {
+): Promise<{ rows: T[]; error: string | null; code?: string }> {
   const rows: T[] = [];
   while (rows.length < FETCH_ALL_LIMIT) {
     const { data, error, count } = await page(rows.length, rows.length + FETCH_ALL_PAGE - 1);
-    if (error) return { rows, error: fail(error).error };
+    if (error) return { rows, error: fail(error).error, code: error.code };
     if (!data?.length) return { rows, error: null };
     rows.push(...(data as T[]));
     if (count !== null && rows.length >= count) return { rows, error: null };
@@ -935,6 +941,11 @@ function isMissingTable(error: DbError): boolean {
   return error?.code === "PGRST205" || error?.code === "42P01";
 }
 
+// Unknown column: 42703 when selecting it, PGRST204 when writing it.
+function isMissingColumn(code: string | undefined): boolean {
+  return code === "42703" || code === "PGRST204";
+}
+
 export async function getReports(params: { page: number; status?: string }): Promise<Paged<ReportRow>> {
   return asAdmin(async (supabase) => {
     const [from, to] = pageBounds(params?.page);
@@ -950,7 +961,20 @@ export async function getReports(params: { page: number; status?: string }): Pro
 
     const res = await query.order("created_at", { ascending: false }).order("id").range(from, to);
     if (isMissingTable(res.error)) return fail(REPORTS_UNAVAILABLE);
-    return paged<ReportRow>(res);
+    const page = paged<ReportRow>(res);
+    if (page.error !== null) return page;
+
+    // Name the reported trails so the list can show and link them.
+    const trailIds = [...new Set(page.data.filter((r) => r.target_type === "trail" && UUID_RE.test(r.target_id)).map((r) => r.target_id))];
+    if (trailIds.length > 0) {
+      const { data: trails, error } = await supabase.from("trails").select("id, name_en").in("id", trailIds);
+      if (error) return fail(error);
+      const names = new Map((trails ?? []).map((t) => [t.id as string, t.name_en as string]));
+      page.data.forEach((r) => {
+        if (r.target_type === "trail") r.target_name = names.get(r.target_id) ?? null;
+      });
+    }
+    return page;
   });
 }
 
@@ -963,6 +987,141 @@ export async function setReportStatus(id: string, status: "dismissed" | "actione
     if (error) return fail(error);
     if (!data?.length) return fail("Report not found.");
     return done;
+  });
+}
+
+// ── Trail review ──
+export async function getReviewQueue(params: {
+  page: number;
+  filter?: string;
+  region?: string;
+}): Promise<Result<ReviewQueuePage>> {
+  return asAdmin(async (supabase) => {
+    // The catalogue is a few hundred trails, and the queue sorts by the number of flags, which
+    // PostgREST cannot order by: read them all and sort, filter and page here.
+    const { rows, error, code } = await fetchAll<Record<string, unknown>>((from, to) =>
+      supabase
+        .from("trails")
+        .select(
+          "id, name_en, name_ka, region, difficulty, distance_km, elevation_gain_m, estimated_hours, is_published, reviewed_at, review_flags, trail_media(count)",
+          { count: "exact" },
+        )
+        .order("id")
+        .range(from, to),
+    );
+    if (error) return fail(isMissingColumn(code) ? REVIEW_UNAVAILABLE : error);
+
+    const trails: QueueTrail[] = rows.map((row) => ({
+      ...(row as unknown as QueueTrail),
+      review_flags: Array.isArray(row.review_flags) ? (row.review_flags as string[]) : [],
+      photos: (row.trail_media as { count: number }[] | null)?.[0]?.count ?? 0,
+    }));
+    const filter = REVIEW_FILTERS.includes(params?.filter as ReviewFilter) ? (params.filter as ReviewFilter) : "unreviewed";
+    const region = typeof params?.region === "string" ? params.region : "";
+    return {
+      error: null,
+      ...buildReviewQueue(trails, { filter, region, page: params?.page ?? 1, pageSize: PAGE_SIZE }),
+    };
+  });
+}
+
+export async function getTrailReview(id: string): Promise<Result<{ review: TrailReviewData | null }>> {
+  return asAdmin(async (supabase) => {
+    const [trail, checkpoints, media, route, reports] = await Promise.all([
+      supabase
+        .from("trails")
+        .select(
+          "id, name_en, name_ka, region, difficulty, distance_km, elevation_gain_m, estimated_hours, is_published, reviewed_at, review_notes, review_flags, elevation_profile",
+        )
+        .eq("id", id)
+        .maybeSingle(),
+      supabase
+        .from("trail_checkpoints")
+        .select("id, name_en, name_ka, type, elevation_m, is_checkable, sort_order, coordinates")
+        .eq("trail_id", id)
+        .order("sort_order"),
+      supabase.from("trail_media").select("id, url, caption, type").eq("trail_id", id).order("sort_order").order("created_at"),
+      supabase.rpc("get_trail_route", { trail_uuid: id }),
+      supabase
+        .from("content_reports")
+        .select("id, reason, details, created_at, reporter:reporter_id(username)")
+        .eq("target_type", "trail")
+        .eq("target_id", id)
+        .eq("status", "open")
+        .order("created_at", { ascending: false }),
+    ]);
+    if (trail.error) return fail(isMissingColumn(trail.error.code) ? REVIEW_UNAVAILABLE : trail.error);
+    const failed = checkpoints.error ?? media.error ?? route.error;
+    if (failed) return fail(failed);
+    if (!trail.data) return { error: null, review: null };
+
+    const reportsUnavailable = isMissingTable(reports.error);
+    if (reports.error && !reportsUnavailable) return fail(reports.error);
+
+    const row = trail.data as TrailReviewData["trail"];
+    return {
+      error: null,
+      review: {
+        trail: { ...row, review_flags: Array.isArray(row.review_flags) ? row.review_flags : [] },
+        checkpoints: (checkpoints.data ?? []) as Checkpoint[],
+        media: (media.data ?? []) as TrailMedia[],
+        route: (route.data as RouteGeoJSON | null) ?? null,
+        reports: (reports.data ?? []) as unknown as TrailReviewData["reports"],
+        reportsUnavailable,
+      },
+    };
+  });
+}
+
+export async function setTrailReviewed(
+  id: string,
+  reviewed: boolean,
+  notes: string | null,
+): Promise<Result<{ reviewed_at: string | null }>> {
+  return asAdmin(async (supabase) => {
+    const text = typeof notes === "string" ? notes.trim() : "";
+    if (text.length > REVIEW_NOTES_MAX) return fail(`Notes can be at most ${REVIEW_NOTES_MAX} characters.`);
+
+    const { data, error } = await supabase
+      .from("trails")
+      .update({ reviewed_at: reviewed === true ? new Date().toISOString() : null, review_notes: text || null })
+      .eq("id", id)
+      .select("reviewed_at");
+    if (error) return fail(isMissingColumn(error.code) ? REVIEW_UNAVAILABLE : error);
+    if (!data?.length) return fail("Trail not found. It may have been deleted.");
+
+    await bustTrailCache(id); // the app labels unreviewed trails
+    return { error: null, reviewed_at: (data[0].reviewed_at as string | null) ?? null };
+  });
+}
+
+export async function markUnflaggedReviewed(): Promise<Result<{ marked: number }>> {
+  return asAdmin(async (supabase) => {
+    const { data, error } = await supabase
+      .from("trails")
+      .update({ reviewed_at: new Date().toISOString() })
+      .is("reviewed_at", null)
+      .eq("review_flags", "{}")
+      .select("id");
+    if (error) return fail(isMissingColumn(error.code) ? REVIEW_UNAVAILABLE : error);
+
+    // One invalidation also drops the API's cached trail lists. Busting every trail would trip
+    // the API's rate limit; cached trail pages expire on their own within 10 minutes.
+    const ids = (data ?? []).map((row) => row.id as string);
+    if (ids.length > 0) await bustTrailCache(ids[0]);
+    return { error: null, marked: ids.length };
+  });
+}
+
+// ── Hike quality ──
+export async function getHikeQuality(): Promise<Result<{ data: HikeQualityRow[] }>> {
+  return asAdmin(async (supabase) => {
+    const { data, error } = await supabase.rpc("trail_hike_quality", { p_min_hikes: 1 });
+    if (error) {
+      const missing = error.code === "PGRST202" || error.code === "42883";
+      return fail(missing ? HIKE_QUALITY_UNAVAILABLE : error);
+    }
+    return { error: null, data: ((data ?? []) as Record<string, unknown>[]).map(normalizeQualityRow) };
   });
 }
 
