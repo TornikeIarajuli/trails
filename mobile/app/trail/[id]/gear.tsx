@@ -36,8 +36,9 @@ export default function TrailGearScreen() {
   const insets = useSafeAreaInsets();
   const language = useSettingsStore((s) => s.language);
 
-  const { data: trail, isLoading, error, refetch, isRefetching } = useTrail(id);
-  const gear = useGearPlan(trail);
+  const { data: trail, isLoading, error, refetch, isRefetching, isPlaceholderData } = useTrail(id);
+  // The list stand-in lacks the elevation profile, flags and terrain the list is built from
+  const gear = useGearPlan(isPlaceholderData ? undefined : trail);
   const { data: products } = useProducts();
   const checked = useGearStore((s) => s.ticks[id]?.checked) ?? NO_TICKS;
   const toggle = useGearStore((s) => s.toggle);
@@ -55,7 +56,7 @@ export default function TrailGearScreen() {
   if (!trail || !gear) {
     return (
       <View style={[styles.container, { paddingTop: insets.top }]}>
-        {isLoading ? (
+        {isLoading || isPlaceholderData ? (
           <LoadingSpinner />
         ) : (
           <ErrorState error={error} title="Couldn't load this trail" onRetry={() => refetch()} retrying={isRefetching} showBack />

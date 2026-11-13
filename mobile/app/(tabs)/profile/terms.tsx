@@ -47,6 +47,7 @@ export default function TermsOfServiceScreen() {
 
         <Section title="5. Trail Completions & Badges" styles={styles}>
           A hike counts as a trail completion when the GPS track the app records during the hike follows enough of the trail's route. A hike that cannot be verified this way is kept as pending: it does not count towards badges or the leaderboard unless it is approved after a manual review. We reserve the right to reject or remove completions that appear fraudulent.{'\n\n'}
+          You can also mark a trail you hiked before you used the app as a past hike. Past hikes are self-reported: they show on your profile and in My Georgia and count for badges, but not for the leaderboard, and they do not appear in the activity feed. Please only mark trails you actually hiked.{'\n\n'}
           Badges and rankings are earned through legitimate use of the app. Any attempt to manipulate the system may result in account suspension and removal of badges.
         </Section>
 
