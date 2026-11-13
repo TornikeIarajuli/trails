@@ -14,6 +14,7 @@ import {
 } from "./uploads";
 import { buildReviewQueue, REVIEW_FILTERS, type QueueTrail, type ReviewFilter, type ReviewQueuePage } from "./trail-review";
 import { normalizeQualityRow, type HikeQualityRow } from "./hike-quality";
+import { GEAR_NOTES_MAX, normalizeGearTags } from "./gear";
 import {
   CHECKPOINT_TYPES,
   DIFFICULTIES,
@@ -365,7 +366,7 @@ export async function getTrailDetail(id: string): Promise<
       supabase
         .from("trails")
         .select(
-          "id, name_en, name_ka, description_en, description_ka, region, difficulty, distance_km, elevation_gain_m, estimated_hours, cover_image_url, is_published, status, status_note",
+          "id, name_en, name_ka, description_en, description_ka, region, difficulty, distance_km, elevation_gain_m, estimated_hours, cover_image_url, is_published, status, status_note, gear_notes, terrain",
         )
         .eq("id", id)
         .maybeSingle(),
@@ -417,8 +418,13 @@ export async function saveTrail(id: string | null, input: TrailInput): Promise<R
     if (distance === undefined || elevation === undefined || hours === undefined) {
       return fail("Distance, elevation gain and estimated hours must be numbers of zero or more.");
     }
+    const gearNotes = typeof input.gear_notes === "string" ? input.gear_notes.trim() : null;
+    if (gearNotes && gearNotes.length > GEAR_NOTES_MAX) {
+      return fail(`Gear notes can be at most ${GEAR_NOTES_MAX} characters.`);
+    }
 
     const row = {
+      ...("gear_notes" in input ? { gear_notes: gearNotes || null } : {}),
       name_en: name,
       name_ka: optionalText(input.name_ka),
       description_en: optionalText(input.description_en),
@@ -1130,7 +1136,7 @@ export async function getProducts(): Promise<Result<{ data: ProductListItem[] }>
   return asAdmin(async (supabase) => {
     const { data, error } = await supabase
       .from("products")
-      .select("id, name, image_url, price, shop_name, is_published, sort_order")
+      .select("id, name, image_url, price, shop_name, is_published, sort_order, gear_tags")
       .order("sort_order")
       .order("created_at", { ascending: false });
     if (error) return fail(error);
@@ -1142,7 +1148,7 @@ export async function getProductDetail(id: string): Promise<Result<{ product: Pr
   return asAdmin(async (supabase) => {
     const { data, error } = await supabase
       .from("products")
-      .select("id, name, description, image_url, price, shop_name, external_url, is_published, sort_order")
+      .select("id, name, description, image_url, price, shop_name, external_url, is_published, sort_order, gear_tags")
       .eq("id", id)
       .maybeSingle();
     if (error) return fail(error);
@@ -1169,6 +1175,7 @@ export async function saveProduct(id: string | null, input: ProductInput): Promi
       external_url: optionalText(input.external_url),
       is_published: input.is_published === true,
       sort_order: Number.isInteger(input.sort_order) ? input.sort_order : 0,
+      ...("gear_tags" in input ? { gear_tags: normalizeGearTags(input.gear_tags) } : {}),
     };
 
     const { data, error } = id

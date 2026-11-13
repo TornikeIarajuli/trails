@@ -62,10 +62,14 @@ export interface TrailInput {
   is_published: boolean;
   status: string;
   status_note: string | null;
+  /** Gear and permit notes shown on the app's "What to bring" list. Left unchanged when omitted. */
+  gear_notes?: string | null;
 }
 
 export interface Trail extends TrailInput {
   id: string;
+  /** Terrain facts from OpenStreetMap, written by the content pipeline (read-only here). */
+  terrain?: unknown;
 }
 
 export interface Checkpoint {
@@ -252,6 +256,7 @@ export interface ProductListItem {
   image_url: string | null;
   is_published: boolean;
   sort_order: number;
+  gear_tags: string[];
 }
 
 export interface ProductInput {
@@ -263,6 +268,8 @@ export interface ProductInput {
   external_url: string | null;
   is_published: boolean;
   sort_order: number;
+  /** Gear keys (lib/gear.ts) this product covers. Left unchanged when omitted. */
+  gear_tags?: string[];
 }
 
 export interface Product extends ProductInput {

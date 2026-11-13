@@ -8,6 +8,7 @@ import { call } from "@/lib/call";
 import { checkpointPosition } from "@/lib/geo";
 import { uploadSizeError } from "@/lib/uploads";
 import { CHECKPOINT_TYPES, DIFFICULTIES, TRAIL_STATUSES as STATUSES } from "@/lib/types";
+import { GEAR_NOTES_MAX, terrainSummary } from "@/lib/gear";
 import type { Checkpoint, RouteGeoJSON, Trail, TrailMedia } from "@/lib/types";
 import { AdminError } from "@/components/admin-error";
 
@@ -59,6 +60,7 @@ export function TrailEditor({ paramsPromise }: { paramsPromise: Promise<{ id: st
     is_published: false,
     status: "open",
     status_note: null,
+    gear_notes: null,
   });
   const [checkpoints, setCheckpoints] = useState<Checkpoint[]>([]);
   const [media, setMedia] = useState<TrailMedia[]>([]);
@@ -108,6 +110,10 @@ export function TrailEditor({ paramsPromise }: { paramsPromise: Promise<{ id: st
     if (!trail.name_en.trim()) { alert("The English name is required."); return; }
     if (!trail.region.trim()) { alert("The region is required."); return; }
     if (!trail.difficulty) { alert("Choose a difficulty."); return; }
+    if ((trail.gear_notes ?? "").trim().length > GEAR_NOTES_MAX) {
+      alert(`Gear notes can be at most ${GEAR_NOTES_MAX} characters.`);
+      return;
+    }
 
     setSaving(true);
     const res = await call(saveTrail(isNew ? null : id, {
@@ -124,6 +130,7 @@ export function TrailEditor({ paramsPromise }: { paramsPromise: Promise<{ id: st
       is_published: trail.is_published,
       status: trail.status,
       status_note: trail.status_note || null,
+      gear_notes: trail.gear_notes?.trim() || null,
     }));
     setSaving(false);
 
@@ -348,6 +355,28 @@ export function TrailEditor({ paramsPromise }: { paramsPromise: Promise<{ id: st
                 <Textarea rows={2} value={trail.status_note ?? ""}
                   onChange={(e) => update("status_note", e.target.value || null)}
                   placeholder="e.g. Trail closed due to storm damage, reopening June 2025" />
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Gear */}
+        <Card>
+          <CardHeader><CardTitle>Gear &amp; Permits</CardTitle></CardHeader>
+          <CardContent className="grid gap-4">
+            <div>
+              <Label>Notes for the &ldquo;What to bring&rdquo; list (shown to hikers)</Label>
+              <Textarea rows={4} value={trail.gear_notes ?? ""}
+                onChange={(e) => update("gear_notes", e.target.value || null)}
+                placeholder="e.g. Carry your passport: border police check documents near the pass. Two river crossings after rain, so bring sandals." />
+              <p className={`text-xs mt-1 ${(trail.gear_notes ?? "").length > GEAR_NOTES_MAX ? "text-destructive" : "text-muted-foreground"}`}>
+                {(trail.gear_notes ?? "").length}/{GEAR_NOTES_MAX}. The app builds the rest of the list itself from distance, climb, altitude, season, forecast and terrain.
+              </p>
+            </div>
+            {!isNew && (
+              <div>
+                <Label className="text-xs text-muted-foreground">Terrain (from OpenStreetMap, used for the list)</Label>
+                <p className="text-sm mt-1">{terrainSummary(trail.terrain) ?? "Not measured yet."}</p>
               </div>
             )}
           </CardContent>

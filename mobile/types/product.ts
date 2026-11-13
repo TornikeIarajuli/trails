@@ -8,4 +8,6 @@ export interface Product {
   external_url: string | null;
   sort_order: number;
   created_at: string;
+  /** Gear keys (utils/gearCatalog) this product covers; absent from an older API. */
+  gear_tags?: string[];
 }

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { getProductDetail, saveProduct } from "@/lib/actions";
 import { call } from "@/lib/call";
 import type { Product as SavedProduct } from "@/lib/types";
+import { GEAR_CATEGORIES } from "@/lib/gear";
 import { AdminError } from "@/components/admin-error";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,6 +33,7 @@ export function ProductEditor({ paramsPromise }: { paramsPromise: Promise<{ id: 
     external_url: null,
     is_published: false,
     sort_order: 0,
+    gear_tags: [],
   });
   const [loading, setLoading] = useState(!isNew);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -58,6 +60,13 @@ export function ProductEditor({ paramsPromise }: { paramsPromise: Promise<{ id: 
     setProduct((prev) => ({ ...prev, [key]: value }));
   }
 
+  function toggleTag(key: string) {
+    setProduct((prev) => {
+      const tags = prev.gear_tags ?? [];
+      return { ...prev, gear_tags: tags.includes(key) ? tags.filter((t) => t !== key) : [...tags, key] };
+    });
+  }
+
   async function handleSave() {
     if (!product.name.trim()) {
       alert("The product name is required.");
@@ -79,6 +88,7 @@ export function ProductEditor({ paramsPromise }: { paramsPromise: Promise<{ id: 
       external_url: product.external_url || null,
       is_published: product.is_published,
       sort_order: product.sort_order,
+      gear_tags: product.gear_tags ?? [],
     }));
     setSaving(false);
 
@@ -187,6 +197,39 @@ export function ProductEditor({ paramsPromise }: { paramsPromise: Promise<{ id: 
                 className="rounded-lg max-h-48 object-cover"
               />
             )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader><CardTitle>Gear Tags</CardTitle></CardHeader>
+          <CardContent className="grid gap-4">
+            <p className="text-sm text-muted-foreground">
+              Tick what this product is. The app links it from the matching item on each trail&rsquo;s
+              &ldquo;What to bring&rdquo; list and uses it for the shop&rsquo;s category filters.
+            </p>
+            {GEAR_CATEGORIES.map((category) => (
+              <div key={category.key}>
+                <Label>{category.label}</Label>
+                <div className="flex flex-wrap gap-2 mt-1">
+                  {category.items.map((item) => {
+                    const on = (product.gear_tags ?? []).includes(item.key);
+                    return (
+                      <button
+                        key={item.key}
+                        type="button"
+                        aria-pressed={on}
+                        onClick={() => toggleTag(item.key)}
+                        className={`px-3 py-1.5 rounded text-sm font-medium border transition-colors ${
+                          on ? "bg-primary text-primary-foreground border-primary" : "bg-muted border-border hover:bg-muted/80"
+                        }`}
+                      >
+                        {item.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
           </CardContent>
         </Card>
 

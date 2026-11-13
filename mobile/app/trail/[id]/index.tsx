@@ -43,6 +43,9 @@ import { analytics } from '../../../utils/analytics';
 import { localName } from '../../../utils/i18n';
 import { isRouteUnverified, UNVERIFIED_ROUTE_MESSAGE } from '../../../utils/trailReview';
 import { TrailProblemModal } from '../../../components/trail/TrailProblemModal';
+import { GearCard } from '../../../components/trail/GearCard';
+import { useGearPlan } from '../../../hooks/useGear';
+import { useGearStore, localDay, shouldShowPrehikeCheck } from '../../../store/gearStore';
 
 export default function TrailDetailScreen() {
   const Colors = useColors();
@@ -73,6 +76,7 @@ export default function TrailDetailScreen() {
   // The trail payload only carries its three newest reports; the banner needs all of them
   const { data: allConditions, refetch: refetchConditions } = useTrailConditions(id);
   const { data: activeCount, refetch: refetchCount } = useActiveHikerCount(id);
+  const gear = useGearPlan(trail);
 
   const [refreshing, setRefreshing] = useState(false);
   const onRefresh = useCallback(async () => {
@@ -133,6 +137,21 @@ export default function TrailDetailScreen() {
 
   const openHike = () => router.push(`/trail/${id}/hike`);
 
+  // Once a day, a new hike first shows the packing list while something essential is unticked.
+  const openHikeAfterGearCheck = () => {
+    const { ticks, prehikeShownOn } = useGearStore.getState();
+    const showCheck =
+      !!gear &&
+      shouldShowPrehikeCheck({
+        essentials: gear.plan.items.filter((i) => i.level === 'essential').map((i) => i.key),
+        checked: [...(ticks[id]?.checked ?? []), ...(isSavedOffline ? ['offline_map'] : [])],
+        shownOn: prehikeShownOn[id],
+        today: localDay(),
+      });
+    if (showCheck) router.push(`/trail/${id}/gear?start=1`);
+    else openHike();
+  };
+
   const routeUnverified = isRouteUnverified(trail);
 
   const openProblemReport = () => {
@@ -180,12 +199,13 @@ export default function TrailDetailScreen() {
       const note = trail.status_note?.trim() || 'This trail is currently marked as closed.';
       Alert.alert('Trail closed', `${note}\n\nStart a hike here anyway?`, [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Start anyway', style: 'destructive', onPress: openHike },
+        { text: 'Start anyway', style: 'destructive', onPress: openHikeAfterGearCheck },
       ]);
       return;
     }
 
-    openHike();
+    if (resumingThisHike) openHike();
+    else openHikeAfterGearCheck();
   };
 
   return (
@@ -324,6 +344,15 @@ export default function TrailDetailScreen() {
             distanceKm={trail.distance_km}
             elevationGainM={trail.elevation_gain_m}
           />
+
+          {gear && (
+            <GearCard
+              trailId={id}
+              plan={gear.plan}
+              gearNotes={trail.gear_notes}
+              onPress={() => router.push(`/trail/${id}/gear`)}
+            />
+          )}
 
           {/* Conditions Banner */}
           {conditions.length > 0 && (

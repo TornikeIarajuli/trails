@@ -5,6 +5,7 @@ import Link from "next/link";
 import { getProducts, deleteProduct as deleteProductAction } from "@/lib/actions";
 import { call } from "@/lib/call";
 import type { ProductListItem } from "@/lib/types";
+import { GEAR_LABELS } from "@/lib/gear";
 import { AdminError } from "@/components/admin-error";
 import {
   Table,
@@ -87,6 +88,7 @@ export function ShopList() {
                 <TableHead>Product</TableHead>
                 <TableHead>Price</TableHead>
                 <TableHead>Shop</TableHead>
+                <TableHead>Gear</TableHead>
                 <TableHead>Order</TableHead>
                 <TableHead>Published</TableHead>
                 <TableHead className="w-24">Actions</TableHead>
@@ -114,6 +116,9 @@ export function ShopList() {
                   </TableCell>
                   <TableCell>{product.price != null ? `${product.price} ₾` : "-"}</TableCell>
                   <TableCell>{product.shop_name ?? "-"}</TableCell>
+                  <TableCell className="text-xs text-muted-foreground">
+                    {(product.gear_tags ?? []).map((t) => GEAR_LABELS[t] ?? t).join(", ") || "-"}
+                  </TableCell>
                   <TableCell>{product.sort_order}</TableCell>
                   <TableCell>
                     <Badge variant={product.is_published ? "default" : "secondary"}>
@@ -140,7 +145,7 @@ export function ShopList() {
               ))}
               {filtered.length === 0 && !loading && (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                  <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
                     No products found.
                   </TableCell>
                 </TableRow>

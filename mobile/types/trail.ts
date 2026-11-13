@@ -30,6 +30,29 @@ export interface Trail {
   reviewed_at?: string | null;
   /** The content pipeline's reasons to check this trail first. */
   review_flags?: string[];
+  /** The team's gear and permit notes for this trail (trail detail only). */
+  gear_notes?: string | null;
+  /** Terrain facts from OpenStreetMap along the route (trail detail only); null until measured. */
+  terrain?: TrailTerrain | null;
+}
+
+/** SAC hiking scale, T1 (easy path) to T6 (difficult alpine route). */
+export type SacGrade = 'T1' | 'T2' | 'T3' | 'T4' | 'T5' | 'T6';
+
+export interface TrailTerrain {
+  source: 'osm';
+  fetched_at: string;
+  /** Share of the route (0–1) that matched a mapped path or road. */
+  coverage: number;
+  max_sac: SacGrade | null;
+  sac_km: Partial<Record<SacGrade, number>>;
+  surfaces_km: Partial<Record<'paved' | 'gravel' | 'ground' | 'grass' | 'rock' | 'other', number>>;
+  /** River crossings without a bridge. */
+  fords: number;
+  /** Mapped springs and taps near the route (not checked to be running). */
+  water_points: number;
+  /** Huts and shelters near the route. */
+  shelters: number;
 }
 
 export interface TrailMedia {

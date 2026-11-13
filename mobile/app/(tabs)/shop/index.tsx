@@ -1,7 +1,8 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   View,
   FlatList,
+  ScrollView,
   Text,
   TouchableOpacity,
   StyleSheet,
@@ -13,13 +14,63 @@ import { useColors, ColorPalette } from '../../../constants/colors';
 import { useProducts } from '../../../hooks/useShop';
 import { Product } from '../../../types/product';
 import { formatPrice } from '../../../utils/formatters';
+import { availableCategories, filterProducts, shopNames } from '../../../utils/shopFilters';
+import { haptics } from '../../../utils/haptics';
 import { ErrorState } from '../../../components/ui/ErrorState';
 import { LoadingSpinner } from '../../../components/ui/LoadingSpinner';
+
+const NO_PRODUCTS: Product[] = [];
 
 export default function ShopScreen() {
   const Colors = useColors();
   const styles = useMemo(() => createStyles(Colors), [Colors]);
   const { data: products, isLoading, isError, error, refetch, isRefetching } = useProducts();
+  const all = products ?? NO_PRODUCTS;
+  const [category, setCategory] = useState<string | null>(null);
+  const [shop, setShop] = useState<string | null>(null);
+
+  const shops = useMemo(() => shopNames(all), [all]);
+  const categories = useMemo(() => availableCategories(all, shop), [all, shop]);
+  // A category can disappear when a shop is picked that doesn't sell it
+  const activeCategory = categories.some((c) => c.key === category) ? category : null;
+  const visible = useMemo(() => filterProducts(all, { category: activeCategory, shop }), [all, activeCategory, shop]);
+
+  const chip = (key: string, label: string, active: boolean, onPress: () => void) => (
+    <TouchableOpacity
+      key={key}
+      style={[styles.chip, active && styles.chipActive]}
+      onPress={() => {
+        haptics.select();
+        onPress();
+      }}
+      accessibilityRole="button"
+      accessibilityState={{ selected: active }}
+    >
+      <Text style={[styles.chipText, active && styles.chipTextActive]}>{label}</Text>
+    </TouchableOpacity>
+  );
+
+  const filters = (
+    <View style={styles.filters}>
+      {categories.length > 0 && (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
+          {chip('all', 'All gear', !activeCategory, () => setCategory(null))}
+          {categories.map((c) =>
+            chip(c.key, c.label, activeCategory === c.key, () => setCategory(activeCategory === c.key ? null : c.key)),
+          )}
+        </ScrollView>
+      )}
+      {shops.length > 1 && (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
+          {chip('all-shops', 'All shops', !shop, () => setShop(null))}
+          {shops.map((name) => chip(`shop-${name}`, name, shop === name, () => setShop(shop === name ? null : name)))}
+        </ScrollView>
+      )}
+      <Text style={styles.count}>
+        {visible.length} {visible.length === 1 ? 'product' : 'products'} from Georgian shops
+      </Text>
+    </View>
+  );
 
   const renderProduct = ({ item }: { item: Product }) => {
     const price = formatPrice(item.price);
@@ -71,12 +122,13 @@ export default function ShopScreen() {
   return (
     <View style={styles.container}>
       <FlatList
-        data={products ?? []}
+        data={visible}
         renderItem={renderProduct}
         keyExtractor={(item) => item.id}
         numColumns={2}
         columnWrapperStyle={styles.row}
         contentContainerStyle={styles.list}
+        ListHeaderComponent={all.length > 0 ? filters : null}
         removeClippedSubviews
         maxToRenderPerBatch={8}
         windowSize={5}
@@ -90,7 +142,19 @@ export default function ShopScreen() {
         }
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>No products available</Text>
+            {all.length > 0 ? (
+              <TouchableOpacity
+                onPress={() => {
+                  setCategory(null);
+                  setShop(null);
+                }}
+                accessibilityRole="button"
+              >
+                <Text style={styles.emptyText}>Nothing here yet. Show all products</Text>
+              </TouchableOpacity>
+            ) : (
+              <Text style={styles.emptyText}>No products available</Text>
+            )}
           </View>
         }
       />
@@ -106,6 +170,39 @@ const createStyles = (Colors: ColorPalette) =>
     },
     list: {
       padding: 12,
+    },
+    filters: {
+      gap: 8,
+      marginBottom: 12,
+    },
+    chipRow: {
+      gap: 8,
+      paddingRight: 12,
+    },
+    chip: {
+      paddingHorizontal: 14,
+      paddingVertical: 7,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: Colors.border,
+      backgroundColor: Colors.surface,
+    },
+    chipActive: {
+      backgroundColor: Colors.primary,
+      borderColor: Colors.primary,
+    },
+    chipText: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: Colors.text,
+    },
+    chipTextActive: {
+      color: Colors.textOnPrimary,
+    },
+    count: {
+      fontSize: 12,
+      color: Colors.textSecondary,
+      marginTop: 2,
     },
     row: {
       gap: 12,
