@@ -174,6 +174,30 @@ Release in this order, so that each part finds what it depends on:
 New environment variables are optional and have safe defaults, so a release does not depend
 on setting them first.
 
+### App updates without a new build (EAS Update)
+
+The app uses `expo-updates` with a **fingerprint** runtime version (`mobile/app.json`). A build
+only accepts updates made from the same native fingerprint, so:
+
+- **JavaScript-only change** (screens, logic, text, styles): publish an over-the-air update.
+  Phones download it in the background and the app offers "Restart now" (never during a hike);
+  it is applied on the next launch in any case.
+
+  ```bash
+  cd mobile
+  npx eas-cli update --channel preview --message "Short description"     # preview APKs
+  npx eas-cli update --channel production --message "Short description"  # store builds
+  ```
+
+- **Native change** (a new native library, permissions, plugins or native settings in
+  `app.json`, an Expo SDK upgrade): the fingerprint changes and existing builds ignore the
+  update. Build and install a new binary instead (`npx eas-cli build -p android --profile preview`).
+  `npx expo-updates fingerprint:generate --platform android` shows the current fingerprint if
+  you want to compare before deciding.
+
+Builds are bound to a channel by their EAS profile (`development`, `preview`, `production` in
+`mobile/eas.json`).
+
 ## Tests and CI
 
 | Package | Commands |

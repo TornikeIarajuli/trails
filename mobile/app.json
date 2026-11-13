@@ -8,6 +8,14 @@
     "userInterfaceStyle": "light",
     "scheme": "mikiri-trails",
     "newArchEnabled": true,
+    "runtimeVersion": {
+      "policy": "fingerprint"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/7ad50ccb-dca8-474c-9958-4cdc628a0bab",
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 0
+    },
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
