@@ -26,6 +26,7 @@ import { useIsFollowing, useToggleFollow, useFollowCounts } from '../../../hooks
 import { useBlockedUserIds } from '../../../hooks/useModeration';
 import { queryKeys } from '../../../utils/queryKeys';
 import { getErrorMessage, getErrorStatus } from '../../../utils/showError';
+import { useRegionProgress } from '../../../hooks/useRegionProgress';
 
 function formatDate(dateStr: string) {
   const d = new Date(dateStr);
@@ -116,6 +117,30 @@ function FollowButton({ userId, Colors, styles }: { userId: string; Colors: Colo
           </Text>
         </>
       )}
+    </TouchableOpacity>
+  );
+}
+
+function RegionsRow({ userId, Colors, styles }: { userId: string; Colors: ColorPalette; styles: any }) {
+  const { data } = useRegionProgress(userId);
+  // Hidden while loading and on servers without region progress
+  if (!data?.totals) return null;
+  const { regions_started, regions_total } = data.totals;
+
+  return (
+    <TouchableOpacity
+      style={styles.regionsRow}
+      onPress={() => router.push({ pathname: '/trail/user/regions', params: { userId } } as any)}
+      activeOpacity={0.7}
+      accessibilityRole="button"
+      accessibilityLabel={`Regions explored: ${regions_started} of ${regions_total}`}
+    >
+      <Ionicons name="map-outline" size={18} color={Colors.primary} />
+      <Text style={styles.regionsRowLabel}>Regions explored</Text>
+      <Text style={styles.regionsRowValue}>
+        {regions_started}/{regions_total}
+      </Text>
+      <Ionicons name="chevron-forward" size={16} color={Colors.textLight} />
     </TouchableOpacity>
   );
 }
@@ -337,8 +362,10 @@ export default function PublicProfileScreen() {
           </Text>
         </View>
 
-        {/* Stats */}
-        {profile.stats && <StatsGrid stats={profile.stats} />}
+        {/* Stats (the regions summary has its own row below) */}
+        {profile.stats && <StatsGrid stats={profile.stats} regionsFor={null} />}
+
+        <RegionsRow userId={id} Colors={Colors} styles={styles} />
 
         {/* Completed Trails */}
         {completions.length > 0 && (
@@ -430,6 +457,28 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   },
   headerMenu: {
     marginRight: 16,
+  },
+  regionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginHorizontal: 16,
+    marginBottom: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    backgroundColor: Colors.surface,
+    borderRadius: 12,
+  },
+  regionsRowLabel: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: '600',
+    color: Colors.text,
+  },
+  regionsRowValue: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: Colors.primary,
   },
   blockedNotice: {
     flexDirection: 'row',

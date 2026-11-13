@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
-import { View, Text, ScrollView, StyleSheet } from 'react-native';
-import { Stack } from 'expo-router';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
+import { Stack, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors, ColorPalette } from '../../../constants/colors';
 import { useMyCompletions } from '../../../hooks/useCompletions';
@@ -133,6 +133,18 @@ export default function AnalyticsScreen() {
                 <Text style={styles.summaryLabel}>Time</Text>
               </View>
             </View>
+
+            {/* Completed trails per region */}
+            <TouchableOpacity
+              style={styles.regionLink}
+              onPress={() => router.push('/(tabs)/profile/regions' as any)}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+            >
+              <Ionicons name="map-outline" size={18} color={Colors.primary} />
+              <Text style={styles.regionLinkText}>By region</Text>
+              <Ionicons name="chevron-forward" size={16} color={Colors.textLight} />
+            </TouchableOpacity>
 
             {/* Monthly activity chart */}
             <View style={styles.section}>
@@ -272,6 +284,22 @@ const createStyles = (Colors: ColorPalette) =>
       borderRadius: 12,
       padding: 16,
       marginBottom: 12,
+    },
+    regionLink: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      backgroundColor: Colors.surface,
+      borderRadius: 12,
+      paddingVertical: 14,
+      paddingHorizontal: 16,
+      marginBottom: 12,
+    },
+    regionLinkText: {
+      flex: 1,
+      fontSize: 15,
+      fontWeight: '600',
+      color: Colors.text,
     },
     sectionTitle: {
       fontSize: 13,

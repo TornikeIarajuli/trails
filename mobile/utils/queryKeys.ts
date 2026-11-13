@@ -57,6 +57,8 @@ export const queryKeys = {
   // User profile
   profile: {
     me: () => ['profile', 'me'] as const,
+    // Under 'profile' so recording or deleting a hike (which invalidates the profile) refreshes it
+    regions: (userId?: string) => ['profile', 'regions', userId ?? 'me'] as const,
     root: () => ['profile'] as const,        // wildcard
   },
 

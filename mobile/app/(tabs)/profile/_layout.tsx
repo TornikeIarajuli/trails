@@ -33,6 +33,7 @@ export default function ProfileLayout() {
       <Stack.Screen name="terms" />
       <Stack.Screen name="credits" />
       <Stack.Screen name="blocked-users" />
+      <Stack.Screen name="regions" />
     </Stack>
   );
 }
