@@ -65,6 +65,9 @@ export default function TrailDetailScreen() {
     error,
     refetch: refetchTrail,
     isRefetching,
+    // Shown from the list the user tapped while the full trail loads: photo, name and stats
+    // only. Sections built from detail-only fields wait for the real data.
+    isPlaceholderData,
   } = useTrail(id);
   const [conditionModalVisible, setConditionModalVisible] = useState(false);
   const [problemModalVisible, setProblemModalVisible] = useState(false);
@@ -76,7 +79,7 @@ export default function TrailDetailScreen() {
   // The trail payload only carries its three newest reports; the banner needs all of them
   const { data: allConditions, refetch: refetchConditions } = useTrailConditions(id);
   const { data: activeCount, refetch: refetchCount } = useActiveHikerCount(id);
-  const gear = useGearPlan(trail);
+  const gear = useGearPlan(isPlaceholderData ? undefined : trail);
 
   const [refreshing, setRefreshing] = useState(false);
   const onRefresh = useCallback(async () => {
@@ -89,17 +92,19 @@ export default function TrailDetailScreen() {
     trailCache.isTrailSavedOffline(id),
   );
 
-  // Cache trail data when loaded + track view
+  // Cache trail data when loaded + track view (never the list stand-in: it would become the
+  // "offline copy" and lack the route, checkpoints and media)
   React.useEffect(() => {
-    if (trail) {
+    if (trail && !isPlaceholderData) {
       trailCache.setTrailDetail(id, trail);
       analytics.trailViewed(id, trail.name_en);
     }
-  }, [trail, id]);
+  }, [trail, id, isPlaceholderData]);
 
   const startPoint = trail ? parseGeoPoint(trail.start_point) : null;
 
   const toggleOfflineSave = () => {
+    if (isPlaceholderData) return;
     if (isSavedOffline) {
       trailCache.removeOfflineTrail(id);
       setIsSavedOffline(false);
@@ -393,13 +398,18 @@ export default function TrailDetailScreen() {
             <Text style={styles.description}>{description}</Text>
           )}
 
-          <TrailMap
-            route={parseGeoLineString(trail.route)}
-            startPoint={parseGeoPoint(trail.start_point) ?? undefined}
-            endPoint={parseGeoPoint(trail.end_point) ?? undefined}
-            checkpoints={checkpoints}
-            height={220}
-          />
+          {/* The map fits the route once, when it mounts, so it waits for the real route */}
+          {isPlaceholderData ? (
+            <View style={styles.mapLoading} />
+          ) : (
+            <TrailMap
+              route={parseGeoLineString(trail.route)}
+              startPoint={parseGeoPoint(trail.start_point) ?? undefined}
+              endPoint={parseGeoPoint(trail.end_point) ?? undefined}
+              checkpoints={checkpoints}
+              height={220}
+            />
+          )}
 
           <CheckpointList checkpoints={checkpoints} />
 
@@ -442,6 +452,7 @@ export default function TrailDetailScreen() {
             !isAuthenticated ? 'Log in to Start' : resumingThisHike ? 'Resume Hike' : 'Start Hike'
           }
           onPress={handleStartHike}
+          loading={isPlaceholderData && isAuthenticated && !resumingThisHike}
         />
       </View>
 
@@ -643,6 +654,12 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   staleNotice: {
     marginHorizontal: 16,
     marginTop: 12,
+  },
+  mapLoading: {
+    height: 220,
+    marginHorizontal: 16,
+    borderRadius: 12,
+    backgroundColor: Colors.borderLight,
   },
   statusBanner: {
     flexDirection: 'row',
