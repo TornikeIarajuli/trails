@@ -11,13 +11,13 @@ describe('safeEqual', () => {
 
 describe('isAuthorizedInternalCall', () => {
   const env = {
-    INTERNAL_API_KEY: 'internal-key-123',
+    INTERNAL_API_KEY: 'test-key',
     SUPABASE_SERVICE_ROLE_KEY: 'service-role-key-456',
   } as NodeJS.ProcessEnv;
 
   it('accepts x-internal-key matching INTERNAL_API_KEY', () => {
     expect(
-      isAuthorizedInternalCall({ 'x-internal-key': 'internal-key-123' }, env),
+      isAuthorizedInternalCall({ 'x-internal-key': 'test-key' }, env),
     ).toBe(true);
   });
 
@@ -49,7 +49,7 @@ describe('isAuthorizedInternalCall', () => {
       ),
     ).toBe(false);
     expect(
-      isAuthorizedInternalCall({ 'x-service-key': 'internal-key-123' }, env),
+      isAuthorizedInternalCall({ 'x-service-key': 'test-key' }, env),
     ).toBe(false);
   });
 
@@ -83,7 +83,7 @@ describe('isAuthorizedInternalCall', () => {
   it('rejects repeated headers', () => {
     expect(
       isAuthorizedInternalCall(
-        { 'x-internal-key': ['internal-key-123', 'x'] },
+        { 'x-internal-key': ['test-key', 'x'] },
         env,
       ),
     ).toBe(false);

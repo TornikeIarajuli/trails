@@ -38,12 +38,22 @@ test("treats malformed base64 as unauthorized instead of throwing", async () => 
 });
 
 test("fails closed when either variable is unset or empty", async () => {
-  for (const [user, pass] of [[undefined, undefined], ["admin", undefined], [undefined, "s3cret"], ["", ""], ["admin", ""]]) {
-    assert.equal(await checkBasicAuth(basic("admin:s3cret"), user, pass), "not_configured");
-    // The old check let these through: `undefined === undefined` for a header without a colon.
-    assert.equal(await checkBasicAuth(basic("admin"), user, pass), "not_configured");
-    assert.equal(await checkBasicAuth(basic("undefined:undefined"), user, pass), "not_configured");
-    assert.equal(await checkBasicAuth(null, user, pass), "not_configured");
+  // An `undefined` argument falls back to the environment, so run without the variables
+  // (CI sets them for the build step).
+  const saved = { user: process.env.ADMIN_USERNAME, pass: process.env.ADMIN_PASSWORD };
+  delete process.env.ADMIN_USERNAME;
+  delete process.env.ADMIN_PASSWORD;
+  try {
+    for (const [user, pass] of [[undefined, undefined], ["admin", undefined], [undefined, "s3cret"], ["", ""], ["admin", ""]]) {
+      assert.equal(await checkBasicAuth(basic("admin:s3cret"), user, pass), "not_configured");
+      // The old check let these through: `undefined === undefined` for a header without a colon.
+      assert.equal(await checkBasicAuth(basic("admin"), user, pass), "not_configured");
+      assert.equal(await checkBasicAuth(basic("undefined:undefined"), user, pass), "not_configured");
+      assert.equal(await checkBasicAuth(null, user, pass), "not_configured");
+    }
+  } finally {
+    if (saved.user !== undefined) process.env.ADMIN_USERNAME = saved.user;
+    if (saved.pass !== undefined) process.env.ADMIN_PASSWORD = saved.pass;
   }
 });
 
