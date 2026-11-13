@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { getCompletions, deleteCompletion, reviewCompletion } from "@/lib/actions";
+import { getCompletions, deleteCompletion, reviewCompletion, reviewPendingHike } from "@/lib/actions";
 import { call } from "@/lib/call";
 import { httpUrl } from "@/lib/url";
 import { usePagedList } from "@/hooks/use-paged-list";
@@ -27,6 +27,12 @@ const statusColors: Record<string, string> = {
   rejected: "bg-red-100 text-red-800",
 };
 
+const SOURCE_LABELS: Record<string, string> = {
+  hike: "Recorded",
+  photo: "Photo",
+  past: "Past hike",
+};
+
 export function CompletionsList() {
   const [page, setPage] = useState(1);
   const [status, setStatus] = useState("");
@@ -37,6 +43,16 @@ export function CompletionsList() {
     if (next === "rejected" && !confirm("Reject this completion? It will not count for the user.")) return;
     setBusyId(id);
     const res = await call(reviewCompletion(id, next));
+    setBusyId(null);
+    if (res.error !== null) alert(res.error);
+    else if (res.warning) alert(res.warning);
+    reload();
+  }
+
+  async function reviewHike(id: string, next: "approved" | "rejected") {
+    if (next === "rejected" && !confirm("Reject this recorded hike? The trail stays marked as a past hike.")) return;
+    setBusyId(id);
+    const res = await call(reviewPendingHike(id, next));
     setBusyId(null);
     if (res.error !== null) alert(res.error);
     else if (res.warning) alert(res.warning);
@@ -85,6 +101,7 @@ export function CompletionsList() {
               <TableHead>User</TableHead>
               <TableHead>Trail</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead>Source</TableHead>
               <TableHead>Duration</TableHead>
               <TableHead>Verification</TableHead>
               <TableHead>Proof</TableHead>
@@ -102,10 +119,21 @@ export function CompletionsList() {
                   <TableCell>
                     <Badge variant="secondary" className={statusColors[c.status] ?? ""}>{c.status}</Badge>
                   </TableCell>
-                  <TableCell>{formatDuration(c.elapsed_seconds)}</TableCell>
-                  <TableCell className="max-w-xs text-sm truncate" title={c.reviewer_note ?? undefined}>
-                    {c.reviewer_note ?? "-"}
+                  <TableCell className="text-sm" title={c.source === "past" ? "Self-reported: hiked before the app. Not counted on the leaderboard." : undefined}>
+                    {SOURCE_LABELS[c.source ?? "hike"] ?? c.source}
                   </TableCell>
+                  <TableCell>{formatDuration(c.elapsed_seconds)}</TableCell>
+                  {c.pending_hike_id ? (
+                    <TableCell className="max-w-xs text-sm">
+                      Recorded hike waiting: {formatDuration(c.pending_hike?.elapsed_seconds ?? null)}
+                      {c.pending_hike?.coverage != null ? `, ${Math.round(c.pending_hike.coverage * 100)}% of the route` : ""}
+                      {c.pending_hike?.reason ? ` (${c.pending_hike.reason})` : ""}
+                    </TableCell>
+                  ) : (
+                    <TableCell className="max-w-xs text-sm truncate" title={c.reviewer_note ?? undefined}>
+                      {c.reviewer_note ?? "-"}
+                    </TableCell>
+                  )}
                   <TableCell className="text-sm">
                     {proofUrl ? (
                       <a href={proofUrl} target="_blank" rel="noopener noreferrer" className="text-primary underline">
@@ -113,9 +141,22 @@ export function CompletionsList() {
                       </a>
                     ) : "-"}
                   </TableCell>
-                  <TableCell className="text-sm">{new Date(c.completed_at).toLocaleDateString()}</TableCell>
+                  <TableCell className="text-sm">
+                    {/* A past hike only has a year */}
+                    {c.source === "past" ? new Date(c.completed_at).getUTCFullYear() : new Date(c.completed_at).toLocaleDateString()}
+                  </TableCell>
                   <TableCell>
                     <div className="flex justify-end gap-1">
+                      {c.pending_hike_id && (
+                        <>
+                          <Button variant="outline" size="sm" disabled={busyId !== null} onClick={() => reviewHike(c.id, "approved")}>
+                            <Check className="h-4 w-4" /> Approve hike
+                          </Button>
+                          <Button variant="outline" size="sm" disabled={busyId !== null} onClick={() => reviewHike(c.id, "rejected")}>
+                            <X className="h-4 w-4" /> Reject
+                          </Button>
+                        </>
+                      )}
                       {c.status === "pending" && (
                         <>
                           <Button variant="outline" size="sm" disabled={busyId !== null} onClick={() => review(c.id, "approved")}>
@@ -135,7 +176,7 @@ export function CompletionsList() {
               );
             })}
             {rows.length === 0 && (
-              <EmptyRow colSpan={8}>
+              <EmptyRow colSpan={9}>
                 {status ? `No ${status} completions.` : "No completions yet."}
               </EmptyRow>
             )}

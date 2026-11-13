@@ -713,10 +713,13 @@ export async function getCompletions(params: { page: number; status?: string }):
     let query = supabase
       .from("trail_completions")
       .select(
-        "id, user_id, trail_id, status, elapsed_seconds, completed_at, reviewer_note, proof_photo_url, profiles:user_id(username), trails:trail_id(name_en)",
+        "id, user_id, trail_id, status, source, pending_hike_id, elapsed_seconds, completed_at, reviewer_note, proof_photo_url, profiles:user_id(username), trails:trail_id(name_en), pending_hike:pending_hike_id(completed_at, elapsed_seconds, coverage, reason)",
         { count: "exact" },
       );
-    if (params?.status && COMPLETION_STATUSES.includes(params.status)) {
+    if (params?.status === "pending") {
+      // Also a recorded hike waiting on a trail the user had already marked as a past hike
+      query = query.or("status.eq.pending,pending_hike_id.not.is.null");
+    } else if (params?.status && COMPLETION_STATUSES.includes(params.status)) {
       query = query.eq("status", params.status);
     }
 
@@ -760,6 +763,54 @@ export async function reviewCompletion(id: string, status: "approved" | "rejecte
     }
     await recountCompletions(supabase, userId);
     return fail(`Not approved: updating the user's trail count and badges failed (${syncError}). Try again.`);
+  });
+}
+
+/**
+ * A hike recorded on a trail the user had marked as a past hike, which did not verify by
+ * itself. The trail stays done either way; approving makes the completion a recorded one
+ * (dated by the hike, counted on the leaderboard), rejecting just drops the hike from review.
+ * Counters follow through the database trigger.
+ */
+export async function reviewPendingHike(id: string, decision: "approved" | "rejected"): Promise<Mutation> {
+  return asAdmin(async (supabase) => {
+    if (decision !== "approved" && decision !== "rejected") return fail("Unknown status.");
+
+    const { data: row, error } = await supabase
+      .from("trail_completions")
+      .select("user_id, pending_hike_id, pending_hike:pending_hike_id(completed_at, elapsed_seconds)")
+      .eq("id", id)
+      .maybeSingle();
+    if (error) return fail(error);
+    const hikeId = (row?.pending_hike_id as string | null | undefined) ?? null;
+    const hike = row?.pending_hike as unknown as { completed_at: string | null; elapsed_seconds: number | null } | null;
+    if (!row || !hikeId) return fail("No recorded hike is waiting on this completion. Reload the list.");
+    if (decision === "approved" && !hike?.completed_at) return fail("The recorded hike could not be read. Reload the list.");
+
+    const update =
+      decision === "rejected"
+        ? { pending_hike_id: null }
+        : {
+            pending_hike_id: null,
+            source: "hike",
+            completed_at: hike!.completed_at,
+            elapsed_seconds: hike!.elapsed_seconds,
+          };
+    const { data: changed, error: updateError } = await supabase
+      .from("trail_completions")
+      .update(update)
+      .eq("id", id)
+      .eq("pending_hike_id", hikeId)
+      .select("id");
+    if (updateError) return fail(updateError);
+    if (!changed?.length) return fail("This hike was already reviewed. Reload the list.");
+    if (decision === "rejected") return done;
+
+    const { error: badgeError } = await supabase.rpc("check_and_award_badges", { p_user_id: row.user_id });
+    return {
+      error: null,
+      warning: badgeError ? `Approved, but checking the user's badges failed: ${fail(badgeError).error}` : null,
+    };
   });
 }
 

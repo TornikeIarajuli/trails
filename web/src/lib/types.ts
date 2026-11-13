@@ -145,7 +145,19 @@ export interface CompletionRow {
   proof_photo_url: string | null;
   profiles: { username: string } | null;
   trails: { name_en: string } | null;
+  /** 'hike' recorded in the app, 'photo' photo proof, 'past' self-reported (dated 1 January of the year). */
+  source?: CompletionSource | null;
+  /** A hike recorded later on a past-marked trail that did not verify and waits for review. */
+  pending_hike_id?: string | null;
+  pending_hike?: {
+    completed_at: string | null;
+    elapsed_seconds: number | null;
+    coverage: number | null;
+    reason: string | null;
+  } | null;
 }
+
+export type CompletionSource = "hike" | "photo" | "past";
 
 export interface ReviewRow {
   id: string;
