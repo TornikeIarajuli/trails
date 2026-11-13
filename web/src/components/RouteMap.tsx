@@ -4,12 +4,11 @@ import { useEffect } from "react";
 import { MapContainer, TileLayer, Polyline, CircleMarker, useMap, useMapEvents } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import type { RouteGeoJSON } from "@/lib/types";
 
-export type RouteGeoJSON = {
-  type: string;
-  coordinates: [number, number][]; // [lng, lat] — GeoJSON order
-};
+export type { RouteGeoJSON };
 
+// Refits whenever the route itself is replaced (e.g. after a GPX upload), not on other re-renders.
 function FitBounds({ coords }: { coords: [number, number][] }) {
   const map = useMap();
   useEffect(() => {
@@ -17,7 +16,7 @@ function FitBounds({ coords }: { coords: [number, number][] }) {
       const latLngs = coords.map(([lng, lat]) => [lat, lng] as [number, number]);
       map.fitBounds(L.latLngBounds(latLngs), { padding: [24, 24] });
     }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [map, coords]);
   return null;
 }
 

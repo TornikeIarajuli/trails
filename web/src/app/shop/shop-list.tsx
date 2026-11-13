@@ -3,6 +3,9 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { getProducts, deleteProduct as deleteProductAction } from "@/lib/actions";
+import { call } from "@/lib/call";
+import type { ProductListItem } from "@/lib/types";
+import { AdminError } from "@/components/admin-error";
 import {
   Table,
   TableBody,
@@ -16,28 +19,32 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Pencil, Trash2, Search, Plus } from "lucide-react";
 
-interface Product {
-  id: string;
-  name: string;
-  price: string | null;
-  shop_name: string | null;
-  image_url: string | null;
-  is_published: boolean;
-  sort_order: number;
-}
-
 export function ShopList() {
-  const [products, setProducts] = useState<Product[]>([]);
+  const [products, setProducts] = useState<ProductListItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
 
   useEffect(() => {
-    getProducts().then((d) => setProducts(d as Product[])).finally(() => setLoading(false));
+    let cancelled = false;
+    call(getProducts()).then((res) => {
+      if (cancelled) return;
+      if (res.error !== null) setLoadError(res.error);
+      else setProducts(res.data);
+      setLoading(false);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   async function handleDelete(id: string, name: string) {
     if (!confirm(`Delete "${name}"? This cannot be undone.`)) return;
-    await deleteProductAction(id);
+    const res = await call(deleteProductAction(id));
+    if (res.error !== null) {
+      alert(`Could not delete: ${res.error}`);
+      return;
+    }
     setProducts((prev) => prev.filter((p) => p.id !== id));
   }
 
@@ -50,7 +57,7 @@ export function ShopList() {
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-bold">Shop Products ({products.length})</h2>
+        <h2 className="text-2xl font-bold">Shop Products{loading || loadError ? "" : ` (${products.length})`}</h2>
         <Link href="/shop/new">
           <Button size="sm">
             <Plus className="h-4 w-4 mr-1" /> Add Product
@@ -70,6 +77,8 @@ export function ShopList() {
 
       {loading ? (
         <p className="text-muted-foreground">Loading...</p>
+      ) : loadError ? (
+        <AdminError message={loadError} onRetry={() => window.location.reload()} />
       ) : (
         <div className="border rounded-lg">
           <Table>
@@ -103,7 +112,7 @@ export function ShopList() {
                       </Link>
                     </div>
                   </TableCell>
-                  <TableCell>{product.price ?? "-"}</TableCell>
+                  <TableCell>{product.price != null ? `${product.price} ₾` : "-"}</TableCell>
                   <TableCell>{product.shop_name ?? "-"}</TableCell>
                   <TableCell>{product.sort_order}</TableCell>
                   <TableCell>

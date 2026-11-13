@@ -4,6 +4,9 @@ import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Mountain, Users, Trophy, Star } from "lucide-react";
 import { getStats, getAnalyticsData } from "@/lib/actions";
+import { call } from "@/lib/call";
+import type { AnalyticsData, Stats } from "@/lib/types";
+import { AdminError } from "@/components/admin-error";
 import {
   BarChart,
   Bar,
@@ -13,41 +16,40 @@ import {
   ResponsiveContainer,
 } from "recharts";
 
-interface Stats {
-  trails: number;
-  users: number;
-  completions: number;
-  reviews: number;
-}
-
-interface AnalyticsData {
-  completionsPerWeek: { week: string; count: number }[];
-  topTrails: { name: string; count: number }[];
-  signupsPerMonth: { month: string; count: number }[];
-}
-
 export function DashboardContent() {
-  const [stats, setStats] = useState<Stats>({ trails: 0, users: 0, completions: 0, reviews: 0 });
+  const [stats, setStats] = useState<Stats | null>(null);
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
+  const [errors, setErrors] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    Promise.all([getStats(), getAnalyticsData()]).then(([s, a]) => {
-      setStats(s);
-      setAnalytics(a);
-    }).finally(() => setLoading(false));
+    let cancelled = false;
+    Promise.all([call(getStats()), call(getAnalyticsData())]).then(([s, a]) => {
+      if (cancelled) return;
+      if (s.error === null) setStats(s.stats);
+      if (a.error === null) setAnalytics(a.analytics);
+      setErrors([s.error, a.error].filter((e): e is string => e !== null));
+      setLoading(false);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const cards = [
-    { label: "Trails", value: stats.trails, icon: Mountain },
-    { label: "Users", value: stats.users, icon: Users },
-    { label: "Completions", value: stats.completions, icon: Trophy },
-    { label: "Reviews", value: stats.reviews, icon: Star },
+    { label: "Trails", value: stats?.trails, icon: Mountain },
+    { label: "Users", value: stats?.users, icon: Users },
+    { label: "Completions", value: stats?.completions, icon: Trophy },
+    { label: "Reviews", value: stats?.reviews, icon: Star },
   ];
 
   return (
     <div className="space-y-8">
       <h2 className="text-2xl font-bold">Dashboard</h2>
+
+      {[...new Set(errors)].map((message) => (
+        <AdminError key={message} message={message} onRetry={() => window.location.reload()} />
+      ))}
 
       {/* Summary cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -59,7 +61,7 @@ export function DashboardContent() {
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold">
-                {loading ? "..." : c.value}
+                {loading ? "..." : (c.value ?? "–")}
               </div>
             </CardContent>
           </Card>

@@ -11,6 +11,10 @@ import {
   AlertTriangle,
   Bookmark,
   ShoppingBag,
+  ImageIcon,
+  MessageSquare,
+  CalendarDays,
+  Flag,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -21,6 +25,10 @@ const navItems = [
   { href: "/completions", label: "Completions", icon: Trophy },
   { href: "/reviews", label: "Reviews", icon: Star },
   { href: "/conditions", label: "Conditions", icon: AlertTriangle },
+  { href: "/photos", label: "Photos", icon: ImageIcon },
+  { href: "/comments", label: "Comments", icon: MessageSquare },
+  { href: "/events", label: "Group Hikes", icon: CalendarDays },
+  { href: "/reports", label: "Reports", icon: Flag },
   { href: "/bookmarks", label: "Bookmarks", icon: Bookmark },
   { href: "/shop", label: "Shop", icon: ShoppingBag },
 ];

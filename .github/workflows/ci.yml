@@ -6,21 +6,32 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+
+# A newer push to the same branch (or PR) cancels the run it supersedes.
+concurrency:
+  group: ci-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   # ── Backend ──────────────────────────────────────────────────────────────
   backend:
-    name: Backend — lint + unit tests + build
+    name: Backend — lint, unit tests, build
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     defaults:
       run:
         working-directory: backend
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
           cache-dependency-path: backend/package-lock.json
 
@@ -28,28 +39,31 @@ jobs:
         run: npm ci
 
       - name: Lint
-        run: npm run lint -- --max-warnings 0
+        run: npm run lint
 
       - name: Unit tests
-        run: npm test -- --passWithNoTests --forceExit
+        run: npm test -- --ci --passWithNoTests --forceExit
 
       - name: Build (type-check)
         run: npm run build
 
   # ── Mobile ───────────────────────────────────────────────────────────────
   mobile:
-    name: Mobile — type-check
+    name: Mobile — type-check, unit tests
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     defaults:
       run:
         working-directory: mobile
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
           cache-dependency-path: mobile/package-lock.json
 
@@ -59,26 +73,34 @@ jobs:
       - name: TypeScript check
         run: npx tsc --noEmit
 
+      - name: Unit tests
+        run: npm test -- --ci
+
   # ── Web (admin panel) ────────────────────────────────────────────────────
   web:
-    name: Web — type-check + build
+    name: Web — type-check, lint, unit tests, build
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     defaults:
       run:
         working-directory: web
 
     env:
-      # Provide fake env vars so Next.js build doesn't crash on missing config
-      NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
-      NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder
+      # Placeholders for the variables the panel reads at runtime; the build itself needs none.
+      SUPABASE_URL: https://placeholder.supabase.co
       SUPABASE_SERVICE_ROLE_KEY: placeholder
+      ADMIN_USERNAME: ci
+      ADMIN_PASSWORD: ci
+      NEXT_TELEMETRY_DISABLED: 1
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
           cache-dependency-path: web/package-lock.json
 
@@ -88,5 +110,34 @@ jobs:
       - name: TypeScript check
         run: npx tsc --noEmit
 
+      - name: Lint
+        run: npm run lint
+
+      - name: Unit tests
+        run: npm test
+
       - name: Build
         run: npm run build
+
+  # ── Secret scanning ──────────────────────────────────────────────────────
+  # Scans only the commits of the push (or of the pull request), not the whole history.
+  secrets:
+    name: Secret scan (new commits)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: read # to list a pull request's commits
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Only needed when the repository belongs to an organization (free licence key).
+          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
+          GITLEAKS_ENABLE_COMMENTS: false

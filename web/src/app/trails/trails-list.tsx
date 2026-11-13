@@ -3,6 +3,10 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { getTrails, deleteTrail as deleteTrailAction } from "@/lib/actions";
+import { call } from "@/lib/call";
+import type { TrailListItem } from "@/lib/types";
+import { AdminError } from "@/components/admin-error";
+import { EmptyRow } from "@/components/admin-list";
 import {
   Table,
   TableBody,
@@ -16,17 +20,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Pencil, Trash2, Search, Plus } from "lucide-react";
 
-interface Trail {
-  id: string;
-  name_en: string;
-  name_ka: string | null;
-  region: string;
-  difficulty: string;
-  distance_km: number | null;
-  elevation_gain_m: number | null;
-  is_published: boolean;
-}
-
 const difficultyColors: Record<string, string> = {
   easy: "bg-green-100 text-green-800",
   medium: "bg-yellow-100 text-yellow-800",
@@ -35,17 +28,31 @@ const difficultyColors: Record<string, string> = {
 };
 
 export function TrailsList() {
-  const [trails, setTrails] = useState<Trail[]>([]);
+  const [trails, setTrails] = useState<TrailListItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
 
   useEffect(() => {
-    getTrails().then((d) => setTrails(d as Trail[])).finally(() => setLoading(false));
+    let cancelled = false;
+    call(getTrails()).then((res) => {
+      if (cancelled) return;
+      if (res.error !== null) setLoadError(res.error);
+      else setTrails(res.data);
+      setLoading(false);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   async function handleDelete(id: string, name: string) {
     if (!confirm(`Delete "${name}"? This cannot be undone.`)) return;
-    await deleteTrailAction(id);
+    const res = await call(deleteTrailAction(id));
+    if (res.error !== null) {
+      alert(`Could not delete: ${res.error}`);
+      return;
+    }
     setTrails((prev) => prev.filter((t) => t.id !== id));
   }
 
@@ -58,7 +65,7 @@ export function TrailsList() {
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-bold">Trails ({trails.length})</h2>
+        <h2 className="text-2xl font-bold">Trails{loading || loadError ? "" : ` (${trails.length})`}</h2>
         <Link href="/trails/new">
           <Button size="sm">
             <Plus className="h-4 w-4 mr-1" /> Add Trail
@@ -78,6 +85,8 @@ export function TrailsList() {
 
       {loading ? (
         <p className="text-muted-foreground">Loading...</p>
+      ) : loadError ? (
+        <AdminError message={loadError} onRetry={() => window.location.reload()} />
       ) : (
         <div className="border rounded-lg">
           <Table>
@@ -137,6 +146,9 @@ export function TrailsList() {
                   </TableCell>
                 </TableRow>
               ))}
+              {filtered.length === 0 && (
+                <EmptyRow colSpan={7}>{search ? "No trails match your search." : "No trails yet."}</EmptyRow>
+              )}
             </TableBody>
           </Table>
         </div>

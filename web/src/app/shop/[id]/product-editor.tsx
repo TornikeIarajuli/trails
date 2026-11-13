@@ -3,6 +3,9 @@
 import { useEffect, useState, use } from "react";
 import { useRouter } from "next/navigation";
 import { getProductDetail, saveProduct } from "@/lib/actions";
+import { call } from "@/lib/call";
+import type { Product as SavedProduct } from "@/lib/types";
+import { AdminError } from "@/components/admin-error";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,17 +14,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft, Save } from "lucide-react";
 import Link from "next/link";
 
-interface Product {
-  id: string;
-  name: string;
-  description: string | null;
-  image_url: string | null;
-  price: string | null;
-  shop_name: string | null;
-  external_url: string | null;
-  is_published: boolean;
-  sort_order: number;
-}
+// The price is edited as text and converted to a number when saving.
+type Product = Omit<SavedProduct, "price"> & { price: string };
 
 export function ProductEditor({ paramsPromise }: { paramsPromise: Promise<{ id: string }> }) {
   const { id } = use(paramsPromise);
@@ -33,20 +27,31 @@ export function ProductEditor({ paramsPromise }: { paramsPromise: Promise<{ id: 
     name: "",
     description: null,
     image_url: null,
-    price: null,
+    price: "",
     shop_name: null,
     external_url: null,
     is_published: false,
     sort_order: 0,
   });
   const [loading, setLoading] = useState(!isNew);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [missing, setMissing] = useState(false);
+  const [priceUnreadable, setPriceUnreadable] = useState(false);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (isNew) return;
-    getProductDetail(id).then((data) => {
-      if (data) setProduct(data as Product);
-    }).finally(() => setLoading(false));
+    let cancelled = false;
+    call(getProductDetail(id)).then((res) => {
+      if (cancelled) return;
+      if (res.error !== null) setLoadError(res.error);
+      else if (!res.product) setMissing(true);
+      else setProduct({ ...res.product, price: res.product.price === null ? "" : String(res.product.price) });
+      setLoading(false);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [id, isNew]);
 
   function update<K extends keyof Product>(key: K, value: Product[K]) {
@@ -54,30 +59,41 @@ export function ProductEditor({ paramsPromise }: { paramsPromise: Promise<{ id: 
   }
 
   async function handleSave() {
+    if (!product.name.trim()) {
+      alert("The product name is required.");
+      return;
+    }
+    const price = product.price.trim() === "" ? null : Number(product.price);
+    if (priceUnreadable || (price !== null && !(price > 0))) {
+      alert("The price must be a number greater than 0.");
+      return;
+    }
+
     setSaving(true);
-    const payload = {
+    const res = await call(saveProduct(isNew ? null : id, {
       name: product.name,
       description: product.description || null,
       image_url: product.image_url || null,
-      price: product.price || null,
+      price,
       shop_name: product.shop_name || null,
       external_url: product.external_url || null,
       is_published: product.is_published,
       sort_order: product.sort_order,
-    };
+    }));
+    setSaving(false);
 
-    const { data, error } = await saveProduct(isNew ? null : id, payload);
-    if (error) {
-      alert(`Error: ${error}`);
-    } else if (isNew && data) {
-      router.push(`/shop/${(data as { id: string }).id}`);
+    if (res.error !== null) {
+      alert(`Error: ${res.error}`);
+    } else if (isNew) {
+      router.push(`/shop/${res.id}`);
     } else {
       alert("Product saved!");
     }
-    setSaving(false);
   }
 
   if (loading) return <p className="text-muted-foreground">Loading...</p>;
+  if (loadError) return <AdminError message={loadError} onRetry={() => window.location.reload()} />;
+  if (missing) return <p>Product not found</p>;
 
   return (
     <div className="max-w-3xl">
@@ -119,11 +135,18 @@ export function ProductEditor({ paramsPromise }: { paramsPromise: Promise<{ id: 
           <CardContent className="grid gap-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label>Price</Label>
+                <Label>Price (GEL)</Label>
                 <Input
-                  value={product.price ?? ""}
-                  onChange={(e) => update("price", e.target.value || null)}
-                  placeholder="$29.99"
+                  type="number"
+                  min="0.01"
+                  step="0.01"
+                  value={product.price}
+                  onChange={(e) => {
+                    update("price", e.target.value);
+                    // A number input reports "" for text it cannot parse; don't save that as "no price".
+                    setPriceUnreadable(e.target.validity.badInput);
+                  }}
+                  placeholder="29.99"
                 />
               </div>
               <div>

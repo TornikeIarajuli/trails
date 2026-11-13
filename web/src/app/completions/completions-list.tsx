@@ -1,37 +1,57 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { getCompletions, deleteCompletion } from "@/lib/actions";
+import { useState } from "react";
+import { getCompletions, deleteCompletion, reviewCompletion } from "@/lib/actions";
+import { call } from "@/lib/call";
+import { httpUrl } from "@/lib/url";
+import { usePagedList } from "@/hooks/use-paged-list";
+import { AdminPagination } from "@/components/admin-pagination";
+import { EmptyRow, ListFrame } from "@/components/admin-list";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Trash2 } from "lucide-react";
+import { Check, Trash2, X } from "lucide-react";
 
-interface Completion {
-  id: string;
-  user_id: string;
-  trail_id: string;
-  status: string;
-  elapsed_seconds: number | null;
-  completed_at: string;
-  profiles: { username: string } | null;
-  trails: { name_en: string } | null;
-}
+const FILTERS = [
+  { value: "", label: "All" },
+  { value: "pending", label: "Pending" },
+  { value: "approved", label: "Approved" },
+  { value: "rejected", label: "Rejected" },
+];
+
+const statusColors: Record<string, string> = {
+  approved: "bg-green-100 text-green-800",
+  pending: "bg-yellow-100 text-yellow-800",
+  rejected: "bg-red-100 text-red-800",
+};
 
 export function CompletionsList() {
-  const [data, setData] = useState<Completion[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [status, setStatus] = useState("");
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const { rows, total, ready, error, loading, reload } = usePagedList(getCompletions, { page, status });
 
-  useEffect(() => {
-    getCompletions().then((d) => setData(d as unknown as Completion[])).finally(() => setLoading(false));
-  }, []);
+  async function review(id: string, next: "approved" | "rejected") {
+    if (next === "rejected" && !confirm("Reject this completion? It will not count for the user.")) return;
+    setBusyId(id);
+    const res = await call(reviewCompletion(id, next));
+    setBusyId(null);
+    if (res.error !== null) alert(res.error);
+    else if (res.warning) alert(res.warning);
+    reload();
+  }
 
   async function remove(id: string) {
     if (!confirm("Delete this completion?")) return;
-    await deleteCompletion(id);
-    setData((prev) => prev.filter((c) => c.id !== id));
+    setBusyId(id);
+    const res = await call(deleteCompletion(id));
+    setBusyId(null);
+    if (res.error !== null) alert(`Could not delete: ${res.error}`);
+    else if (res.warning) alert(res.warning);
+    if (res.error === null && rows.length === 1 && page > 1) setPage(page - 1);
+    else reload();
   }
 
   function formatDuration(s: number | null) {
@@ -43,43 +63,87 @@ export function CompletionsList() {
 
   return (
     <div>
-      <h2 className="text-2xl font-bold mb-6">Completions ({data.length})</h2>
-      {loading ? (
-        <p className="text-muted-foreground">Loading...</p>
-      ) : (
-        <div className="border rounded-lg">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>User</TableHead>
-                <TableHead>Trail</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Duration</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead className="w-16"></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {data.map((c) => (
+      <h2 className="text-2xl font-bold mb-6">Completions{ready ? ` (${total})` : ""}</h2>
+
+      <div className="flex gap-2 mb-4">
+        {FILTERS.map((f) => (
+          <Button
+            key={f.value}
+            size="sm"
+            variant={status === f.value ? "default" : "outline"}
+            onClick={() => { setStatus(f.value); setPage(1); }}
+          >
+            {f.label}
+          </Button>
+        ))}
+      </div>
+
+      <ListFrame error={error} loading={loading} ready={ready} onRetry={reload}>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>User</TableHead>
+              <TableHead>Trail</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Duration</TableHead>
+              <TableHead>Verification</TableHead>
+              <TableHead>Proof</TableHead>
+              <TableHead>Date</TableHead>
+              <TableHead className="w-48"></TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {rows.map((c) => {
+              const proofUrl = httpUrl(c.proof_photo_url);
+              return (
                 <TableRow key={c.id}>
                   <TableCell className="font-medium">{c.profiles?.username ?? "-"}</TableCell>
                   <TableCell>{c.trails?.name_en ?? "-"}</TableCell>
                   <TableCell>
-                    <Badge variant={c.status === "approved" ? "default" : "secondary"}>{c.status}</Badge>
+                    <Badge variant="secondary" className={statusColors[c.status] ?? ""}>{c.status}</Badge>
                   </TableCell>
                   <TableCell>{formatDuration(c.elapsed_seconds)}</TableCell>
+                  <TableCell className="max-w-xs text-sm truncate" title={c.reviewer_note ?? undefined}>
+                    {c.reviewer_note ?? "-"}
+                  </TableCell>
+                  <TableCell className="text-sm">
+                    {proofUrl ? (
+                      <a href={proofUrl} target="_blank" rel="noopener noreferrer" className="text-primary underline">
+                        Photo
+                      </a>
+                    ) : "-"}
+                  </TableCell>
                   <TableCell className="text-sm">{new Date(c.completed_at).toLocaleDateString()}</TableCell>
                   <TableCell>
-                    <Button variant="ghost" size="icon" onClick={() => remove(c.id)}>
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
+                    <div className="flex justify-end gap-1">
+                      {c.status === "pending" && (
+                        <>
+                          <Button variant="outline" size="sm" disabled={busyId !== null} onClick={() => review(c.id, "approved")}>
+                            <Check className="h-4 w-4" /> Approve
+                          </Button>
+                          <Button variant="outline" size="sm" disabled={busyId !== null} onClick={() => review(c.id, "rejected")}>
+                            <X className="h-4 w-4" /> Reject
+                          </Button>
+                        </>
+                      )}
+                      <Button variant="ghost" size="icon" disabled={busyId !== null} onClick={() => remove(c.id)}>
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      )}
+              );
+            })}
+            {rows.length === 0 && (
+              <EmptyRow colSpan={8}>
+                {status ? `No ${status} completions.` : "No completions yet."}
+              </EmptyRow>
+            )}
+          </TableBody>
+        </Table>
+      </ListFrame>
+
+      <AdminPagination page={page} total={total} loading={loading} onPageChange={setPage} />
     </div>
   );
 }

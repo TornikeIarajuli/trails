@@ -4,7 +4,7 @@ export default function TermsOfService() {
   return (
     <div className="max-w-3xl mx-auto px-6 py-12">
       <h1 className="text-3xl font-bold mb-2">Terms of Service</h1>
-      <p className="text-sm text-gray-500 mb-8">Last updated: February 12, 2026</p>
+      <p className="text-sm text-gray-500 mb-8">Last updated: November 13, 2026</p>
 
       <div className="prose prose-gray max-w-none space-y-6">
         <section>
@@ -15,6 +15,7 @@ export default function TermsOfService() {
         <section>
           <h2 className="text-xl font-semibold mt-8 mb-3">2. Description of Service</h2>
           <p>Mikiri Trails is a hiking companion app for trails in Georgia. The App allows users to discover trails, track hikes with GPS, complete checkpoints, earn badges, write reviews, and interact with other hikers.</p>
+          <p className="mt-2">A hike counts as a completed trail when the GPS track the App records during the hike follows enough of the trail&apos;s route. A hike that cannot be verified this way is kept as pending: it does not count towards badges or the leaderboard unless it is approved after a manual review.</p>
         </section>
 
         <section>
@@ -49,6 +50,7 @@ export default function TermsOfService() {
             <li>You should always carry appropriate gear, supplies, and a backup navigation method.</li>
             <li>Mikiri Trails is not a substitute for proper trail maps or navigation tools.</li>
           </ul>
+          <p className="mt-2"><strong>SOS.</strong> The SOS button sends a push notification with your current location to the emergency contact you have chosen in the App, who must be another Mikiri Trails user. It does not contact emergency services or a rescue team. The alert only arrives if both phones have an internet connection and your contact has notifications turned on, so it may be delayed or never delivered. In an emergency, call the emergency number (112 in Georgia).</p>
         </section>
 
         <section>
@@ -65,8 +67,15 @@ export default function TermsOfService() {
         </section>
 
         <section>
-          <h2 className="text-xl font-semibold mt-8 mb-3">7. Intellectual Property</h2>
-          <p>The App, including its design, features, trail data, and branding, is the property of Mikiri Trails. You may not copy, modify, distribute, or create derivative works based on the App without permission.</p>
+          <h2 className="text-xl font-semibold mt-8 mb-3">7. Intellectual Property and Data Sources</h2>
+          <p>The App&apos;s design, features, and branding belong to the operator of Mikiri Trails. You may not copy, modify, distribute, or create derivative works based on them without permission.</p>
+          <p className="mt-2">The trail data is not ours alone and stays under its own licences:</p>
+          <ul className="list-disc pl-6 space-y-1">
+            <li>Trail routes and map data are derived from OpenStreetMap, © <a href="https://www.openstreetmap.org/copyright" className="text-blue-600 underline">OpenStreetMap contributors</a>, and are available under the <a href="https://opendatacommons.org/licenses/odbl/" className="text-blue-600 underline">Open Database License (ODbL)</a>.</li>
+            <li>Trail photos are credited to their authors and used under the licence stated for each photo.</li>
+            <li>Elevation data comes from NASA&apos;s Shuttle Radar Topography Mission (SRTM).</li>
+          </ul>
+          <p className="mt-2">Nothing in these terms limits the rights those licences give you.</p>
         </section>
 
         <section>

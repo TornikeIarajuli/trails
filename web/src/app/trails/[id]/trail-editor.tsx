@@ -4,7 +4,11 @@ import { useEffect, useState, use } from "react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { getTrailDetail, saveTrail, uploadTrailPhoto, uploadCoverImage, uploadGpxRoute, getTrailRoute, deleteTrailMedia, deleteCheckpoint, addCheckpoint } from "@/lib/actions";
-import type { RouteGeoJSON } from "@/components/RouteMap";
+import { call } from "@/lib/call";
+import { uploadSizeError } from "@/lib/uploads";
+import { CHECKPOINT_TYPES, DIFFICULTIES, TRAIL_STATUSES as STATUSES } from "@/lib/types";
+import type { Checkpoint, RouteGeoJSON, Trail, TrailMedia } from "@/lib/types";
+import { AdminError } from "@/components/admin-error";
 
 const RouteMap = dynamic(
   () => import("@/components/RouteMap").then((m) => m.RouteMap),
@@ -19,54 +23,28 @@ import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Save, Trash2, Upload, Loader2, RouteIcon, Plus, X } from "lucide-react";
 import Link from "next/link";
 
-interface Trail {
-  id: string;
-  name_en: string;
-  name_ka: string | null;
-  description_en: string | null;
-  description_ka: string | null;
-  region: string;
-  difficulty: string;
-  distance_km: number | null;
-  elevation_gain_m: number | null;
-  estimated_hours: number | null;
-  cover_image_url: string | null;
-  is_published: boolean;
-  status: string;
-  status_note: string | null;
-}
-
-interface Checkpoint {
-  id: string;
-  name_en: string;
-  name_ka: string | null;
-  description_en: string | null;
-  type: string;
-  elevation_m: number | null;
-  is_checkable: boolean;
-  sort_order: number;
-  lat?: number;
-  lng?: number;
-}
-
-interface TrailMedia {
-  id: string;
-  url: string;
-  caption: string | null;
-  type: string;
-}
-
-const DIFFICULTIES = ["easy", "medium", "hard", "ultra"];
-const STATUSES = ["open", "closed", "seasonal", "maintenance"];
 const STATUS_COLORS: Record<string, string> = {
   open: "bg-green-100 text-green-800 border-green-300",
   closed: "bg-red-100 text-red-800 border-red-300",
   seasonal: "bg-yellow-100 text-yellow-800 border-yellow-300",
   maintenance: "bg-blue-100 text-blue-800 border-blue-300",
 };
-const CHECKPOINT_TYPES = ["viewpoint", "water_source", "campsite", "landmark", "summit", "shelter", "bridge", "pass", "lake", "waterfall", "ruins", "church", "tower"];
 
 const EMPTY_CP_FORM = { name_en: "", name_ka: "", type: "landmark", lat: "", lng: "", elevation_m: "", is_checkable: false };
+
+// trail_checkpoints.coordinates arrives as a GeoJSON Point ([lng, lat])
+function checkpointPosition(cp: Checkpoint): { lat: number; lng: number } | null {
+  const point: unknown = cp.coordinates?.coordinates;
+  if (!Array.isArray(point)) return null;
+  const [lng, lat] = point;
+  return typeof lat === "number" && typeof lng === "number" ? { lat, lng } : null;
+}
+
+function fileFormData(file: File): FormData {
+  const formData = new FormData();
+  formData.append("file", file);
+  return formData;
+}
 
 export function TrailEditor({ paramsPromise }: { paramsPromise: Promise<{ id: string }> }) {
   const { id } = use(paramsPromise);
@@ -80,18 +58,20 @@ export function TrailEditor({ paramsPromise }: { paramsPromise: Promise<{ id: st
     description_en: null,
     description_ka: null,
     region: "",
-    difficulty: "medium",
+    difficulty: "",
     distance_km: null,
     elevation_gain_m: null,
     estimated_hours: null,
     cover_image_url: null,
-    is_published: true,
+    is_published: false,
     status: "open",
     status_note: null,
   });
   const [checkpoints, setCheckpoints] = useState<Checkpoint[]>([]);
   const [media, setMedia] = useState<TrailMedia[]>([]);
   const [loading, setLoading] = useState(!isNew);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [missing, setMissing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
@@ -107,12 +87,24 @@ export function TrailEditor({ paramsPromise }: { paramsPromise: Promise<{ id: st
 
   useEffect(() => {
     if (isNew) return;
-    getTrailDetail(id).then(({ trail: t, checkpoints: cps, media: med, routeGeojson: rg }) => {
-      if (t) setTrail(t as Trail);
-      setCheckpoints(cps as Checkpoint[]);
-      setMedia(med as TrailMedia[]);
-      if (rg) setRouteGeojson(rg as RouteGeoJSON);
-    }).finally(() => setLoading(false));
+    let cancelled = false;
+    call(getTrailDetail(id)).then((res) => {
+      if (cancelled) return;
+      if (res.error !== null) {
+        setLoadError(res.error);
+      } else if (!res.trail) {
+        setMissing(true);
+      } else {
+        setTrail(res.trail);
+        setCheckpoints(res.checkpoints);
+        setMedia(res.media);
+        setRouteGeojson(res.routeGeojson);
+      }
+      setLoading(false);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [id, isNew]);
 
   function update<K extends keyof Trail>(key: K, value: Trail[K]) {
@@ -120,8 +112,12 @@ export function TrailEditor({ paramsPromise }: { paramsPromise: Promise<{ id: st
   }
 
   async function handleSave() {
+    if (!trail.name_en.trim()) { alert("The English name is required."); return; }
+    if (!trail.region.trim()) { alert("The region is required."); return; }
+    if (!trail.difficulty) { alert("Choose a difficulty."); return; }
+
     setSaving(true);
-    const payload = {
+    const res = await call(saveTrail(isNew ? null : id, {
       name_en: trail.name_en,
       name_ka: trail.name_ka || null,
       description_en: trail.description_en || null,
@@ -135,71 +131,76 @@ export function TrailEditor({ paramsPromise }: { paramsPromise: Promise<{ id: st
       is_published: trail.is_published,
       status: trail.status,
       status_note: trail.status_note || null,
-    };
+    }));
+    setSaving(false);
 
-    const { data, error } = await saveTrail(isNew ? null : id, payload);
-    if (error) {
-      alert(`Error: ${error}`);
-    } else if (isNew && data) {
-      router.push(`/trails/${(data as { id: string }).id}`);
+    if (res.error !== null) {
+      alert(`Error: ${res.error}`);
+    } else if (isNew) {
+      router.push(`/trails/${res.id}`);
     } else {
       alert("Trail saved!");
     }
-    setSaving(false);
+  }
+
+  // Oversized files are refused by the hosting platform before the server can explain why,
+  // so the size is checked here first.
+  function tooLarge(file: File) {
+    const sizeError = uploadSizeError(file.size);
+    if (sizeError) alert(sizeError);
+    return sizeError !== null;
   }
 
   async function handleUploadCover(file: File) {
+    if (tooLarge(file)) return;
     setUploadingCover(true);
-    try {
-      const formData = new FormData();
-      formData.append("file", file);
-      const trailId = isNew ? "new" : id;
-      const { error, url } = await uploadCoverImage(trailId, formData);
-      if (error) { alert(`Upload failed: ${error}`); return; }
-      if (url) update("cover_image_url", url);
-    } finally {
-      setUploadingCover(false);
-    }
+    const res = await call(uploadCoverImage(isNew ? "new" : id, fileFormData(file)));
+    setUploadingCover(false);
+    if (res.error !== null) { alert(`Upload failed: ${res.error}`); return; }
+    update("cover_image_url", res.url);
   }
 
   async function handleUploadGpx(file: File) {
+    if (tooLarge(file)) return;
     setUploadingGpx(true);
     setGpxResult(null);
-    try {
-      const formData = new FormData();
-      formData.append("file", file);
-      const result = await uploadGpxRoute(id, formData);
-      if (result.error) { alert(`GPX import failed: ${result.error}`); return; }
-      setGpxResult({ points: result.points, originalPoints: result.originalPoints ?? result.points });
-      const route = await getTrailRoute(id);
-      if (route) setRouteGeojson(route);
-    } finally {
+    const res = await call(uploadGpxRoute(id, fileFormData(file)));
+    if (res.error !== null) {
       setUploadingGpx(false);
+      alert(`GPX import failed: ${res.error}`);
+      return;
     }
+    setGpxResult({ points: res.points, originalPoints: res.originalPoints });
+    const route = await call(getTrailRoute(id));
+    setUploadingGpx(false);
+    if (route.error !== null) {
+      alert(`The route was saved, but the map could not be refreshed: ${route.error}`);
+      return;
+    }
+    setRouteGeojson(route.route);
   }
 
   async function handleUploadPhoto(file: File) {
+    if (tooLarge(file)) return;
     setUploading(true);
-    try {
-      const formData = new FormData();
-      formData.append("file", file);
-      const { error, record } = await uploadTrailPhoto(id, formData);
-      if (error) { alert(`Upload failed: ${error}`); return; }
-      if (record) setMedia((prev) => [...prev, record as TrailMedia]);
-    } finally {
-      setUploading(false);
-    }
+    const res = await call(uploadTrailPhoto(id, fileFormData(file)));
+    setUploading(false);
+    if (res.error !== null) { alert(`Upload failed: ${res.error}`); return; }
+    setMedia((prev) => [...prev, res.record]);
   }
 
   async function deleteMedia(mediaId: string) {
     if (!confirm("Delete this photo?")) return;
-    await deleteTrailMedia(mediaId);
+    const res = await call(deleteTrailMedia(mediaId));
+    if (res.error !== null) { alert(`Could not delete: ${res.error}`); return; }
+    if (res.warning) alert(res.warning);
     setMedia((prev) => prev.filter((m) => m.id !== mediaId));
   }
 
   async function handleDeleteCheckpoint(cpId: string) {
     if (!confirm("Delete this checkpoint?")) return;
-    await deleteCheckpoint(cpId);
+    const res = await call(deleteCheckpoint(cpId));
+    if (res.error !== null) { alert(`Could not delete: ${res.error}`); return; }
     setCheckpoints((prev) => prev.filter((c) => c.id !== cpId));
   }
 
@@ -220,28 +221,26 @@ export function TrailEditor({ paramsPromise }: { paramsPromise: Promise<{ id: st
     if (isNaN(lat) || isNaN(lng)) { alert("Valid lat/lng required — click on the map or type them in"); return; }
 
     setSavingCp(true);
-    try {
-      const { error, record } = await addCheckpoint(id, {
-        name_en: cpForm.name_en.trim(),
-        name_ka: cpForm.name_ka.trim() || null,
-        type: cpForm.type,
-        lat,
-        lng,
-        elevation_m: cpForm.elevation_m ? parseInt(cpForm.elevation_m) : null,
-        is_checkable: cpForm.is_checkable,
-        sort_order: checkpoints.length,
-      });
-      if (error) { alert(`Failed: ${error}`); return; }
-      if (record) setCheckpoints((prev) => [...prev, record as Checkpoint]);
-      setCpForm(EMPTY_CP_FORM);
-      setClickMarker(null);
-      setShowCpForm(false);
-    } finally {
-      setSavingCp(false);
-    }
+    const res = await call(addCheckpoint(id, {
+      name_en: cpForm.name_en.trim(),
+      name_ka: cpForm.name_ka.trim() || null,
+      type: cpForm.type,
+      lat,
+      lng,
+      elevation_m: cpForm.elevation_m ? parseInt(cpForm.elevation_m) : null,
+      is_checkable: cpForm.is_checkable,
+    }));
+    setSavingCp(false);
+    if (res.error !== null) { alert(`Failed: ${res.error}`); return; }
+    setCheckpoints((prev) => [...prev, res.record]);
+    setCpForm(EMPTY_CP_FORM);
+    setClickMarker(null);
+    setShowCpForm(false);
   }
 
   if (loading) return <p className="text-muted-foreground">Loading...</p>;
+  if (loadError) return <AdminError message={loadError} onRetry={() => window.location.reload()} />;
+  if (missing) return <p>Trail not found</p>;
 
   return (
     <div className="max-w-4xl">
@@ -265,7 +264,7 @@ export function TrailEditor({ paramsPromise }: { paramsPromise: Promise<{ id: st
           <CardContent className="grid gap-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label>Name (English)</Label>
+                <Label>Name (English) *</Label>
                 <Input value={trail.name_en} onChange={(e) => update("name_en", e.target.value)} />
               </div>
               <div>
@@ -290,11 +289,11 @@ export function TrailEditor({ paramsPromise }: { paramsPromise: Promise<{ id: st
           <CardContent className="grid gap-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label>Region</Label>
+                <Label>Region *</Label>
                 <Input value={trail.region} onChange={(e) => update("region", e.target.value)} />
               </div>
               <div>
-                <Label>Difficulty</Label>
+                <Label>Difficulty *</Label>
                 <div className="flex gap-2 mt-1">
                   {DIFFICULTIES.map((d) => (
                     <button key={d} onClick={() => update("difficulty", d)}
@@ -438,7 +437,7 @@ export function TrailEditor({ paramsPromise }: { paramsPromise: Promise<{ id: st
             </CardHeader>
             <CardContent className="grid gap-3">
               {checkpoints.length === 0 && !showCpForm && (
-                <p className="text-sm text-muted-foreground">No checkpoints. Click "Add Checkpoint" to place one on the map.</p>
+                <p className="text-sm text-muted-foreground">No checkpoints. Click &quot;Add Checkpoint&quot; to place one on the map.</p>
               )}
               {checkpoints.length > 0 && (
                 <div className="space-y-2">
@@ -549,7 +548,7 @@ export function TrailEditor({ paramsPromise }: { paramsPromise: Promise<{ id: st
                     geojson={routeGeojson}
                     onMapClick={showCpForm ? handleMapClick : undefined}
                     clickMarker={clickMarker}
-                    checkpointMarkers={checkpoints.filter((c) => c.lat != null && c.lng != null).map((c) => ({ lat: c.lat!, lng: c.lng! }))}
+                    checkpointMarkers={checkpoints.map(checkpointPosition).filter((p) => p !== null)}
                   />
                   {gpxResult && (
                     <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2">

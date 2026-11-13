@@ -2,6 +2,9 @@
 
 import { useEffect, useState, use } from "react";
 import { getUserDetail, saveProfile } from "@/lib/actions";
+import { call } from "@/lib/call";
+import type { UserBadge, UserCompletion, UserListItem } from "@/lib/types";
+import { AdminError } from "@/components/admin-error";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,58 +15,48 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { ArrowLeft, Save } from "lucide-react";
 import Link from "next/link";
 
-interface Profile {
-  id: string;
-  username: string;
-  full_name: string | null;
-  avatar_url: string | null;
-  bio: string | null;
-  total_trails_completed: number;
-  created_at: string;
-}
-
-interface Completion {
-  id: string;
-  trail_id: string;
-  status: string;
-  elapsed_seconds: number | null;
-  completed_at: string;
-  trails: { name_en: string; difficulty: string } | null;
-}
-
-interface UserBadge {
-  id: string;
-  earned_at: string;
-  badges: { name_en: string; icon: string; category: string } | null;
-}
-
 export function UserDetail({ paramsPromise }: { paramsPromise: Promise<{ id: string }> }) {
   const { id } = use(paramsPromise);
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [completions, setCompletions] = useState<Completion[]>([]);
+  const [profile, setProfile] = useState<UserListItem | null>(null);
+  const [completions, setCompletions] = useState<UserCompletion[]>([]);
   const [badges, setBadges] = useState<UserBadge[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    getUserDetail(id).then(({ profile: p, completions: c, badges: b }) => {
-      setProfile(p as Profile | null);
-      setCompletions(c as unknown as Completion[]);
-      setBadges(b as unknown as UserBadge[]);
-    }).finally(() => setLoading(false));
+    let cancelled = false;
+    call(getUserDetail(id)).then((res) => {
+      if (cancelled) return;
+      if (res.error !== null) {
+        setLoadError(res.error);
+      } else {
+        setProfile(res.profile);
+        setCompletions(res.completions);
+        setBadges(res.badges);
+      }
+      setLoading(false);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [id]);
 
   async function handleSave() {
     if (!profile) return;
+    if (!profile.username.trim()) {
+      alert("The username cannot be empty.");
+      return;
+    }
     setSaving(true);
-    const { error } = await saveProfile(id, {
+    const res = await call(saveProfile(id, {
       username: profile.username,
       full_name: profile.full_name || null,
       bio: profile.bio || null,
       avatar_url: profile.avatar_url || null,
-    });
+    }));
 
-    if (error) alert(`Error: ${error}`);
+    if (res.error !== null) alert(`Error: ${res.error}`);
     else alert("Profile saved!");
     setSaving(false);
   }
@@ -76,6 +69,7 @@ export function UserDetail({ paramsPromise }: { paramsPromise: Promise<{ id: str
   }
 
   if (loading) return <p className="text-muted-foreground">Loading...</p>;
+  if (loadError) return <AdminError message={loadError} onRetry={() => window.location.reload()} />;
   if (!profile) return <p>User not found</p>;
 
   return (
@@ -86,7 +80,7 @@ export function UserDetail({ paramsPromise }: { paramsPromise: Promise<{ id: str
         </Link>
         <Avatar className="h-10 w-10">
           {profile.avatar_url && <AvatarImage src={profile.avatar_url} />}
-          <AvatarFallback>{profile.username[0].toUpperCase()}</AvatarFallback>
+          <AvatarFallback>{(profile.username[0] ?? "?").toUpperCase()}</AvatarFallback>
         </Avatar>
         <h2 className="text-2xl font-bold flex-1">{profile.username}</h2>
         <Button onClick={handleSave} disabled={saving}>

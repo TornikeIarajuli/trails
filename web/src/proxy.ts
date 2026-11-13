@@ -1,25 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { checkBasicAuth } from './lib/basic-auth';
 
-export function proxy(request: NextRequest) {
-  const authHeader = request.headers.get('authorization');
+export async function proxy(request: NextRequest) {
+  const result = await checkBasicAuth(request.headers.get('authorization'));
 
-  if (authHeader) {
-    const [scheme, encoded] = authHeader.split(' ');
-    if (scheme === 'Basic' && encoded) {
-      const decoded = atob(encoded);
-      const [user, pass] = decoded.split(':');
-      if (
-        user === process.env.ADMIN_USERNAME &&
-        pass === process.env.ADMIN_PASSWORD
-      ) {
-        return NextResponse.next();
-      }
-    }
+  if (result === 'ok') {
+    return NextResponse.next();
+  }
+
+  if (result === 'not_configured') {
+    return new NextResponse('Admin authentication is not configured', { status: 503 });
   }
 
   return new NextResponse('Authentication required', {
     status: 401,
-    headers: { 'WWW-Authenticate': 'Basic realm="Mikiri Admin"' },
+    headers: { 'WWW-Authenticate': 'Basic realm="Mikiri Admin", charset="UTF-8"' },
   });
 }
 
