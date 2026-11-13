@@ -573,8 +573,11 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     shadowRadius: 2,
   },
   trailImage: {
-    width: 90,
-    height: 90,
+    // Fill the card's full height (it grows with the text and font size); a fixed
+    // 90×90 square left a white strip under the photo.
+    width: 96,
+    minHeight: 96,
+    alignSelf: 'stretch',
   },
   trailImagePlaceholder: {
     backgroundColor: Colors.borderLight,

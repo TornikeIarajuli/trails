@@ -1,10 +1,8 @@
 import { Stack } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useColors } from '../../constants/colors';
 
 export default function TrailLayout() {
   const Colors = useColors();
-  const insets = useSafeAreaInsets();
 
   return (
     <Stack
@@ -15,9 +13,12 @@ export default function TrailLayout() {
         headerTitleStyle: { fontWeight: '600', color: Colors.text },
         headerShadowVisible: false,
         contentStyle: { backgroundColor: Colors.background },
-        // Fix back button overlapping status bar in edge-to-edge mode
-        headerStatusBarHeight: insets.top,
-      } as any}
+        // The app draws edge to edge (status bar translucent). Saying so makes the native
+        // header pad itself by the status bar height; without it the header can start under
+        // the clock. (`headerStatusBarHeight`, used here before, is a JS-stack option and
+        // native-stack ignores it.)
+        statusBarTranslucent: true,
+      }}
     >
       <Stack.Screen name="[id]/index" />
       <Stack.Screen name="[id]/edit" />
