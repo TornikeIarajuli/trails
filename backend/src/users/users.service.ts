@@ -2,13 +2,20 @@ import { TtlCache } from '../common/ttl-cache';
 import { throwIfError } from '../common/supabase-error';
 const LEADERBOARD_TTL = 15 * 60 * 1000;
 
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { SupabaseService } from '../config/supabase.config';
 import { NotificationsService } from '../notifications/notifications.service';
 
+export type SosOutcome = 'ok' | 'no_contact' | 'contact_unreachable';
+
 @Injectable()
 export class UsersService {
-  private cache = new TtlCache();
+  // One entry per requested size (1-100)
+  private cache = new TtlCache(100);
   constructor(
     private supabaseService: SupabaseService,
     private notificationsService: NotificationsService,
@@ -165,36 +172,69 @@ export class UsersService {
 
   async setEmergencyContact(userId: string, contactUserId: string | null) {
     const admin = this.supabaseService.getAdminClient();
+
+    const { data: setter } = await admin
+      .from('profiles')
+      .select('username, emergency_contact_user_id')
+      .eq('id', userId)
+      .single();
+
+    if (!setter) throw new NotFoundException('User not found');
+
+    let contactId: string | null = null;
+    if (contactUserId) {
+      if (contactUserId.toLowerCase() === userId.toLowerCase()) {
+        throw new BadRequestException(
+          'You cannot be your own emergency contact',
+        );
+      }
+
+      const { data: contact } = await admin
+        .from('profiles')
+        .select('id')
+        .eq('id', contactUserId)
+        .single();
+
+      if (!contact) throw new NotFoundException('User not found');
+      contactId = contact.id as string;
+    }
+
     const { error } = await admin
       .from('profiles')
-      .update({ emergency_contact_user_id: contactUserId })
+      .update({ emergency_contact_user_id: contactId })
       .eq('id', userId);
     throwIfError(error);
 
-    // Notify the contact that they've been chosen
-    if (contactUserId) {
-      const { data: setter } = await admin
-        .from('profiles')
-        .select('username')
-        .eq('id', userId)
-        .single();
-
-      if (setter) {
-        await this.notificationsService.sendToUser(
-          contactUserId,
-          'Emergency Contact',
-          setter.username +
-            ' has set you as their emergency contact. You will be notified if they trigger an SOS.',
-          { setterId: userId },
-          'emergency_contact',
-        );
-      }
+    // Notify the contact that they've been chosen (once, not on every re-save)
+    if (contactId && contactId !== setter.emergency_contact_user_id) {
+      await this.notificationsService.sendToUser(
+        contactId,
+        'Emergency Contact',
+        setter.username +
+          ' has set you as their emergency contact. You will be notified if they trigger an SOS.',
+        { setterId: userId },
+        'emergency_contact',
+      );
     }
 
     return { ok: true };
   }
 
-  async triggerSos(userId: string, lat: number, lng: number) {
+  async triggerSos(
+    userId: string,
+    lat: number,
+    lng: number,
+  ): Promise<{ sent: boolean; reason: SosOutcome; devices: number }> {
+    // The coordinates end up in a link inside the alert, so they must be plain numbers.
+    if (
+      !Number.isFinite(lat) ||
+      !Number.isFinite(lng) ||
+      Math.abs(lat) > 90 ||
+      Math.abs(lng) > 180
+    ) {
+      throw new BadRequestException('Invalid coordinates');
+    }
+
     const admin = this.supabaseService.getAdminClient();
 
     const { data: profile } = await admin
@@ -205,19 +245,27 @@ export class UsersService {
 
     if (!profile) throw new NotFoundException('User not found');
 
-    const contactId = profile.emergency_contact_user_id;
-    if (contactId) {
-      const mapsUrl = `https://maps.google.com/?q=${lat},${lng}`;
-      await this.notificationsService.sendToUser(
-        contactId,
-        `🆘 SOS from ${profile.username}`,
-        `${profile.username} needs help! Location: ${mapsUrl}`,
-        { type: 'sos', userId, lat, lng },
-        'sos',
-      );
-    }
+    const contactId: string | null = profile.emergency_contact_user_id;
+    if (!contactId) return { sent: false, reason: 'no_contact', devices: 0 };
 
-    return { sent: !!contactId };
+    const latitude = lat.toFixed(6);
+    const longitude = lng.toFixed(6);
+    const mapsUrl = `https://maps.google.com/?q=${latitude},${longitude}`;
+
+    const push = await this.notificationsService.sendToUser(
+      contactId,
+      `🆘 SOS from ${profile.username}`,
+      `${profile.username} needs help! Location: ${mapsUrl}`,
+      { userId, lat: Number(latitude), lng: Number(longitude) },
+      'sos',
+    );
+
+    // "Sent" means a push service accepted the alert for at least one of the contact's
+    // devices, not merely that a contact is configured.
+    const devices = push?.sent ?? 0;
+    return devices > 0
+      ? { sent: true, reason: 'ok', devices }
+      : { sent: false, reason: 'contact_unreachable', devices: 0 };
   }
 
   async exportUserData(userId: string) {
@@ -257,11 +305,15 @@ export class UsersService {
       admin.from('activity_likes').select('*').eq('user_id', userId),
       admin
         .from('user_follows')
-        .select('following_id, profiles!user_follows_following_id_fkey (username)')
+        .select(
+          'following_id, profiles!user_follows_following_id_fkey (username)',
+        )
         .eq('follower_id', userId),
       admin
         .from('user_follows')
-        .select('follower_id, profiles!user_follows_follower_id_fkey (username)')
+        .select(
+          'follower_id, profiles!user_follows_follower_id_fkey (username)',
+        )
         .eq('following_id', userId),
       admin
         .from('user_badges')
@@ -289,12 +341,20 @@ export class UsersService {
     const admin = this.supabaseService.getAdminClient();
 
     // Sanitize: strip PostgREST filter syntax characters to prevent filter injection
-    const sanitized = query.replace(/[,.()"'\\]/g, '');
+    // ("*" is PostgREST's alias for the "%" wildcard)
+    const sanitized = query.replace(/[,.()"'\\*]/g, '').trim();
+
+    // One character matches nearly every profile, which would let anyone page through
+    // the whole user list.
+    if (sanitized.length < 2) return [];
+
+    // "%" and "_" are LIKE wildcards: match them literally
+    const pattern = `%${sanitized.replace(/[%_]/g, '\\$&')}%`;
 
     const { data, error } = await admin
       .from('profiles')
       .select('id, username, full_name, avatar_url')
-      .or(`username.ilike.%${sanitized}%,full_name.ilike.%${sanitized}%`)
+      .or(`username.ilike.${pattern},full_name.ilike.${pattern}`)
       .limit(20);
 
     throwIfError(error);

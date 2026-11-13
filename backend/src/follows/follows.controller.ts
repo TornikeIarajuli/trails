@@ -10,6 +10,7 @@ import {
 import { FollowsService } from './follows.service';
 import { AuthGuard } from '../common/guards/auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { PaginationDto } from '../common/dto/pagination.dto';
 
 @Controller('follows')
 @UseGuards(AuthGuard)
@@ -35,27 +36,17 @@ export class FollowsController {
   @Get('followers/:userId')
   getFollowers(
     @Param('userId', ParseUUIDPipe) userId: string,
-    @Query('page') page?: string,
-    @Query('limit') limit?: string,
+    @Query() query: PaginationDto,
   ) {
-    return this.followsService.getFollowers(
-      userId,
-      page ? parseInt(page) : 1,
-      limit ? parseInt(limit) : 20,
-    );
+    return this.followsService.getFollowers(userId, query.page, query.limit);
   }
 
   @Get('following/:userId')
   getFollowing(
     @Param('userId', ParseUUIDPipe) userId: string,
-    @Query('page') page?: string,
-    @Query('limit') limit?: string,
+    @Query() query: PaginationDto,
   ) {
-    return this.followsService.getFollowing(
-      userId,
-      page ? parseInt(page) : 1,
-      limit ? parseInt(limit) : 20,
-    );
+    return this.followsService.getFollowing(userId, query.page, query.limit);
   }
 
   @Get('counts/:userId')

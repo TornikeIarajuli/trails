@@ -1,26 +1,46 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { ForbiddenException, NotFoundException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  InternalServerErrorException,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { CommentsService } from './comments.service';
 import { SupabaseService } from '../config/supabase.config';
 import { NotificationsService } from '../notifications/notifications.service';
 
 // ---------------------------------------------------------------------------
-// Chainable query builder
+// Supabase mock: every query method returns the builder, and awaiting the builder
+// (or calling .single()) resolves to the result queued for that table.
 // ---------------------------------------------------------------------------
-const chain = (result: object) => {
-  const c: Record<string, jest.Mock> = {};
-  c.select = jest.fn().mockReturnValue(c);
-  c.eq = jest.fn().mockReturnValue(c);
-  c.order = jest.fn().mockReturnValue(c);
-  c.range = jest.fn().mockResolvedValue(result);
-  c.insert = jest.fn().mockReturnValue(c);
-  c.delete = jest.fn().mockReturnValue(c);
-  c.single = jest.fn().mockResolvedValue(result);
-  return c;
-};
+type Builder = Record<string, jest.Mock> & { then: unknown };
 
-const mockAdmin: Record<string, any> = {
-  from: jest.fn(),
+function makeBuilder(result: object): Builder {
+  const self = {} as Builder;
+  ['select', 'insert', 'delete', 'eq', 'order', 'range'].forEach((m) => {
+    self[m] = jest.fn(() => self);
+  });
+  self.single = jest.fn().mockResolvedValue(result);
+  self.then = (res: (v: unknown) => unknown, rej?: (e: unknown) => unknown) =>
+    Promise.resolve(result).then(res, rej);
+  return self;
+}
+
+const queues = new Map<string, Builder[]>();
+
+/** Queue the result of the next query against `table`; returns its builder. */
+function onTable(table: string, result: object): Builder {
+  const builder = makeBuilder(result);
+  queues.set(table, [...(queues.get(table) ?? []), builder]);
+  return builder;
+}
+
+const mockAdmin = {
+  from: jest.fn((table: string) => {
+    const next = queues.get(table)?.shift();
+    if (!next) throw new Error(`Unexpected query on ${table}`);
+    return next;
+  }),
   rpc: jest.fn(),
 };
 
@@ -31,6 +51,9 @@ const mockSupabase = {
 const mockNotifications = {
   sendToUser: jest.fn().mockResolvedValue({ sent: 1 }),
 };
+
+/** Lets the fire-and-forget owner notification finish. */
+const flush = () => new Promise((resolve) => setImmediate(resolve));
 
 describe('CommentsService', () => {
   let service: CommentsService;
@@ -46,7 +69,7 @@ describe('CommentsService', () => {
 
     service = module.get<CommentsService>(CommentsService);
     jest.clearAllMocks();
-    mockSupabase.getAdminClient.mockReturnValue(mockAdmin);
+    queues.clear();
   });
 
   // -------------------------------------------------------------------------
@@ -57,17 +80,7 @@ describe('CommentsService', () => {
       const comments = [
         { id: 'c1', comment: 'Great trail!', created_at: '2026-01-01' },
       ];
-      const listChain = chain({
-        data: comments,
-        error: null,
-        count: 1,
-      });
-      listChain.range = jest.fn().mockResolvedValue({
-        data: comments,
-        error: null,
-        count: 1,
-      });
-      mockAdmin.from.mockReturnValue(listChain);
+      onTable('activity_comments', { data: comments, error: null, count: 1 });
 
       const result = await service.getComments('activity-1');
 
@@ -79,30 +92,35 @@ describe('CommentsService', () => {
     });
 
     it('uses correct offset for page 2', async () => {
-      const listChain = chain({ data: [], error: null, count: 0 });
-      listChain.range = jest.fn().mockResolvedValue({
+      const list = onTable('activity_comments', {
         data: [],
         error: null,
         count: 0,
       });
-      mockAdmin.from.mockReturnValue(listChain);
 
       await service.getComments('activity-1', 2, 10);
 
       // page 2, limit 10 → offset 10, range(10, 19)
-      expect(listChain.range).toHaveBeenCalledWith(10, 19);
+      expect(list.range).toHaveBeenCalledWith(10, 19);
     });
 
-    it('throws when Supabase returns an error', async () => {
-      const errorChain = chain({ data: null, error: null, count: 0 });
-      errorChain.range = jest.fn().mockResolvedValue({
+    it('throws a generic error when Supabase returns an error', async () => {
+      const errorLog = jest
+        .spyOn(Logger.prototype, 'error')
+        .mockImplementation(() => undefined);
+      onTable('activity_comments', {
         data: null,
-        error: new Error('DB error'),
+        error: { message: 'DB error: relation "x" is broken' },
         count: 0,
       });
-      mockAdmin.from.mockReturnValue(errorChain);
 
-      await expect(service.getComments('activity-1')).rejects.toThrow('DB error');
+      const error = await service
+        .getComments('activity-1')
+        .catch((e: unknown) => e);
+
+      expect(error).toBeInstanceOf(InternalServerErrorException);
+      expect((error as Error).message).toBe('Internal server error');
+      errorLog.mockRestore();
     });
   });
 
@@ -110,18 +128,21 @@ describe('CommentsService', () => {
   // createComment
   // -------------------------------------------------------------------------
   describe('createComment', () => {
+    const inserted = (activityType: string) => ({
+      id: 'c1',
+      activity_id: 'a1',
+      activity_type: activityType,
+      user_id: 'user-1',
+      comment: 'Nice!',
+      profiles: { username: 'hiker' },
+    });
+
     it('inserts a comment and returns it', async () => {
-      const insertedComment = {
-        id: 'c1',
-        activity_id: 'a1',
-        activity_type: 'completion',
-        user_id: 'user-1',
-        comment: 'Nice!',
-        profiles: { username: 'hiker' },
-      };
-      mockAdmin.from.mockReturnValue(
-        chain({ data: insertedComment, error: null }),
-      );
+      onTable('activity_comments', {
+        data: inserted('completion'),
+        error: null,
+      });
+      onTable('trail_completions', { data: null, error: null });
 
       const result = await service.createComment('user-1', {
         activity_id: 'a1',
@@ -129,7 +150,121 @@ describe('CommentsService', () => {
         comment: 'Nice!',
       });
 
-      expect(result!.comment).toBe('Nice!');
+      expect(result?.comment).toBe('Nice!');
+    });
+
+    it.each([
+      ['completion', 'trail_completions', 'user_id'],
+      ['photo', 'trail_photos', 'user_id'],
+      ['condition', 'trail_conditions', 'user_id'],
+      ['review', 'trail_reviews', 'user_id'],
+      ['event', 'events', 'organizer_id'],
+    ] as const)(
+      'notifies the owner of a %s (looked up in %s)',
+      async (activityType, table, ownerColumn) => {
+        onTable('activity_comments', {
+          data: inserted(activityType),
+          error: null,
+        });
+        const lookup = onTable(table, {
+          data: { [ownerColumn]: 'owner-1', trail_id: 'trail-9' },
+          error: null,
+        });
+
+        await service.createComment('user-1', {
+          activity_id: 'a1',
+          activity_type: activityType,
+          comment: 'Nice!',
+        });
+        await flush();
+
+        expect(lookup.select).toHaveBeenCalledWith(`${ownerColumn}, trail_id`);
+        expect(lookup.eq).toHaveBeenCalledWith('id', 'a1');
+        expect(mockNotifications.sendToUser).toHaveBeenCalledWith(
+          'owner-1',
+          'New Comment',
+          'hiker commented on your activity',
+          {
+            activityId: 'a1',
+            activityType,
+            commenterId: 'user-1',
+            trailId: 'trail-9',
+          },
+          'new_comment',
+        );
+      },
+    );
+
+    it('never queries the non-existent "completions" table', async () => {
+      onTable('activity_comments', {
+        data: inserted('completion'),
+        error: null,
+      });
+      onTable('trail_completions', {
+        data: { user_id: 'owner-1', trail_id: 'trail-9' },
+        error: null,
+      });
+
+      await service.createComment('user-1', {
+        activity_id: 'a1',
+        activity_type: 'completion',
+        comment: 'Nice!',
+      });
+      await flush();
+
+      const tables = mockAdmin.from.mock.calls.map(([table]) => table);
+      expect(tables).toEqual(['activity_comments', 'trail_completions']);
+    });
+
+    it('does not notify people commenting on their own activity', async () => {
+      onTable('activity_comments', { data: inserted('photo'), error: null });
+      onTable('trail_photos', {
+        data: { user_id: 'user-1', trail_id: 'trail-9' },
+        error: null,
+      });
+
+      await service.createComment('user-1', {
+        activity_id: 'a1',
+        activity_type: 'photo',
+        comment: 'Nice!',
+      });
+      await flush();
+
+      expect(mockNotifications.sendToUser).not.toHaveBeenCalled();
+    });
+
+    it('does not notify when the activity no longer exists', async () => {
+      onTable('activity_comments', { data: inserted('review'), error: null });
+      onTable('trail_reviews', {
+        data: null,
+        error: { code: 'PGRST116', message: 'no rows' },
+      });
+
+      await service.createComment('user-1', {
+        activity_id: 'a1',
+        activity_type: 'review',
+        comment: 'Nice!',
+      });
+      await flush();
+
+      expect(mockNotifications.sendToUser).not.toHaveBeenCalled();
+    });
+
+    it('still returns the comment when the notification lookup fails', async () => {
+      onTable('activity_comments', {
+        data: inserted('completion'),
+        error: null,
+      });
+      // no trail_completions result queued: the lookup throws
+
+      const result = await service.createComment('user-1', {
+        activity_id: 'a1',
+        activity_type: 'completion',
+        comment: 'Nice!',
+      });
+      await flush();
+
+      expect(result?.id).toBe('c1');
     });
   });
 
@@ -138,40 +273,36 @@ describe('CommentsService', () => {
   // -------------------------------------------------------------------------
   describe('deleteComment', () => {
     it('throws NotFoundException when comment does not exist', async () => {
-      mockAdmin.from.mockReturnValue(
-        chain({ data: null, error: null }),
-      );
+      onTable('activity_comments', { data: null, error: null });
 
-      await expect(
-        service.deleteComment('user-1', 'bad-id'),
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.deleteComment('user-1', 'bad-id')).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
-    it('throws ForbiddenException when deleting another user\'s comment', async () => {
-      mockAdmin.from.mockReturnValue(
-        chain({ data: { user_id: 'other-user' }, error: null }),
-      );
+    it("throws ForbiddenException when deleting another user's comment", async () => {
+      onTable('activity_comments', {
+        data: { user_id: 'other-user' },
+        error: null,
+      });
 
-      await expect(
-        service.deleteComment('user-1', 'c1'),
-      ).rejects.toThrow(ForbiddenException);
+      await expect(service.deleteComment('user-1', 'c1')).rejects.toThrow(
+        ForbiddenException,
+      );
     });
 
     it('deletes the comment when user owns it', async () => {
-      const selectChain = chain({
+      onTable('activity_comments', {
         data: { user_id: 'user-1' },
         error: null,
       });
-      const deleteChain: Record<string, jest.Mock> = {};
-      deleteChain.delete = jest.fn().mockReturnValue(deleteChain);
-      deleteChain.eq = jest.fn().mockResolvedValue({ error: null });
-
-      mockAdmin.from
-        .mockReturnValueOnce(selectChain)
-        .mockReturnValueOnce(deleteChain);
+      const del = onTable('activity_comments', { error: null });
 
       const result = await service.deleteComment('user-1', 'c1');
+
       expect(result.message).toBe('Deleted');
+      expect(del.delete).toHaveBeenCalled();
+      expect(del.eq).toHaveBeenCalledWith('id', 'c1');
     });
   });
 
@@ -181,10 +312,7 @@ describe('CommentsService', () => {
   describe('getLikes', () => {
     it('returns likes for an activity', async () => {
       const likes = [{ id: 'l1', user_id: 'u1', created_at: '2026-01-01' }];
-      const likesChain: Record<string, jest.Mock> = {};
-      likesChain.select = jest.fn().mockReturnValue(likesChain);
-      likesChain.eq = jest.fn().mockResolvedValue({ data: likes, error: null });
-      mockAdmin.from.mockReturnValue(likesChain);
+      onTable('activity_likes', { data: likes, error: null });
 
       const result = await service.getLikes('activity-1');
       expect(result).toHaveLength(1);
@@ -201,7 +329,11 @@ describe('CommentsService', () => {
         error: null,
       });
 
-      const result = await service.toggleLike('user-1', 'activity-1', 'completion');
+      const result = await service.toggleLike(
+        'user-1',
+        'activity-1',
+        'completion',
+      );
 
       expect(mockAdmin.rpc).toHaveBeenCalledWith('toggle_activity_like_full', {
         p_activity_id: 'activity-1',

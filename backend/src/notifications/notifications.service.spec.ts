@@ -1,30 +1,53 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { Logger } from '@nestjs/common';
 import { NotificationsService } from './notifications.service';
 import { SupabaseService } from '../config/supabase.config';
 
 // ---------------------------------------------------------------------------
-// Chainable query builder
+// Supabase mock: every query method returns the builder, and awaiting the builder
+// (or calling .single()) resolves to the result queued for that table.
 // ---------------------------------------------------------------------------
-const chain = (result: object) => {
-  const c: Record<string, jest.Mock> = {};
-  c.select = jest.fn().mockReturnValue(c);
-  c.eq = jest.fn().mockReturnValue(c);
-  c.is = jest.fn().mockReturnValue(c);
-  c.neq = jest.fn().mockReturnValue(c);
-  c.in = jest.fn().mockReturnValue(c);
-  c.not = jest.fn().mockReturnValue(c);
-  c.order = jest.fn().mockReturnValue(c);
-  c.range = jest.fn().mockResolvedValue(result);
-  c.insert = jest.fn().mockResolvedValue({ error: null });
-  c.upsert = jest.fn().mockResolvedValue({ error: null });
-  c.update = jest.fn().mockReturnValue(c);
-  c.delete = jest.fn().mockReturnValue(c);
-  c.single = jest.fn().mockResolvedValue(result);
-  return c;
-};
+type Builder = Record<string, jest.Mock> & { then: unknown };
 
-const mockAdmin: Record<string, any> = {
-  from: jest.fn(),
+function makeBuilder(result: object): Builder {
+  const self = {} as Builder;
+  [
+    'select',
+    'insert',
+    'upsert',
+    'update',
+    'delete',
+    'eq',
+    'neq',
+    'in',
+    'is',
+    'order',
+    'range',
+    'limit',
+  ].forEach((m) => {
+    self[m] = jest.fn(() => self);
+  });
+  self.single = jest.fn().mockResolvedValue(result);
+  self.then = (res: (v: unknown) => unknown, rej?: (e: unknown) => unknown) =>
+    Promise.resolve(result).then(res, rej);
+  return self;
+}
+
+const queues = new Map<string, Builder[]>();
+
+/** Queue the result of the next query against `table`; returns its builder. */
+function onTable(table: string, result: object): Builder {
+  const builder = makeBuilder(result);
+  queues.set(table, [...(queues.get(table) ?? []), builder]);
+  return builder;
+}
+
+const mockAdmin = {
+  from: jest.fn((table: string) => {
+    const next = queues.get(table)?.shift();
+    if (!next) throw new Error(`Unexpected query on ${table}`);
+    return next;
+  }),
 };
 
 const mockSupabase = {
@@ -35,8 +58,18 @@ const mockSupabase = {
 const mockFetch = jest.fn();
 global.fetch = mockFetch;
 
+const expoResponse = (body: unknown) => ({
+  ok: true,
+  status: 200,
+  json: () => Promise.resolve(body),
+});
+
+const sentMessages = (call = 0): Array<Record<string, any>> =>
+  JSON.parse(mockFetch.mock.calls[call][1].body as string);
+
 describe('NotificationsService', () => {
   let service: NotificationsService;
+  let logSpies: jest.SpyInstance[];
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -48,28 +81,72 @@ describe('NotificationsService', () => {
 
     service = module.get<NotificationsService>(NotificationsService);
     jest.clearAllMocks();
-    mockSupabase.getAdminClient.mockReturnValue(mockAdmin);
+    queues.clear();
+    logSpies = [
+      jest.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined),
+      jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined),
+    ];
+  });
+
+  afterEach(() => {
+    logSpies.forEach((spy) => spy.mockRestore());
   });
 
   // -------------------------------------------------------------------------
   // registerToken
   // -------------------------------------------------------------------------
   describe('registerToken', () => {
-    it('deletes stale tokens and upserts the new one', async () => {
-      const deleteChain: Record<string, jest.Mock> = {};
-      deleteChain.delete = jest.fn().mockReturnValue(deleteChain);
-      deleteChain.eq = jest.fn().mockReturnValue(deleteChain);
-      deleteChain.neq = jest.fn().mockResolvedValue({ error: null });
+    it('takes the token away from other users, then upserts it for this user', async () => {
+      const release = onTable('push_tokens', { error: null });
+      const upsert = onTable('push_tokens', { error: null });
 
-      const upsertChain: Record<string, jest.Mock> = {};
-      upsertChain.upsert = jest.fn().mockResolvedValue({ error: null });
+      const result = await service.registerToken(
+        'user-1',
+        'ExponentPushToken[xxx]',
+      );
 
-      mockAdmin.from
-        .mockReturnValueOnce(deleteChain)
-        .mockReturnValueOnce(upsertChain);
-
-      const result = await service.registerToken('user-1', 'ExponentPushToken[xxx]');
       expect(result.registered).toBe(true);
+      expect(release.delete).toHaveBeenCalled();
+      expect(release.eq).toHaveBeenCalledWith(
+        'token',
+        'ExponentPushToken[xxx]',
+      );
+      expect(release.neq).toHaveBeenCalledWith('user_id', 'user-1');
+      expect(upsert.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          user_id: 'user-1',
+          token: 'ExponentPushToken[xxx]',
+          platform: 'expo',
+        }),
+        { onConflict: 'user_id,token' },
+      );
+      // the release must complete before the upsert starts
+      expect(release.delete.mock.invocationCallOrder[0]).toBeLessThan(
+        upsert.upsert.mock.invocationCallOrder[0],
+      );
+    });
+
+    it("never deletes the user's other devices", async () => {
+      const release = onTable('push_tokens', { error: null });
+      onTable('push_tokens', { error: null });
+
+      await service.registerToken('user-1', 'ExponentPushToken[new-phone]');
+
+      expect(release.eq).not.toHaveBeenCalledWith('user_id', 'user-1');
+      expect(release.neq).not.toHaveBeenCalledWith(
+        'token',
+        'ExponentPushToken[new-phone]',
+      );
+      expect(mockAdmin.from).toHaveBeenCalledTimes(2);
+    });
+
+    it('fails when the token could not be released', async () => {
+      onTable('push_tokens', { error: { code: 'XX000', message: 'boom' } });
+
+      await expect(
+        service.registerToken('user-1', 'ExponentPushToken[xxx]'),
+      ).rejects.toThrow('Internal server error');
+      expect(mockAdmin.from).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -78,15 +155,13 @@ describe('NotificationsService', () => {
   // -------------------------------------------------------------------------
   describe('removeToken', () => {
     it('deletes the token for the user', async () => {
-      const deleteChain: Record<string, jest.Mock> = {};
-      deleteChain.delete = jest.fn().mockReturnValue(deleteChain);
-      deleteChain.eq = jest.fn().mockImplementation(() => ({
-        eq: jest.fn().mockResolvedValue({ error: null }),
-      }));
-      mockAdmin.from.mockReturnValue(deleteChain);
+      const del = onTable('push_tokens', { error: null });
 
       const result = await service.removeToken('user-1', 'token-abc');
+
       expect(result.removed).toBe(true);
+      expect(del.eq).toHaveBeenCalledWith('user_id', 'user-1');
+      expect(del.eq).toHaveBeenCalledWith('token', 'token-abc');
     });
   });
 
@@ -95,49 +170,44 @@ describe('NotificationsService', () => {
   // -------------------------------------------------------------------------
   describe('sendToUser', () => {
     it('skips push when user has disabled the notification type', async () => {
-      // Preferences: badge_earned is disabled
-      const prefsChain = chain({
+      onTable('notification_preferences', {
         data: { user_id: 'u1', badge_earned: false },
         error: null,
       });
-      mockAdmin.from.mockReturnValue(prefsChain);
 
       const result = await service.sendToUser(
-        'u1', 'Badge!', 'You earned a badge', {}, 'badge_earned',
+        'u1',
+        'Badge!',
+        'You earned a badge',
+        {},
+        'badge_earned',
       );
 
       expect(result.skipped).toBe('user_preference');
+      expect(result.sent).toBe(0);
       expect(mockFetch).not.toHaveBeenCalled();
+      // nothing is stored either
+      expect(mockAdmin.from).toHaveBeenCalledTimes(1);
     });
 
     it('sends push notification via Expo when preferences allow', async () => {
-      // Prefs: all enabled
-      const prefsChain = chain({
+      onTable('notification_preferences', {
         data: { user_id: 'u1', badge_earned: true },
         error: null,
       });
-      // Insert notification
-      const insertChain: Record<string, jest.Mock> = {};
-      insertChain.insert = jest.fn().mockResolvedValue({ error: null });
-      // Get tokens
-      const tokensChain: Record<string, jest.Mock> = {};
-      tokensChain.select = jest.fn().mockReturnValue(tokensChain);
-      tokensChain.eq = jest.fn().mockResolvedValue({
+      const history = onTable('notifications', { error: null });
+      onTable('push_tokens', {
         data: [{ token: 'ExponentPushToken[abc]' }],
         error: null,
       });
-
-      mockAdmin.from
-        .mockReturnValueOnce(prefsChain) // notification_preferences
-        .mockReturnValueOnce(insertChain) // notifications insert
-        .mockReturnValueOnce(tokensChain); // push_tokens
-
-      mockFetch.mockResolvedValue({
-        json: () => Promise.resolve({ data: [{ status: 'ok' }] }),
-      });
+      mockFetch.mockResolvedValue(expoResponse({ data: [{ status: 'ok' }] }));
 
       const result = await service.sendToUser(
-        'u1', 'Badge!', 'You earned a badge', {}, 'badge_earned',
+        'u1',
+        'Badge!',
+        'You earned a badge',
+        { badgeIds: ['b1'] },
+        'badge_earned',
       );
 
       expect(result.sent).toBe(1);
@@ -145,57 +215,218 @@ describe('NotificationsService', () => {
         'https://exp.host/--/api/v2/push/send',
         expect.objectContaining({ method: 'POST' }),
       );
+      expect(history.insert).toHaveBeenCalledWith(
+        expect.objectContaining({ user_id: 'u1', type: 'badge_earned' }),
+      );
     });
 
-    it('returns sent: 0 when user has no tokens', async () => {
-      const prefsChain = chain({ data: null, error: null });
-      const insertChain: Record<string, jest.Mock> = {};
-      insertChain.insert = jest.fn().mockResolvedValue({ error: null });
-      const tokensChain: Record<string, jest.Mock> = {};
-      tokensChain.select = jest.fn().mockReturnValue(tokensChain);
-      tokensChain.eq = jest.fn().mockResolvedValue({ data: [], error: null });
-
-      mockAdmin.from
-        .mockReturnValueOnce(prefsChain)
-        .mockReturnValueOnce(insertChain)
-        .mockReturnValueOnce(tokensChain);
-
-      const result = await service.sendToUser('u1', 'Hi', 'Body');
-      expect(result.sent).toBe(0);
-    });
-
-    it('cleans up DeviceNotRegistered tokens', async () => {
-      const prefsChain = chain({ data: null, error: null });
-      const insertChain: Record<string, jest.Mock> = {};
-      insertChain.insert = jest.fn().mockResolvedValue({ error: null });
-      const tokensChain: Record<string, jest.Mock> = {};
-      tokensChain.select = jest.fn().mockReturnValue(tokensChain);
-      tokensChain.eq = jest.fn().mockResolvedValue({
-        data: [{ token: 'dead-token' }],
+    it('always puts the notification type into the push data and the stored row', async () => {
+      onTable('notification_preferences', { data: null, error: null });
+      const history = onTable('notifications', { error: null });
+      onTable('push_tokens', {
+        data: [{ token: 'ExponentPushToken[abc]' }],
         error: null,
       });
+      mockFetch.mockResolvedValue(expoResponse({ data: [{ status: 'ok' }] }));
 
-      // Delete chain for dead tokens
-      const deadDeleteChain: Record<string, jest.Mock> = {};
-      deadDeleteChain.delete = jest.fn().mockReturnValue(deadDeleteChain);
-      deadDeleteChain.in = jest.fn().mockResolvedValue({ error: null });
+      await service.sendToUser(
+        'u1',
+        'New Follower',
+        'x started following you',
+        { followerId: 'f1', type: 'something-else' },
+        'new_follower',
+      );
 
-      mockAdmin.from
-        .mockReturnValueOnce(prefsChain)
-        .mockReturnValueOnce(insertChain)
-        .mockReturnValueOnce(tokensChain)
-        .mockReturnValueOnce(deadDeleteChain);
-
-      mockFetch.mockResolvedValue({
-        json: () => Promise.resolve({
-          data: [{ status: 'error', details: { error: 'DeviceNotRegistered' } }],
-        }),
+      expect(sentMessages()[0].data).toEqual({
+        followerId: 'f1',
+        type: 'new_follower',
       });
+      expect(history.insert.mock.calls[0][0].data).toEqual({
+        followerId: 'f1',
+        type: 'new_follower',
+      });
+    });
+
+    it('adds the type even when the caller passes no data', async () => {
+      onTable('notification_preferences', { data: null, error: null });
+      onTable('notifications', { error: null });
+      onTable('push_tokens', {
+        data: [{ token: 'ExponentPushToken[abc]' }],
+        error: null,
+      });
+      mockFetch.mockResolvedValue(expoResponse({ data: [{ status: 'ok' }] }));
 
       await service.sendToUser('u1', 'Hi', 'Body');
 
-      // Verify dead token cleanup was attempted
-      expect(mockAdmin.from).toHaveBeenCalledWith('push_tokens');
+      expect(sentMessages()[0].data).toEqual({ type: 'general' });
+    });
+
+    it('returns sent: 0 when user has no tokens', async () => {
+      onTable('notification_preferences', { data: null, error: null });
+      onTable('notifications', { error: null });
+      onTable('push_tokens', { data: [], error: null });
+
+      const result = await service.sendToUser('u1', 'Hi', 'Body');
+
+      expect(result.sent).toBe(0);
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+
+    it('counts only the tickets Expo accepted', async () => {
+      onTable('notification_preferences', { data: null, error: null });
+      onTable('notifications', { error: null });
+      onTable('push_tokens', {
+        data: [
+          { token: 'ExponentPushToken[a]' },
+          { token: 'ExponentPushToken[b]' },
+          { token: 'ExponentPushToken[c]' },
+        ],
+        error: null,
+      });
+      mockFetch.mockResolvedValue(
+        expoResponse({
+          data: [
+            { status: 'ok' },
+            { status: 'error', details: { error: 'MessageRateExceeded' } },
+            { status: 'ok' },
+          ],
+        }),
+      );
+
+      const result = await service.sendToUser('u1', 'Hi', 'Body');
+
+      expect(result.sent).toBe(2);
+      expect(result.error).toBeUndefined();
+    });
+
+    it('removes DeviceNotRegistered tokens and does not count them', async () => {
+      onTable('notification_preferences', { data: null, error: null });
+      onTable('notifications', { error: null });
+      onTable('push_tokens', {
+        data: [
+          { token: 'ExponentPushToken[alive]' },
+          { token: 'ExponentPushToken[dead]' },
+        ],
+        error: null,
+      });
+      const cleanup = onTable('push_tokens', { error: null });
+      mockFetch.mockResolvedValue(
+        expoResponse({
+          data: [
+            { status: 'ok' },
+            { status: 'error', details: { error: 'DeviceNotRegistered' } },
+          ],
+        }),
+      );
+
+      const result = await service.sendToUser('u1', 'Hi', 'Body');
+
+      expect(result.sent).toBe(1);
+      expect(cleanup.delete).toHaveBeenCalled();
+      expect(cleanup.in).toHaveBeenCalledWith('token', [
+        'ExponentPushToken[dead]',
+      ]);
+    });
+
+    it('reports sent: 0 with an error when Expo rejects the whole request', async () => {
+      onTable('notification_preferences', { data: null, error: null });
+      onTable('notifications', { error: null });
+      onTable('push_tokens', {
+        data: [{ token: 'ExponentPushToken[abc]' }],
+        error: null,
+      });
+      mockFetch.mockResolvedValue({
+        ok: false,
+        status: 400,
+        json: () =>
+          Promise.resolve({ errors: [{ message: 'Bad push payload' }] }),
+      });
+
+      const result = await service.sendToUser('u1', 'Hi', 'Body');
+
+      expect(result).toEqual({ sent: 0, error: 'Bad push payload' });
+    });
+
+    it('never throws when the network call fails', async () => {
+      onTable('notification_preferences', { data: null, error: null });
+      onTable('notifications', { error: null });
+      onTable('push_tokens', {
+        data: [{ token: 'ExponentPushToken[abc]' }],
+        error: null,
+      });
+      mockFetch.mockRejectedValue(new Error('socket hang up'));
+
+      const result = await service.sendToUser('u1', 'Hi', 'Body');
+
+      expect(result).toEqual({ sent: 0, error: 'socket hang up' });
+    });
+
+    it('never throws when the database is unreachable', async () => {
+      mockAdmin.from.mockImplementationOnce(() => {
+        throw new Error('db down');
+      });
+
+      const result = await service.sendToUser('u1', 'Hi', 'Body');
+
+      expect(result).toEqual({ sent: 0, error: 'db down' });
+    });
+
+    it('still pushes when the history row cannot be stored', async () => {
+      onTable('notification_preferences', { data: null, error: null });
+      onTable('notifications', { error: { message: 'insert failed' } });
+      onTable('push_tokens', {
+        data: [{ token: 'ExponentPushToken[abc]' }],
+        error: null,
+      });
+      mockFetch.mockResolvedValue(expoResponse({ data: [{ status: 'ok' }] }));
+
+      const result = await service.sendToUser('u1', 'Hi', 'Body');
+
+      expect(result.sent).toBe(1);
+    });
+
+    it('sends SOS pushes at high priority', async () => {
+      onTable('notification_preferences', { data: null, error: null });
+      onTable('notifications', { error: null });
+      onTable('push_tokens', {
+        data: [{ token: 'ExponentPushToken[abc]' }],
+        error: null,
+      });
+      mockFetch.mockResolvedValue(expoResponse({ data: [{ status: 'ok' }] }));
+
+      await service.sendToUser('u1', 'SOS', 'Help', { userId: 'u2' }, 'sos');
+
+      expect(sentMessages()[0].priority).toBe('high');
+    });
+
+    it('splits more than 100 devices into several Expo requests', async () => {
+      onTable('notification_preferences', { data: null, error: null });
+      onTable('notifications', { error: null });
+      onTable('push_tokens', {
+        data: Array.from({ length: 100 }, (_, i) => ({
+          token: `ExponentPushToken[${i}]`,
+        })).concat(
+          Array.from({ length: 30 }, (_, i) => ({
+            token: `ExponentPushToken[extra-${i}]`,
+          })),
+        ),
+        error: null,
+      });
+      mockFetch.mockImplementation((_url: string, init: { body: string }) => {
+        const count = (JSON.parse(init.body) as unknown[]).length;
+        return Promise.resolve(
+          expoResponse({
+            data: Array.from({ length: count }, () => ({ status: 'ok' })),
+          }),
+        );
+      });
+
+      const result = await service.sendToUser('u1', 'Hi', 'Body');
+
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+      expect(sentMessages(0)).toHaveLength(100);
+      expect(sentMessages(1)).toHaveLength(30);
+      expect(result.sent).toBe(130);
     });
   });
 
@@ -203,28 +434,56 @@ describe('NotificationsService', () => {
   // getNotifications
   // -------------------------------------------------------------------------
   describe('getNotifications', () => {
-    it('returns paginated notifications with unread count', async () => {
+    it('returns a page with the total unread count across all pages', async () => {
       const notifications = [
         { id: 'n1', read_at: null, title: 'New badge' },
         { id: 'n2', read_at: '2026-01-01', title: 'Welcome' },
       ];
-      const listChain = chain({
+      const list = onTable('notifications', {
         data: notifications,
         error: null,
         count: 10,
       });
-      listChain.range = jest.fn().mockResolvedValue({
-        data: notifications,
-        error: null,
-        count: 10,
-      });
-      mockAdmin.from.mockReturnValue(listChain);
+      const unread = onTable('notifications', { count: 7, error: null });
 
       const result = await service.getNotifications('user-1', 1, 20);
 
       expect(result.data).toHaveLength(2);
-      expect(result.unreadCount).toBe(1);
+      expect(result.unreadCount).toBe(7);
       expect(result.total).toBe(10);
+      expect(list.range).toHaveBeenCalledWith(0, 19);
+      expect(unread.is).toHaveBeenCalledWith('read_at', null);
+      expect(unread.select).toHaveBeenCalledWith('id', {
+        count: 'exact',
+        head: true,
+      });
+    });
+
+    it('applies page and limit', async () => {
+      const list = onTable('notifications', {
+        data: [],
+        error: null,
+        count: 0,
+      });
+      onTable('notifications', { count: 0, error: null });
+
+      await service.getNotifications('user-1', 3, 10);
+
+      expect(list.range).toHaveBeenCalledWith(20, 29);
+    });
+
+    it('defaults to the first page of 20', async () => {
+      const list = onTable('notifications', {
+        data: [],
+        error: null,
+        count: 0,
+      });
+      onTable('notifications', { count: 0, error: null });
+
+      const result = await service.getNotifications('user-1');
+
+      expect(list.range).toHaveBeenCalledWith(0, 19);
+      expect(result).toEqual({ data: [], unreadCount: 0, total: 0 });
     });
   });
 
@@ -233,28 +492,24 @@ describe('NotificationsService', () => {
   // -------------------------------------------------------------------------
   describe('markRead', () => {
     it('marks a single notification as read', async () => {
-      const updateChain: Record<string, jest.Mock> = {};
-      updateChain.update = jest.fn().mockReturnValue(updateChain);
-      updateChain.eq = jest.fn().mockImplementation(() => ({
-        eq: jest.fn().mockResolvedValue({ error: null }),
-      }));
-      mockAdmin.from.mockReturnValue(updateChain);
+      const update = onTable('notifications', { error: null });
 
       const result = await service.markRead('user-1', 'notif-1');
+
       expect(result.ok).toBe(true);
+      expect(update.eq).toHaveBeenCalledWith('id', 'notif-1');
+      expect(update.eq).toHaveBeenCalledWith('user_id', 'user-1');
     });
   });
 
   describe('markAllRead', () => {
     it('marks all unread notifications as read', async () => {
-      const updateChain: Record<string, jest.Mock> = {};
-      updateChain.update = jest.fn().mockReturnValue(updateChain);
-      updateChain.eq = jest.fn().mockReturnValue(updateChain);
-      updateChain.is = jest.fn().mockResolvedValue({ error: null });
-      mockAdmin.from.mockReturnValue(updateChain);
+      const update = onTable('notifications', { error: null });
 
       const result = await service.markAllRead('user-1');
+
       expect(result.ok).toBe(true);
+      expect(update.is).toHaveBeenCalledWith('read_at', null);
     });
   });
 
@@ -263,9 +518,7 @@ describe('NotificationsService', () => {
   // -------------------------------------------------------------------------
   describe('getPreferences', () => {
     it('returns defaults when no preferences row exists', async () => {
-      mockAdmin.from.mockReturnValue(
-        chain({ data: null, error: null }),
-      );
+      onTable('notification_preferences', { data: null, error: null });
 
       const result = await service.getPreferences('user-1');
 
@@ -275,19 +528,17 @@ describe('NotificationsService', () => {
     });
 
     it('returns stored preferences when they exist', async () => {
-      mockAdmin.from.mockReturnValue(
-        chain({
-          data: {
-            user_id: 'u1',
-            new_follower: false,
-            badge_earned: true,
-            completion_approved: true,
-            event_invite: false,
-            trail_condition: true,
-          },
-          error: null,
-        }),
-      );
+      onTable('notification_preferences', {
+        data: {
+          user_id: 'u1',
+          new_follower: false,
+          badge_earned: true,
+          completion_approved: true,
+          event_invite: false,
+          trail_condition: true,
+        },
+        error: null,
+      });
 
       const result = await service.getPreferences('u1');
       expect(result.new_follower).toBe(false);
@@ -297,16 +548,14 @@ describe('NotificationsService', () => {
 
   describe('updatePreferences', () => {
     it('upserts preferences and returns updated data', async () => {
-      const upsertChain: Record<string, jest.Mock> = {};
-      upsertChain.upsert = jest.fn().mockReturnValue(upsertChain);
-      upsertChain.select = jest.fn().mockReturnValue(upsertChain);
-      upsertChain.single = jest.fn().mockResolvedValue({
+      onTable('notification_preferences', {
         data: { user_id: 'u1', new_follower: false },
         error: null,
       });
-      mockAdmin.from.mockReturnValue(upsertChain);
 
-      const result = await service.updatePreferences('u1', { new_follower: false });
+      const result = await service.updatePreferences('u1', {
+        new_follower: false,
+      });
       expect(result.new_follower).toBe(false);
     });
   });

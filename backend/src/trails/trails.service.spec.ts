@@ -393,7 +393,10 @@ describe('TrailsService', () => {
     });
 
     it('throws when Supabase returns an error', async () => {
-      adminMock.rpc.mockResolvedValue({ data: null, error: new Error('DB error') });
+      adminMock.rpc.mockResolvedValue({
+        data: null,
+        error: new Error('DB error'),
+      });
 
       await expect(service.getRegions()).rejects.toThrow();
     });
@@ -492,6 +495,59 @@ describe('TrailsService', () => {
       adminMock.from.mockReturnValue(builder);
 
       await expect(service.remove('trail-1')).rejects.toThrow();
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // caching
+  // -------------------------------------------------------------------------
+  describe('caching', () => {
+    const emptyList = () =>
+      adminMock.from.mockImplementation(() =>
+        makeBuilder({ data: [], error: null, count: 0 }),
+      );
+
+    it('caches a filtered list', async () => {
+      emptyList();
+
+      await service.findAll({ difficulty: 'hard' as any });
+      await service.findAll({ difficulty: 'hard' as any });
+
+      expect(adminMock.from).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not cache free-text searches', async () => {
+      emptyList();
+
+      await service.findAll({ search: 'peak' });
+      await service.findAll({ search: 'peak' });
+
+      expect(adminMock.from).toHaveBeenCalledTimes(2);
+    });
+
+    it('only serves published trails', async () => {
+      const trailB = makeBuilder({ data: null, error: { code: 'PGRST116' } });
+      adminMock.from.mockReturnValueOnce(trailB);
+
+      await expect(service.findOne('draft-trail')).rejects.toThrow(
+        NotFoundException,
+      );
+      expect(trailB.eq).toHaveBeenCalledWith('is_published', true);
+    });
+
+    it('drops a cached trail when it is invalidated', async () => {
+      adminMock.from.mockImplementation(() =>
+        makeBuilder({ data: { id: 't1' }, error: null, count: 0 }),
+      );
+
+      await service.findOne('t1');
+      await service.findOne('t1');
+      const queriesForOneLoad = adminMock.from.mock.calls.length;
+
+      service.invalidateCache('t1');
+      await service.findOne('t1');
+
+      expect(adminMock.from.mock.calls.length).toBe(queriesForOneLoad * 2);
     });
   });
 });

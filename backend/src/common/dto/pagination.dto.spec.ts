@@ -63,18 +63,29 @@ describe('PaginationDto', () => {
       expect(errors.filter((e) => e.property === 'limit')).toHaveLength(0);
     });
 
-    it('accepts limit = 500 (maximum)', async () => {
-      const errors = await check({ limit: 500 });
+    it('accepts limit = 100 (maximum)', async () => {
+      const errors = await check({ limit: 100 });
       expect(errors.filter((e) => e.property === 'limit')).toHaveLength(0);
     });
 
     it('accepts limit supplied as a string — @Type converts it', async () => {
-      const errors = await check({ limit: '200' });
+      const errors = await check({ limit: '50' });
       expect(errors.filter((e) => e.property === 'limit')).toHaveLength(0);
     });
 
-    it('rejects limit = 501 (exceeds @Max(500))', async () => {
-      const errors = await check({ limit: 501 });
+    it('converts numeric strings to numbers', () => {
+      const dto = plainToInstance(PaginationDto, { page: '3', limit: '50' });
+      expect(dto.page).toBe(3);
+      expect(dto.limit).toBe(50);
+    });
+
+    it('rejects limit = 101 (exceeds @Max(100))', async () => {
+      const errors = await check({ limit: 101 });
+      expect(errors.some((e) => e.property === 'limit')).toBe(true);
+    });
+
+    it('rejects a limit that is not a number', async () => {
+      const errors = await check({ limit: 'abc' });
       expect(errors.some((e) => e.property === 'limit')).toBe(true);
     });
 

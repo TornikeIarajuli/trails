@@ -12,6 +12,8 @@ import {
 import { Throttle } from '@nestjs/throttler';
 import { CompletionsService } from './completions.service';
 import { SubmitCompletionDto } from './dto/submit-completion.dto';
+import { RecordHikeDto } from './dto/record-hike.dto';
+import { ReviewCompletionDto } from './dto/review-completion.dto';
 import { AuthGuard } from '../common/guards/auth.guard';
 import { AdminGuard } from '../common/guards/admin.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
@@ -30,12 +32,8 @@ export class CompletionsController {
   @Post('record')
   @UseGuards(AuthGuard)
   @Throttle({ default: { ttl: 60000, limit: 10 } })
-  recordHike(
-    @CurrentUser('id') userId: string,
-    @Body('trail_id') trailId: string,
-    @Body('elapsed_seconds') elapsedSeconds?: number,
-  ) {
-    return this.completionsService.recordHike(userId, trailId, elapsedSeconds);
+  recordHike(@CurrentUser('id') userId: string, @Body() dto: RecordHikeDto) {
+    return this.completionsService.recordHike(userId, dto);
   }
 
   @Get('me')
@@ -53,10 +51,13 @@ export class CompletionsController {
   @UseGuards(AdminGuard)
   reviewCompletion(
     @Param('id', ParseUUIDPipe) id: string,
-    @Body('status') status: 'approved' | 'rejected',
-    @Body('reviewer_note') reviewerNote?: string,
+    @Body() dto: ReviewCompletionDto,
   ) {
-    return this.completionsService.reviewCompletion(id, status, reviewerNote);
+    return this.completionsService.reviewCompletion(
+      id,
+      dto.status,
+      dto.reviewer_note,
+    );
   }
 
   @Delete(':id')

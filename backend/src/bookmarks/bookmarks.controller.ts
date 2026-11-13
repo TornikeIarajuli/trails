@@ -9,7 +9,12 @@ import {
   UseGuards,
   ParseUUIDPipe,
 } from '@nestjs/common';
-import { BookmarksService, BookmarkCategory } from './bookmarks.service';
+import { BookmarksService } from './bookmarks.service';
+import {
+  BookmarksQueryDto,
+  ToggleBookmarkDto,
+  UpdateBookmarkDto,
+} from './dto/bookmark.dto';
 import { AuthGuard } from '../common/guards/auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 
@@ -22,32 +27,30 @@ export class BookmarksController {
   toggle(
     @CurrentUser('id') userId: string,
     @Param('trailId', ParseUUIDPipe) trailId: string,
-    @Body('category') category?: BookmarkCategory,
+    @Body() dto: ToggleBookmarkDto,
   ) {
-    return this.bookmarksService.toggle(userId, trailId, category);
+    return this.bookmarksService.toggle(userId, trailId, dto.category);
   }
 
   @Patch(':trailId')
   updateBookmark(
     @CurrentUser('id') userId: string,
     @Param('trailId', ParseUUIDPipe) trailId: string,
-    @Body() body: { category?: BookmarkCategory; note?: string | null },
+    @Body() dto: UpdateBookmarkDto,
   ) {
-    return this.bookmarksService.updateBookmark(userId, trailId, body);
+    return this.bookmarksService.updateBookmark(userId, trailId, dto);
   }
 
   @Get()
   getMyBookmarks(
     @CurrentUser('id') userId: string,
-    @Query('page') page?: string,
-    @Query('limit') limit?: string,
-    @Query('category') category?: string,
+    @Query() query: BookmarksQueryDto,
   ) {
     return this.bookmarksService.getMyBookmarks(
       userId,
-      page ? parseInt(page) : 1,
-      limit ? parseInt(limit) : 20,
-      category,
+      query.page,
+      query.limit,
+      query.category,
     );
   }
 

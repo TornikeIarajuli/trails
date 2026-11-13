@@ -8,6 +8,16 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { CreateCommentDto } from './dto/create-comment.dto';
 import { throwIfError } from '../common/supabase-error';
 
+// Where each commentable activity lives and which column names its owner
+const ACTIVITY_SOURCES: Record<string, { table: string; ownerColumn: string }> =
+  {
+    completion: { table: 'trail_completions', ownerColumn: 'user_id' },
+    photo: { table: 'trail_photos', ownerColumn: 'user_id' },
+    condition: { table: 'trail_conditions', ownerColumn: 'user_id' },
+    review: { table: 'trail_reviews', ownerColumn: 'user_id' },
+    event: { table: 'events', ownerColumn: 'organizer_id' },
+  };
+
 @Injectable()
 export class CommentsService {
   constructor(
@@ -60,7 +70,12 @@ export class CommentsService {
     throwIfError(error);
 
     // Fire-and-forget: notify the activity owner (skip if commenter is owner)
-    this.notifyActivityOwner(userId, dto.activity_id, dto.activity_type, data!).catch(() => {});
+    this.notifyActivityOwner(
+      userId,
+      dto.activity_id,
+      dto.activity_type,
+      data,
+    ).catch(() => {});
 
     return data;
   }
@@ -69,36 +84,37 @@ export class CommentsService {
     commenterId: string,
     activityId: string,
     activityType: string,
-    comment: Record<string, any>,
+    comment: Record<string, any> | null,
   ) {
+    const source = ACTIVITY_SOURCES[activityType];
+    if (!source) return;
+
     const admin = this.supabaseService.getAdminClient();
 
-    // Resolve owner of the activity
-    let ownerId: string | null = null;
-    if (activityType === 'completion') {
-      const { data } = await admin
-        .from('completions')
-        .select('user_id')
-        .eq('id', activityId)
-        .single();
-      ownerId = data?.user_id ?? null;
-    } else if (activityType === 'event') {
-      const { data } = await admin
-        .from('events')
-        .select('organizer_id')
-        .eq('id', activityId)
-        .single();
-      ownerId = data?.organizer_id ?? null;
-    }
+    // Resolve the owner of the activity and the trail it belongs to
+    const columns: string = `${source.ownerColumn}, trail_id`;
+    const { data } = await admin
+      .from(source.table)
+      .select(columns)
+      .eq('id', activityId)
+      .single();
+    const activity = data as Record<string, string | null> | null;
 
+    const ownerId = activity?.[source.ownerColumn] ?? null;
     if (!ownerId || ownerId === commenterId) return;
 
-    const username = (comment.profiles as any)?.username ?? 'Someone';
+    const trailId = activity?.trail_id ?? null;
+    const username = comment?.profiles?.username ?? 'Someone';
     await this.notificationsService.sendToUser(
       ownerId,
       'New Comment',
       `${username} commented on your activity`,
-      { activityId, activityType, commenterId },
+      {
+        activityId,
+        activityType,
+        commenterId,
+        ...(trailId ? { trailId } : {}),
+      },
       'new_comment',
     );
   }

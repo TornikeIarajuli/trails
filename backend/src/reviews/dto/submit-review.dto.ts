@@ -1,9 +1,16 @@
-import { IsString, IsNotEmpty, IsInt, Min, Max, IsOptional } from 'class-validator';
+import {
+  IsString,
+  IsInt,
+  Min,
+  Max,
+  IsOptional,
+  MaxLength,
+} from 'class-validator';
 import { Type } from 'class-transformer';
+import { IsLooseUuid } from '../../common/validators/is-loose-uuid';
 
 export class SubmitReviewDto {
-  @IsString()
-  @IsNotEmpty()
+  @IsLooseUuid()
   trail_id: string;
 
   @Type(() => Number)
@@ -14,5 +21,19 @@ export class SubmitReviewDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(2000)
+  comment?: string;
+}
+
+export class UpdateReviewDto {
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(5)
+  rating: number;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
   comment?: string;
 }

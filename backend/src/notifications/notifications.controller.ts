@@ -16,6 +16,8 @@ import { NotificationsService } from './notifications.service';
 import { AuthGuard } from '../common/guards/auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { UpdateNotificationPreferencesDto } from './dto/update-preferences.dto';
+import { RegisterTokenDto, RemoveTokenDto } from './dto/push-token.dto';
+import { PaginationDto } from '../common/dto/pagination.dto';
 
 @Controller('notifications')
 export class NotificationsController {
@@ -25,27 +27,31 @@ export class NotificationsController {
   @UseGuards(AuthGuard)
   registerToken(
     @CurrentUser('id') userId: string,
-    @Body('token') token: string,
-    @Body('platform') platform?: string,
+    @Body() dto: RegisterTokenDto,
   ) {
-    return this.notificationsService.registerToken(userId, token, platform);
+    return this.notificationsService.registerToken(
+      userId,
+      dto.token,
+      dto.platform ?? undefined,
+    );
   }
 
   @Delete('remove-token')
   @UseGuards(AuthGuard)
-  removeToken(@CurrentUser('id') userId: string, @Body('token') token: string) {
-    return this.notificationsService.removeToken(userId, token);
+  removeToken(@CurrentUser('id') userId: string, @Body() dto: RemoveTokenDto) {
+    return this.notificationsService.removeToken(userId, dto.token);
   }
 
   @Get()
   @UseGuards(AuthGuard)
   getNotifications(
     @CurrentUser('id') userId: string,
-    @Query('page') page?: string,
+    @Query() query: PaginationDto,
   ) {
     return this.notificationsService.getNotifications(
       userId,
-      page ? parseInt(page) : 1,
+      query.page,
+      query.limit,
     );
   }
 

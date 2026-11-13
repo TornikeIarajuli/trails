@@ -205,7 +205,10 @@ export class CheckpointsService {
     });
 
     if (error) {
-      this.logger.error('Checkpoint distance calculation failed', error?.message);
+      this.logger.error(
+        'Checkpoint distance calculation failed',
+        error?.message,
+      );
       return null;
     }
 

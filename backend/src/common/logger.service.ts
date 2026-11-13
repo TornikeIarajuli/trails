@@ -1,4 +1,8 @@
-import { Injectable, LoggerService as NestLoggerService, LogLevel } from '@nestjs/common';
+import {
+  Injectable,
+  LoggerService as NestLoggerService,
+  LogLevel,
+} from '@nestjs/common';
 
 /**
  * Structured logger that outputs JSON lines for production
@@ -32,7 +36,12 @@ export class LoggerService implements NestLoggerService {
     // no-op, all levels enabled
   }
 
-  private write(level: string, message: string, context?: string, trace?: string) {
+  private write(
+    level: string,
+    message: string,
+    context?: string,
+    trace?: string,
+  ) {
     const entry = {
       timestamp: new Date().toISOString(),
       level,

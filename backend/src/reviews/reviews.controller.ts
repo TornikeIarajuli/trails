@@ -11,7 +11,7 @@ import {
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { ReviewsService } from './reviews.service';
-import { SubmitReviewDto } from './dto/submit-review.dto';
+import { SubmitReviewDto, UpdateReviewDto } from './dto/submit-review.dto';
 import { AuthGuard } from '../common/guards/auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 
@@ -36,10 +36,9 @@ export class ReviewsController {
   update(
     @CurrentUser('id') userId: string,
     @Param('id', ParseUUIDPipe) id: string,
-    @Body('rating') rating: number,
-    @Body('comment') comment?: string,
+    @Body() dto: UpdateReviewDto,
   ) {
-    return this.reviewsService.update(userId, id, rating, comment);
+    return this.reviewsService.update(userId, id, dto.rating, dto.comment);
   }
 
   @Delete(':id')

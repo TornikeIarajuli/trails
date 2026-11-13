@@ -1,8 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import {
-  NotFoundException,
-  BadRequestException,
-} from '@nestjs/common';
+import { NotFoundException, BadRequestException } from '@nestjs/common';
 import { EventsService } from './events.service';
 import { SupabaseService } from '../config/supabase.config';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -35,6 +32,12 @@ const mockNotifications = {
   sendToUser: jest.fn().mockResolvedValue({ sent: 1 }),
 };
 
+const inDays = (days: number) =>
+  new Date(Date.now() + days * 24 * 3600 * 1000).toISOString();
+
+/** Lets fire-and-forget notifications finish. */
+const flush = () => new Promise((resolve) => setImmediate(resolve));
+
 describe('EventsService', () => {
   let service: EventsService;
 
@@ -48,6 +51,8 @@ describe('EventsService', () => {
     }).compile();
 
     service = module.get<EventsService>(EventsService);
+    // mockReset also drops queued mockReturnValueOnce values a failed test left behind
+    mockAdmin.from.mockReset();
     jest.clearAllMocks();
     mockSupabase.getAdminClient.mockReturnValue(mockAdmin);
   });
@@ -61,7 +66,9 @@ describe('EventsService', () => {
       const listChain: Record<string, jest.Mock> = {};
       listChain.select = jest.fn().mockReturnValue(listChain);
       listChain.gte = jest.fn().mockReturnValue(listChain);
-      listChain.order = jest.fn().mockResolvedValue({ data: events, error: null });
+      listChain.order = jest
+        .fn()
+        .mockResolvedValue({ data: events, error: null });
       mockAdmin.from.mockReturnValue(listChain);
 
       const result = await service.findAll();
@@ -90,7 +97,9 @@ describe('EventsService', () => {
         chain({ data: null, error: { code: 'PGRST116' } }),
       );
 
-      await expect(service.findOne('bad-id')).rejects.toThrow(NotFoundException);
+      await expect(service.findOne('bad-id')).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('returns event with participants', async () => {
@@ -124,12 +133,90 @@ describe('EventsService', () => {
       const result = await service.create('org-1', {
         trail_id: 'trail-1',
         title: 'New Event',
-        scheduled_at: '2026-04-01T10:00:00Z',
+        scheduled_at: inDays(7),
       });
 
       expect(result.title).toBe('New Event');
       // Verify organizer was auto-joined
       expect(mockAdmin.from).toHaveBeenCalledWith('event_participants');
+    });
+
+    it('rejects a date in the past without touching the database', async () => {
+      await expect(
+        service.create('org-1', {
+          trail_id: 'trail-1',
+          title: 'Too late',
+          scheduled_at: inDays(-1),
+        }),
+      ).rejects.toThrow(BadRequestException);
+      expect(mockAdmin.from).not.toHaveBeenCalled();
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // update
+  // -------------------------------------------------------------------------
+  describe('update', () => {
+    const event = {
+      organizer_id: 'org-1',
+      trail_id: 'trail-1',
+      title: 'Hike',
+      scheduled_at: inDays(3),
+    };
+    const participants = () => {
+      const c: Record<string, jest.Mock> = {};
+      c.select = jest.fn().mockReturnValue(c);
+      c.eq = jest.fn().mockResolvedValue({
+        data: [{ user_id: 'org-1' }, { user_id: 'u2' }, { user_id: 'u3' }],
+        error: null,
+      });
+      return c;
+    };
+
+    it('tells the participants (not the organizer) when the time changes', async () => {
+      const updateChain = chain({
+        data: { id: 'e1', title: 'Hike' },
+        error: null,
+      });
+      updateChain.update = jest.fn().mockReturnValue(updateChain);
+      mockAdmin.from
+        .mockReturnValueOnce(chain({ data: event, error: null }))
+        .mockReturnValueOnce(updateChain)
+        .mockReturnValueOnce(participants());
+
+      await service.update('org-1', 'e1', { scheduled_at: inDays(10) });
+      await flush();
+
+      expect(mockNotifications.sendToUser).toHaveBeenCalledTimes(2);
+      for (const userId of ['u2', 'u3']) {
+        expect(mockNotifications.sendToUser).toHaveBeenCalledWith(
+          userId,
+          'Group hike rescheduled',
+          expect.stringContaining('Hike'),
+          { eventId: 'e1', trailId: 'trail-1', cancelled: false },
+          'event_update',
+        );
+      }
+    });
+
+    it('does not notify anyone when the time stays the same', async () => {
+      const updateChain = chain({ data: { id: 'e1' }, error: null });
+      updateChain.update = jest.fn().mockReturnValue(updateChain);
+      mockAdmin.from
+        .mockReturnValueOnce(chain({ data: event, error: null }))
+        .mockReturnValueOnce(updateChain);
+
+      await service.update('org-1', 'e1', { description: 'Bring water' });
+      await flush();
+
+      expect(mockNotifications.sendToUser).not.toHaveBeenCalled();
+    });
+
+    it('rejects moving the event into the past', async () => {
+      await expect(
+        service.update('org-1', 'e1', { scheduled_at: inDays(-2) }),
+      ).rejects.toThrow(BadRequestException);
+      expect(mockAdmin.from).not.toHaveBeenCalled();
     });
   });
 
@@ -171,12 +258,91 @@ describe('EventsService', () => {
       const result = await service.delete('user-1', 'e1');
       expect(result.deleted).toBe(true);
     });
+
+    it('tells the participants of an upcoming event that it was cancelled', async () => {
+      const selectChain = chain({
+        data: {
+          organizer_id: 'user-1',
+          trail_id: 'trail-1',
+          title: 'Sunrise hike',
+          scheduled_at: inDays(2),
+        },
+        error: null,
+      });
+      const participantsChain: Record<string, jest.Mock> = {};
+      participantsChain.select = jest.fn().mockReturnValue(participantsChain);
+      participantsChain.eq = jest.fn().mockResolvedValue({
+        data: [{ user_id: 'user-1' }, { user_id: 'u2' }],
+        error: null,
+      });
+      const deleteChain: Record<string, jest.Mock> = {};
+      deleteChain.delete = jest.fn().mockReturnValue(deleteChain);
+      deleteChain.eq = jest.fn().mockResolvedValue({ error: null });
+
+      mockAdmin.from
+        .mockReturnValueOnce(selectChain)
+        .mockReturnValueOnce(participantsChain)
+        .mockReturnValueOnce(deleteChain);
+
+      await service.delete('user-1', 'e1');
+
+      expect(mockNotifications.sendToUser).toHaveBeenCalledTimes(1);
+      expect(mockNotifications.sendToUser).toHaveBeenCalledWith(
+        'u2',
+        'Group hike cancelled',
+        expect.stringContaining('Sunrise hike'),
+        { eventId: 'e1', trailId: 'trail-1', cancelled: true },
+        'event_update',
+      );
+    });
+
+    it('does not notify anyone when a past event is deleted', async () => {
+      const selectChain = chain({
+        data: {
+          organizer_id: 'user-1',
+          trail_id: 'trail-1',
+          title: 'Old hike',
+          scheduled_at: inDays(-5),
+        },
+        error: null,
+      });
+      const deleteChain: Record<string, jest.Mock> = {};
+      deleteChain.delete = jest.fn().mockReturnValue(deleteChain);
+      deleteChain.eq = jest.fn().mockResolvedValue({ error: null });
+      mockAdmin.from
+        .mockReturnValueOnce(selectChain)
+        .mockReturnValueOnce(deleteChain);
+
+      await service.delete('user-1', 'e1');
+
+      expect(mockNotifications.sendToUser).not.toHaveBeenCalled();
+    });
   });
 
   // -------------------------------------------------------------------------
   // join
   // -------------------------------------------------------------------------
   describe('join', () => {
+    it('rejects joining an event that has already taken place', async () => {
+      mockAdmin.from.mockReturnValueOnce(
+        chain({
+          data: {
+            max_participants: null,
+            organizer_id: 'org-1',
+            title: 'Old hike',
+            trail_id: 'trail-1',
+            scheduled_at: inDays(-1),
+          },
+          error: null,
+        }),
+      );
+
+      await expect(service.join('user-1', 'e1')).rejects.toThrow(
+        'This group hike has already taken place',
+      );
+      expect(mockAdmin.from).toHaveBeenCalledTimes(1);
+    });
+
     it('throws NotFoundException for non-existent event', async () => {
       mockAdmin.from.mockReturnValue(chain({ data: null, error: null }));
 
@@ -206,7 +372,9 @@ describe('EventsService', () => {
       );
 
       setupFullEvent();
-      await expect(service.join('user-1', 'e1')).rejects.toThrow('Event is full');
+      await expect(service.join('user-1', 'e1')).rejects.toThrow(
+        'Event is full',
+      );
     });
 
     it('allows joining when under capacity', async () => {
@@ -236,7 +404,11 @@ describe('EventsService', () => {
 
     it('allows joining when no max_participants limit', async () => {
       const eventChain = chain({
-        data: { max_participants: null, organizer_id: 'org-1', title: 'Open Hike' },
+        data: {
+          max_participants: null,
+          organizer_id: 'org-1',
+          title: 'Open Hike',
+        },
         error: null,
       });
       const upsertChain: Record<string, jest.Mock> = {};
@@ -257,7 +429,13 @@ describe('EventsService', () => {
 
     it('notifies the organizer when someone else joins', async () => {
       const eventChain = chain({
-        data: { max_participants: null, organizer_id: 'org-1', title: 'Hike' },
+        data: {
+          max_participants: null,
+          organizer_id: 'org-1',
+          title: 'Hike',
+          trail_id: 'trail-1',
+          scheduled_at: inDays(4),
+        },
         error: null,
       });
       const upsertChain: Record<string, jest.Mock> = {};
@@ -278,7 +456,7 @@ describe('EventsService', () => {
         'org-1',
         'New Participant',
         expect.stringContaining('joiner'),
-        expect.objectContaining({ eventId: 'e1' }),
+        { eventId: 'e1', trailId: 'trail-1', userId: 'user-1' },
         'event_invite',
       );
     });

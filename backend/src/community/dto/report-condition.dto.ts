@@ -1,4 +1,6 @@
-import { IsEnum, IsOptional, IsString, IsNotEmpty } from 'class-validator';
+import { IsEnum, IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsLooseUuid } from '../../common/validators/is-loose-uuid';
+import { IsStorageUrl } from '../../common/validators/is-storage-url';
 
 export enum ConditionType {
   TRAIL_CLEAR = 'trail_clear',
@@ -18,8 +20,7 @@ export enum SeverityLevel {
 }
 
 export class ReportConditionDto {
-  @IsString()
-  @IsNotEmpty()
+  @IsLooseUuid()
   trail_id: string;
 
   @IsEnum(ConditionType)
@@ -30,9 +31,10 @@ export class ReportConditionDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(1000)
   description?: string;
 
   @IsOptional()
-  @IsString()
+  @IsStorageUrl()
   photo_url?: string;
 }

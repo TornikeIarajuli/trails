@@ -1,5 +1,6 @@
 import {
   Injectable,
+  Logger,
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
@@ -7,8 +8,17 @@ import { SupabaseService } from '../config/supabase.config';
 import { NotificationsService } from '../notifications/notifications.service';
 import { throwIfError } from '../common/supabase-error';
 
+function assertInFuture(scheduledAt: string) {
+  const time = Date.parse(scheduledAt);
+  if (Number.isNaN(time) || time <= Date.now()) {
+    throw new BadRequestException('scheduled_at must be in the future');
+  }
+}
+
 @Injectable()
 export class EventsService {
+  private readonly logger = new Logger(EventsService.name);
+
   constructor(
     private supabaseService: SupabaseService,
     private notificationsService: NotificationsService,
@@ -73,6 +83,7 @@ export class EventsService {
       max_participants?: number;
     },
   ) {
+    assertInFuture(dto.scheduled_at);
     const admin = this.supabaseService.getAdminClient();
 
     const { data, error } = await admin
@@ -95,13 +106,19 @@ export class EventsService {
   async update(
     userId: string,
     eventId: string,
-    dto: { title?: string; description?: string; scheduled_at?: string; max_participants?: number },
+    dto: {
+      title?: string;
+      description?: string;
+      scheduled_at?: string;
+      max_participants?: number;
+    },
   ) {
+    if (dto.scheduled_at !== undefined) assertInFuture(dto.scheduled_at);
     const admin = this.supabaseService.getAdminClient();
 
     const { data: event } = await admin
       .from('events')
-      .select('organizer_id')
+      .select('organizer_id, trail_id, title, scheduled_at')
       .eq('id', eventId)
       .single();
 
@@ -118,6 +135,20 @@ export class EventsService {
       .single();
 
     throwIfError(error);
+
+    const timeChanged =
+      dto.scheduled_at !== undefined &&
+      Date.parse(dto.scheduled_at) !== Date.parse(event.scheduled_at);
+    if (timeChanged) {
+      this.notifyParticipants(
+        eventId,
+        event.organizer_id,
+        'Group hike rescheduled',
+        `"${data?.title ?? event.title}" has a new date and time.`,
+        { eventId, trailId: event.trail_id, cancelled: false },
+      );
+    }
+
     return data;
   }
 
@@ -126,7 +157,7 @@ export class EventsService {
 
     const { data: event } = await admin
       .from('events')
-      .select('organizer_id')
+      .select('organizer_id, trail_id, title, scheduled_at')
       .eq('id', eventId)
       .single();
 
@@ -135,9 +166,69 @@ export class EventsService {
       throw new BadRequestException('Only the organizer can delete this event');
     }
 
+    // Read the participants first: deleting the event removes them.
+    const participantIds =
+      Date.parse(event.scheduled_at) > Date.now()
+        ? await this.participantIds(eventId, event.organizer_id)
+        : [];
+
     const { error } = await admin.from('events').delete().eq('id', eventId);
     throwIfError(error);
+
+    this.sendToEach(
+      participantIds,
+      'Group hike cancelled',
+      `"${event.title}" was cancelled by the organizer.`,
+      { eventId, trailId: event.trail_id, cancelled: true },
+    );
+
     return { deleted: true };
+  }
+
+  /** Participants other than the organizer; [] when they cannot be read. */
+  private async participantIds(
+    eventId: string,
+    organizerId: string,
+  ): Promise<string[]> {
+    const { data, error } = await this.supabaseService
+      .getAdminClient()
+      .from('event_participants')
+      .select('user_id')
+      .eq('event_id', eventId);
+
+    if (error) {
+      this.logger.warn(`Could not load event participants: ${error.message}`);
+      return [];
+    }
+    return (data ?? [])
+      .map((p: { user_id: string }) => p.user_id)
+      .filter((id) => id !== organizerId);
+  }
+
+  /** Fire-and-forget event_update push to everyone who joined. */
+  private notifyParticipants(
+    eventId: string,
+    organizerId: string,
+    title: string,
+    body: string,
+    data: Record<string, unknown>,
+  ) {
+    this.participantIds(eventId, organizerId)
+      .then((ids) => this.sendToEach(ids, title, body, data))
+      .catch(() => {});
+  }
+
+  private sendToEach(
+    userIds: string[],
+    title: string,
+    body: string,
+    data: Record<string, unknown>,
+  ) {
+    for (const id of userIds) {
+      this.notificationsService
+        .sendToUser(id, title, body, data, 'event_update')
+        .catch(() => {});
+    }
   }
 
   async join(userId: string, eventId: string) {
@@ -146,11 +237,15 @@ export class EventsService {
     // Fetch event details (capacity check + organizer for notification)
     const { data: event } = await admin
       .from('events')
-      .select('max_participants, organizer_id, title')
+      .select('max_participants, organizer_id, title, trail_id, scheduled_at')
       .eq('id', eventId)
       .single();
 
     if (!event) throw new NotFoundException('Event not found');
+
+    if (Date.parse(event.scheduled_at) <= Date.now()) {
+      throw new BadRequestException('This group hike has already taken place');
+    }
 
     if (event.max_participants) {
       const { count } = await admin
@@ -184,7 +279,7 @@ export class EventsService {
           event.organizer_id,
           'New Participant',
           `${username} joined your event: ${event.title}`,
-          { eventId, userId },
+          { eventId, trailId: event.trail_id, userId },
           'event_invite',
         )
         .catch(() => {}); // fire-and-forget

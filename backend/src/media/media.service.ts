@@ -1,88 +1,98 @@
 import {
   Injectable,
   BadRequestException,
+  Logger,
   NotFoundException,
+  UnsupportedMediaTypeException,
 } from '@nestjs/common';
 import { SupabaseService } from '../config/supabase.config';
+import { TrailsService } from '../trails/trails.service';
 import { randomUUID } from 'crypto';
 import { throwIfError } from '../common/supabase-error';
+import { SniffedType, sniffMediaType } from './sniff';
 
 export type MediaType = 'photo' | 'video';
 
-const ALLOWED_IMAGE_EXTS = new Set([
-  'jpg',
-  'jpeg',
-  'png',
-  'webp',
-  'heic',
-  'heif',
-]);
-const ALLOWED_VIDEO_EXTS = new Set(['mp4', 'mov']);
-
-function validateAndGetExt(
-  fileName: string,
-  type: 'image' | 'video' | 'any',
-): string {
-  const ext = fileName.split('.').pop()?.toLowerCase() ?? '';
-  const allowed =
-    type === 'image'
-      ? ALLOWED_IMAGE_EXTS
-      : type === 'video'
-        ? ALLOWED_VIDEO_EXTS
-        : new Set([...ALLOWED_IMAGE_EXTS, ...ALLOWED_VIDEO_EXTS]);
-  if (!allowed.has(ext)) {
-    throw new BadRequestException(`File type .${ext} is not allowed`);
-  }
-  return ext;
-}
+type AdminClient = ReturnType<SupabaseService['getAdminClient']>;
 
 @Injectable()
 export class MediaService {
-  constructor(private supabaseService: SupabaseService) {}
+  private readonly logger = new Logger(MediaService.name);
+
+  constructor(
+    private supabaseService: SupabaseService,
+    private trailsService: TrailsService,
+  ) {}
+
+  /** The file's real type, or 415 when it is not an allowed kind. */
+  private detectType(
+    file: Buffer,
+    allowed: ReadonlyArray<SniffedType['kind']>,
+  ): SniffedType {
+    if (!file.length) {
+      throw new BadRequestException('No file provided');
+    }
+    const type = sniffMediaType(file);
+    if (!type || !allowed.includes(type.kind)) {
+      throw new UnsupportedMediaTypeException(
+        allowed.includes('video')
+          ? 'Only JPEG, PNG, WebP, HEIC/HEIF images and MP4/MOV videos are supported'
+          : 'Only JPEG, PNG, WebP and HEIC/HEIF images are supported',
+      );
+    }
+    return type;
+  }
+
+  private async store(
+    admin: AdminClient,
+    bucket: string,
+    path: string,
+    file: Buffer,
+    type: SniffedType,
+    upsert = false,
+  ): Promise<string> {
+    const { error } = await admin.storage
+      .from(bucket)
+      .upload(path, file, { contentType: type.contentType, upsert });
+
+    if (error) {
+      this.logger.error(`Storage upload failed: ${error.message}`);
+      throw new BadRequestException('Upload failed');
+    }
+
+    return admin.storage.from(bucket).getPublicUrl(path).data.publicUrl;
+  }
+
+  private async assertTrailExists(admin: AdminClient, trailId: string) {
+    const { data: trail, error } = await admin
+      .from('trails')
+      .select('id')
+      .eq('id', trailId)
+      .maybeSingle();
+
+    throwIfError(error);
+    if (!trail) {
+      throw new NotFoundException('Trail not found');
+    }
+  }
 
   async uploadTrailMedia(
     trailId: string,
     file: Buffer,
-    fileName: string,
-    mimeType: string,
-    type: MediaType,
-    caption?: string,
+    caption?: string | null,
   ) {
+    const type = this.detectType(file, ['image', 'video']);
     const admin = this.supabaseService.getAdminClient();
 
-    // Verify trail exists
-    const { data: trail } = await admin
-      .from('trails')
-      .select('id')
-      .eq('id', trailId)
-      .single();
+    await this.assertTrailExists(admin, trailId);
 
-    if (!trail) {
-      throw new NotFoundException('Trail not found');
-    }
-
-    // Upload to Supabase Storage
-    const ext = validateAndGetExt(
-      fileName,
-      type === 'photo' ? 'image' : 'video',
+    const publicUrl = await this.store(
+      admin,
+      'trail-media',
+      `trails/${trailId}/${randomUUID()}.${type.ext}`,
+      file,
+      type,
     );
-    const storagePath = `trails/${trailId}/${randomUUID()}.${ext}`;
-
-    const { error: uploadError } = await admin.storage
-      .from('trail-media')
-      .upload(storagePath, file, {
-        contentType: mimeType,
-        upsert: false,
-      });
-
-    if (uploadError) {
-      throw new BadRequestException(`Upload failed: ${uploadError.message}`);
-    }
-
-    // Get public URL
-    const {
-      data: { publicUrl },
-    } = admin.storage.from('trail-media').getPublicUrl(storagePath);
 
     // Get current max sort_order
     const { data: existing } = await admin
@@ -94,107 +104,117 @@ export class MediaService {
 
     const nextOrder = existing?.[0] ? existing[0].sort_order + 1 : 0;
 
-    // Save to database
     const { data: media, error: dbError } = await admin
       .from('trail_media')
       .insert({
         trail_id: trailId,
-        type,
+        type: (type.kind === 'video' ? 'video' : 'photo') satisfies MediaType,
         url: publicUrl,
-        caption,
+        caption: caption ?? null,
         sort_order: nextOrder,
       })
       .select()
       .single();
 
     throwIfError(dbError);
+    this.trailsService.invalidateCache(trailId);
 
     return media;
   }
 
-  async uploadProofPhoto(file: Buffer, fileName: string, mimeType: string) {
+  async uploadProofPhoto(file: Buffer) {
+    const type = this.detectType(file, ['image']);
     const admin = this.supabaseService.getAdminClient();
 
-    const ext = validateAndGetExt(fileName, 'image');
-    const storagePath = `proofs/${randomUUID()}.${ext}`;
+    const url = await this.store(
+      admin,
+      'proof-photos',
+      `proofs/${randomUUID()}.${type.ext}`,
+      file,
+      type,
+    );
 
-    const { error: uploadError } = await admin.storage
-      .from('proof-photos')
-      .upload(storagePath, file, {
-        contentType: mimeType,
-        upsert: false,
-      });
-
-    if (uploadError) {
-      throw new BadRequestException(`Upload failed: ${uploadError.message}`);
-    }
-
-    const {
-      data: { publicUrl },
-    } = admin.storage.from('proof-photos').getPublicUrl(storagePath);
-
-    return { url: publicUrl };
+    return { url };
   }
 
-  async uploadAvatar(
-    userId: string,
-    file: Buffer,
-    fileName: string,
-    mimeType: string,
-  ) {
+  /**
+   * Stores the avatar at avatars/<userId>.<ext> and points the profile at it. The URL
+   * carries a ?v= version so clients can cache it and still see a new picture at once.
+   */
+  async uploadAvatar(userId: string, file: Buffer) {
+    const type = this.detectType(file, ['image']);
     const admin = this.supabaseService.getAdminClient();
 
-    const ext = validateAndGetExt(fileName, 'image');
-    const storagePath = `avatars/${userId}.${ext}`;
+    const fileName = `${userId}.${type.ext}`;
+    const publicUrl = await this.store(
+      admin,
+      'proof-photos',
+      `avatars/${fileName}`,
+      file,
+      type,
+      true,
+    );
+    const url = `${publicUrl}?v=${Date.now()}`;
 
-    const { error: uploadError } = await admin.storage
-      .from('proof-photos')
-      .upload(storagePath, file, {
-        contentType: mimeType,
-        upsert: true,
-      });
-
-    if (uploadError) {
-      throw new BadRequestException(`Upload failed: ${uploadError.message}`);
-    }
-
-    const {
-      data: { publicUrl },
-    } = admin.storage.from('proof-photos').getPublicUrl(storagePath);
-
-    // Update profile avatar_url
-    await admin
+    const { error } = await admin
       .from('profiles')
-      .update({ avatar_url: publicUrl })
+      .update({ avatar_url: url })
       .eq('id', userId);
+    throwIfError(error);
 
-    return { url: publicUrl };
+    await this.removeStaleAvatars(admin, userId, fileName);
+
+    return { url };
   }
 
+  /** Earlier avatars saved with another extension; best effort. */
+  private async removeStaleAvatars(
+    admin: AdminClient,
+    userId: string,
+    keep: string,
+  ) {
+    try {
+      const bucket = admin.storage.from('proof-photos');
+      const { data: files, error } = await bucket.list('avatars', {
+        search: userId,
+      });
+      if (error) throw new Error(error.message);
+
+      const stale = (files ?? [])
+        .map((f: { name: string }) => f.name)
+        .filter((name) => name.startsWith(`${userId}.`) && name !== keep)
+        .map((name) => `avatars/${name}`);
+
+      if (stale.length > 0) {
+        const { error: removeError } = await bucket.remove(stale);
+        if (removeError) throw new Error(removeError.message);
+      }
+    } catch (err) {
+      this.logger.warn(
+        `Could not remove old avatar files: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+  }
+
+  /** Uploads a photo taken on a hike and creates its trail_photos row. */
   async uploadHikePhoto(
     userId: string,
     trailId: string,
     file: Buffer,
-    fileName: string,
-    mimeType: string,
-    caption?: string,
+    caption?: string | null,
   ) {
+    const type = this.detectType(file, ['image']);
     const admin = this.supabaseService.getAdminClient();
 
-    const ext = validateAndGetExt(fileName, 'image');
-    const storagePath = `hike-photos/${trailId}/${randomUUID()}.${ext}`;
+    await this.assertTrailExists(admin, trailId);
 
-    const { error: uploadError } = await admin.storage
-      .from('trail-media')
-      .upload(storagePath, file, { contentType: mimeType, upsert: false });
-
-    if (uploadError) {
-      throw new BadRequestException(`Upload failed: ${uploadError.message}`);
-    }
-
-    const {
-      data: { publicUrl },
-    } = admin.storage.from('trail-media').getPublicUrl(storagePath);
+    const publicUrl = await this.store(
+      admin,
+      'trail-media',
+      `hike-photos/${trailId}/${randomUUID()}.${type.ext}`,
+      file,
+      type,
+    );
 
     const { data: photo, error: dbError } = await admin
       .from('trail_photos')
@@ -209,6 +229,7 @@ export class MediaService {
       .single();
 
     throwIfError(dbError);
+    this.trailsService.invalidateCache(trailId);
 
     return photo;
   }
@@ -227,10 +248,17 @@ export class MediaService {
     }
 
     // Extract storage path from URL
-    const url = new URL(media.url);
-    const pathParts = url.pathname.split('/trail-media/');
-    if (pathParts[1]) {
-      await admin.storage.from('trail-media').remove([pathParts[1]]);
+    try {
+      const pathParts = new URL(media.url).pathname.split('/trail-media/');
+      if (pathParts[1]) {
+        await admin.storage
+          .from('trail-media')
+          .remove([decodeURIComponent(pathParts[1])]);
+      }
+    } catch (err) {
+      this.logger.warn(
+        `Could not remove a media file: ${err instanceof Error ? err.message : String(err)}`,
+      );
     }
 
     const { error } = await admin
@@ -239,6 +267,7 @@ export class MediaService {
       .eq('id', mediaId);
 
     throwIfError(error);
+    this.trailsService.invalidateCache(media.trail_id);
 
     return { message: 'Media deleted successfully' };
   }

@@ -5,16 +5,20 @@ import {
   Param,
   UseGuards,
   ParseUUIDPipe,
-  BadRequestException,
   Req,
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
-import { MediaService, MediaType } from './media.service';
+import { MediaService } from './media.service';
+import { parseCaption, readUploadBody } from './upload';
 import { AuthGuard } from '../common/guards/auth.guard';
 import { AdminGuard } from '../common/guards/admin.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import type { Request } from 'express';
 
+/**
+ * Uploads are raw request bodies (contract C7). The file type is sniffed from the bytes;
+ * the Content-Type header and x-file-name are ignored for that.
+ */
 @Controller('media')
 @UseGuards(AuthGuard)
 export class MediaController {
@@ -27,31 +31,9 @@ export class MediaController {
     @Param('trailId', ParseUUIDPipe) trailId: string,
     @Req() req: Request,
   ) {
-    // NestJS raw body handling — in production, use @nestjs/platform-express with multer
-    const chunks: Buffer[] = [];
-    for await (const chunk of req) {
-      chunks.push(chunk as Buffer);
-    }
-    const fileBuffer = Buffer.concat(chunks);
-
-    const fileName = (req.headers['x-file-name'] as string) || 'upload.jpg';
-    const mimeType = (req.headers['content-type'] as string) || 'image/jpeg';
-    const mediaType = ((req.headers['x-media-type'] as string) ||
-      'photo') as MediaType;
-    const caption = req.headers['x-caption'] as string | undefined;
-
-    if (!fileBuffer.length) {
-      throw new BadRequestException('No file provided');
-    }
-
-    return this.mediaService.uploadTrailMedia(
-      trailId,
-      fileBuffer,
-      fileName,
-      mimeType,
-      mediaType,
-      caption,
-    );
+    const caption = parseCaption(req.headers['x-caption']);
+    const file = await readUploadBody(req);
+    return this.mediaService.uploadTrailMedia(trailId, file, caption);
   }
 
   @Post('hike-photo/:trailId')
@@ -61,71 +43,23 @@ export class MediaController {
     @CurrentUser('id') userId: string,
     @Req() req: Request,
   ) {
-    const chunks: Buffer[] = [];
-    for await (const chunk of req) {
-      chunks.push(chunk as Buffer);
-    }
-    const fileBuffer = Buffer.concat(chunks);
-
-    const fileName = (req.headers['x-file-name'] as string) || 'hike_photo.jpg';
-    const mimeType = (req.headers['content-type'] as string) || 'image/jpeg';
-    const caption = req.headers['x-caption'] as string | undefined;
-
-    if (!fileBuffer.length) {
-      throw new BadRequestException('No file provided');
-    }
-
-    return this.mediaService.uploadHikePhoto(
-      userId,
-      trailId,
-      fileBuffer,
-      fileName,
-      mimeType,
-      caption,
-    );
+    const caption = parseCaption(req.headers['x-caption']);
+    const file = await readUploadBody(req);
+    return this.mediaService.uploadHikePhoto(userId, trailId, file, caption);
   }
 
   @Post('proof')
   @Throttle({ default: { ttl: 60000, limit: 10 } })
   async uploadProofPhoto(@Req() req: Request) {
-    const chunks: Buffer[] = [];
-    for await (const chunk of req) {
-      chunks.push(chunk as Buffer);
-    }
-    const fileBuffer = Buffer.concat(chunks);
-
-    const fileName = (req.headers['x-file-name'] as string) || 'proof.jpg';
-    const mimeType = (req.headers['content-type'] as string) || 'image/jpeg';
-
-    if (!fileBuffer.length) {
-      throw new BadRequestException('No file provided');
-    }
-
-    return this.mediaService.uploadProofPhoto(fileBuffer, fileName, mimeType);
+    const file = await readUploadBody(req);
+    return this.mediaService.uploadProofPhoto(file);
   }
 
   @Post('avatar')
   @Throttle({ default: { ttl: 60000, limit: 5 } })
   async uploadAvatar(@CurrentUser('id') userId: string, @Req() req: Request) {
-    const chunks: Buffer[] = [];
-    for await (const chunk of req) {
-      chunks.push(chunk as Buffer);
-    }
-    const fileBuffer = Buffer.concat(chunks);
-
-    const fileName = (req.headers['x-file-name'] as string) || 'avatar.jpg';
-    const mimeType = (req.headers['content-type'] as string) || 'image/jpeg';
-
-    if (!fileBuffer.length) {
-      throw new BadRequestException('No file provided');
-    }
-
-    return this.mediaService.uploadAvatar(
-      userId,
-      fileBuffer,
-      fileName,
-      mimeType,
-    );
+    const file = await readUploadBody(req);
+    return this.mediaService.uploadAvatar(userId, file);
   }
 
   @Delete(':id')

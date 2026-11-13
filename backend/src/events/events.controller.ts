@@ -16,7 +16,7 @@ import { Throttle } from '@nestjs/throttler';
 import { EventsService } from './events.service';
 import { AuthGuard } from '../common/guards/auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
-import { CreateEventDto } from './dto/create-event.dto';
+import { CreateEventDto, EventsQueryDto } from './dto/create-event.dto';
 import { UpdateEventDto } from './dto/update-event.dto';
 
 @Controller('events')
@@ -24,8 +24,8 @@ export class EventsController {
   constructor(private eventsService: EventsService) {}
 
   @Get()
-  findAll(@Query('trail_id') trailId?: string) {
-    return this.eventsService.findAll(trailId);
+  findAll(@Query() query: EventsQueryDto) {
+    return this.eventsService.findAll(query.trail_id);
   }
 
   @Get(':id')
@@ -36,10 +36,7 @@ export class EventsController {
   @Post()
   @UseGuards(AuthGuard)
   @Throttle({ default: { ttl: 60000, limit: 10 } })
-  create(
-    @CurrentUser('id') userId: string,
-    @Body() dto: CreateEventDto,
-  ) {
+  create(@CurrentUser('id') userId: string, @Body() dto: CreateEventDto) {
     return this.eventsService.create(userId, dto);
   }
 

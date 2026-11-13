@@ -8,10 +8,12 @@ import { throwIfError } from '../common/supabase-error';
 
 const TRAIL_LIST_TTL = 5 * 60 * 1000; // 5 min — trail lists rarely change
 const TRAIL_DETAIL_TTL = 10 * 60 * 1000; // 10 min — trail details change even less
+// A few hundred trails plus their filtered lists
+const TRAIL_CACHE_MAX_ENTRIES = 1000;
 
 @Injectable()
 export class TrailsService {
-  private cache = new TtlCache<any>();
+  private cache = new TtlCache<any>(TRAIL_CACHE_MAX_ENTRIES);
   constructor(private supabaseService: SupabaseService) {}
 
   async create(dto: CreateTrailDto) {
@@ -58,8 +60,11 @@ export class TrailsService {
   }
 
   async findAll(filter: TrailFilterDto) {
-    const cacheKey = `trails:list:${stableStringify(filter)}`;
-    const cached = this.cache.get(cacheKey);
+    // Free-text searches are not cached: every distinct term would add an entry.
+    const cacheKey = filter.search
+      ? null
+      : `trails:list:${stableStringify(filter)}`;
+    const cached = cacheKey ? this.cache.get(cacheKey) : undefined;
     if (cached) return cached;
 
     const admin = this.supabaseService.getAdminClient();
@@ -113,7 +118,7 @@ export class TrailsService {
         totalPages: Math.ceil((count ?? 0) / limit),
       },
     };
-    this.cache.set(cacheKey, result, TRAIL_LIST_TTL);
+    if (cacheKey) this.cache.set(cacheKey, result, TRAIL_LIST_TTL);
     return result;
   }
 
@@ -128,6 +133,7 @@ export class TrailsService {
       .from('trails')
       .select('*')
       .eq('id', id)
+      .eq('is_published', true)
       .single();
 
     if (error || !trail) {
@@ -152,10 +158,7 @@ export class TrailsService {
         .select('*')
         .eq('trail_id', id)
         .order('sort_order', { ascending: true }),
-      admin
-        .from('trail_reviews')
-        .select('rating')
-        .eq('trail_id', id),
+      admin.from('trail_reviews').select('rating').eq('trail_id', id),
       admin
         .from('trail_conditions')
         .select('id, condition_type, severity, description, reported_at', {
@@ -163,7 +166,10 @@ export class TrailsService {
         })
         .eq('trail_id', id)
         .eq('is_active', true)
-        .gte('reported_at', new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString())
+        .gte(
+          'reported_at',
+          new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString(),
+        )
         .order('reported_at', { ascending: false })
         .limit(3),
       admin
@@ -284,9 +290,14 @@ export class TrailsService {
     );
 
     // Count completions per difficulty
-    const counts: Record<string, number> = { easy: 0, medium: 0, hard: 0, ultra: 0 };
+    const counts: Record<string, number> = {
+      easy: 0,
+      medium: 0,
+      hard: 0,
+      ultra: 0,
+    };
     (completions ?? []).forEach((c: any) => {
-      const diff = (c.trails as any)?.difficulty;
+      const diff = c.trails?.difficulty;
       if (diff && diff in counts) counts[diff]++;
     });
 
@@ -346,20 +357,18 @@ export class TrailsService {
     }
 
     // Compute avg rating
-    const result = filtered
-      .slice(0, limit)
-      .map((t: any) => {
-        const ratings = t.avg_rating ?? [];
-        const avg =
-          ratings.length > 0
-            ? Math.round(
-                (ratings.reduce((s: number, r: any) => s + r.rating, 0) /
-                  ratings.length) *
-                  10,
-              ) / 10
-            : null;
-        return { ...t, avg_rating: avg, review_count: ratings.length };
-      });
+    const result = filtered.slice(0, limit).map((t: any) => {
+      const ratings = t.avg_rating ?? [];
+      const avg =
+        ratings.length > 0
+          ? Math.round(
+              (ratings.reduce((s: number, r: any) => s + r.rating, 0) /
+                ratings.length) *
+                10,
+            ) / 10
+          : null;
+      return { ...t, avg_rating: avg, review_count: ratings.length };
+    });
 
     return {
       data: result,

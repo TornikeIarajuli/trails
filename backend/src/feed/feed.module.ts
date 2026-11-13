@@ -1,10 +1,11 @@
 import { Module } from '@nestjs/common';
 import { FeedController } from './feed.controller';
 import { FeedService } from './feed.service';
-import { SupabaseService } from '../config/supabase.config';
+import { ModerationModule } from '../moderation/moderation.module';
 
 @Module({
+  imports: [ModerationModule],
   controllers: [FeedController],
-  providers: [FeedService, SupabaseService],
+  providers: [FeedService],
 })
 export class FeedModule {}

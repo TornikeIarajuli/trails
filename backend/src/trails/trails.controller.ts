@@ -15,10 +15,15 @@ import {
 import { TrailsService } from './trails.service';
 import { CreateTrailDto } from './dto/create-trail.dto';
 import { UpdateTrailDetailsDto } from './dto/update-trail-details.dto';
-import { TrailFilterDto, NearbyQueryDto } from './dto/trail-filter.dto';
+import {
+  TrailFilterDto,
+  NearbyQueryDto,
+  RecommendationsQueryDto,
+} from './dto/trail-filter.dto';
 import { AdminGuard } from '../common/guards/admin.guard';
 import { AuthGuard } from '../common/guards/auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { isAuthorizedInternalCall } from '../common/internal-key';
 
 @Controller('trails')
 export class TrailsController {
@@ -38,12 +43,9 @@ export class TrailsController {
   @UseGuards(AuthGuard)
   getRecommendations(
     @CurrentUser('id') userId: string,
-    @Query('limit') limit?: string,
+    @Query() query: RecommendationsQueryDto,
   ) {
-    return this.trailsService.getRecommendations(
-      userId,
-      Math.min(parseInt(limit ?? '10') || 10, 30),
-    );
+    return this.trailsService.getRecommendations(userId, query.limit ?? 10);
   }
 
   @Get('nearby')
@@ -71,12 +73,13 @@ export class TrailsController {
     return this.trailsService.updateDetails(id, dto);
   }
 
+  /** Called by the admin panel after it changed a trail directly in the database. */
   @Delete(':id/cache')
   invalidateCache(
     @Param('id', ParseUUIDPipe) id: string,
-    @Headers('x-service-key') key: string,
+    @Headers() headers: Record<string, string | string[] | undefined>,
   ) {
-    if (key !== process.env.SUPABASE_SERVICE_ROLE_KEY) throw new ForbiddenException();
+    if (!isAuthorizedInternalCall(headers)) throw new ForbiddenException();
     this.trailsService.invalidateCache(id);
     return { ok: true };
   }

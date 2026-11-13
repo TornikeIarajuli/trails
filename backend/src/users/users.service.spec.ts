@@ -1,5 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  InternalServerErrorException,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { UsersService } from './users.service';
 import { SupabaseService } from '../config/supabase.config';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -94,7 +99,8 @@ describe('UsersService', () => {
       // completions: .from().select().eq('user_id').eq('status') — 2 chained .eq()
       const completionsChain: Record<string, jest.Mock> = {};
       completionsChain.select = jest.fn().mockReturnValue(completionsChain);
-      completionsChain.eq = jest.fn()
+      completionsChain.eq = jest
+        .fn()
         .mockReturnValueOnce(completionsChain) // first .eq('user_id')
         .mockResolvedValueOnce({ data: completionsData, error: null }); // second .eq('status')
 
@@ -116,9 +122,7 @@ describe('UsersService', () => {
   // -------------------------------------------------------------------------
   describe('updateProfile', () => {
     it('throws NotFoundException when user does not exist', async () => {
-      mockAdmin.from.mockReturnValue(
-        chain({ data: null, error: null }),
-      );
+      mockAdmin.from.mockReturnValue(chain({ data: null, error: null }));
 
       await expect(
         service.updateProfile('bad-id', { full_name: 'New Name' }),
@@ -130,7 +134,9 @@ describe('UsersService', () => {
         chain({ data: { id: 'u1', full_name: 'Updated' }, error: null }),
       );
 
-      const result = await service.updateProfile('u1', { full_name: 'Updated' });
+      const result = await service.updateProfile('u1', {
+        full_name: 'Updated',
+      });
       expect(result.full_name).toBe('Updated');
     });
   });
@@ -149,7 +155,9 @@ describe('UsersService', () => {
       const completionsChain: Record<string, jest.Mock> = {};
       completionsChain.select = jest.fn().mockReturnValue(completionsChain);
       completionsChain.eq = jest.fn().mockReturnValue(completionsChain);
-      completionsChain.not = jest.fn().mockResolvedValue({ data: [], error: null });
+      completionsChain.not = jest
+        .fn()
+        .mockResolvedValue({ data: [], error: null });
 
       mockAdmin.from
         .mockReturnValueOnce(photosChain)
@@ -168,7 +176,9 @@ describe('UsersService', () => {
       const completionsChain: Record<string, jest.Mock> = {};
       completionsChain.select = jest.fn().mockReturnValue(completionsChain);
       completionsChain.eq = jest.fn().mockReturnValue(completionsChain);
-      completionsChain.not = jest.fn().mockResolvedValue({ data: [], error: null });
+      completionsChain.not = jest
+        .fn()
+        .mockResolvedValue({ data: [], error: null });
 
       mockAdmin.from
         .mockReturnValueOnce(photosChain)
@@ -177,20 +187,32 @@ describe('UsersService', () => {
       mockAdmin.auth.admin.deleteUser.mockResolvedValue({
         error: new Error('User not found'),
       });
+      const errorLog = jest
+        .spyOn(Logger.prototype, 'error')
+        .mockImplementation(() => undefined);
 
-      await expect(service.deleteAccount('bad-user')).rejects.toThrow('User not found');
+      await expect(service.deleteAccount('bad-user')).rejects.toThrow(
+        InternalServerErrorException,
+      );
+      expect(String(errorLog.mock.calls[0][0])).toContain('User not found');
+      errorLog.mockRestore();
     });
 
     it('removes hike photo storage files when they exist', async () => {
-      const url = 'https://supabase.co/storage/v1/object/public/trail-media/photos/pic.jpg';
+      const url =
+        'https://supabase.co/storage/v1/object/public/trail-media/photos/pic.jpg';
       const photosChain: Record<string, jest.Mock> = {};
       photosChain.select = jest.fn().mockReturnValue(photosChain);
-      photosChain.eq = jest.fn().mockResolvedValue({ data: [{ url }], error: null });
+      photosChain.eq = jest
+        .fn()
+        .mockResolvedValue({ data: [{ url }], error: null });
 
       const completionsChain: Record<string, jest.Mock> = {};
       completionsChain.select = jest.fn().mockReturnValue(completionsChain);
       completionsChain.eq = jest.fn().mockReturnValue(completionsChain);
-      completionsChain.not = jest.fn().mockResolvedValue({ data: [], error: null });
+      completionsChain.not = jest
+        .fn()
+        .mockResolvedValue({ data: [], error: null });
 
       const removeFn = jest.fn().mockResolvedValue({ error: null });
       mockAdmin.storage.from.mockReturnValue({
@@ -222,7 +244,9 @@ describe('UsersService', () => {
       leaderChain.select = jest.fn().mockReturnValue(leaderChain);
       leaderChain.gt = jest.fn().mockReturnValue(leaderChain);
       leaderChain.order = jest.fn().mockReturnValue(leaderChain);
-      leaderChain.limit = jest.fn().mockResolvedValue({ data: users, error: null });
+      leaderChain.limit = jest
+        .fn()
+        .mockResolvedValue({ data: users, error: null });
       mockAdmin.from.mockReturnValue(leaderChain);
 
       const result = await service.getLeaderboard(20);
@@ -237,7 +261,9 @@ describe('UsersService', () => {
       leaderChain.select = jest.fn().mockReturnValue(leaderChain);
       leaderChain.gt = jest.fn().mockReturnValue(leaderChain);
       leaderChain.order = jest.fn().mockReturnValue(leaderChain);
-      leaderChain.limit = jest.fn().mockResolvedValue({ data: [], error: null });
+      leaderChain.limit = jest
+        .fn()
+        .mockResolvedValue({ data: [], error: null });
       mockAdmin.from.mockReturnValue(leaderChain);
 
       await service.getLeaderboard(20);
@@ -253,16 +279,14 @@ describe('UsersService', () => {
   // -------------------------------------------------------------------------
   describe('triggerSos', () => {
     it('throws NotFoundException when user not found', async () => {
-      mockAdmin.from.mockReturnValue(
-        chain({ data: null, error: null }),
-      );
+      mockAdmin.from.mockReturnValue(chain({ data: null, error: null }));
 
       await expect(service.triggerSos('bad', 41.7, 44.8)).rejects.toThrow(
         NotFoundException,
       );
     });
 
-    it('sends notification to emergency contact', async () => {
+    const withContact = () =>
       mockAdmin.from.mockReturnValue(
         chain({
           data: { username: 'hiker', emergency_contact_user_id: 'contact-1' },
@@ -270,19 +294,32 @@ describe('UsersService', () => {
         }),
       );
 
+    it('sends notification to emergency contact', async () => {
+      withContact();
+      mockNotifications.sendToUser.mockResolvedValueOnce({ sent: 2 });
+
       const result = await service.triggerSos('user-1', 41.7, 44.8);
 
-      expect(result.sent).toBe(true);
+      expect(result).toEqual({ sent: true, reason: 'ok', devices: 2 });
       expect(mockNotifications.sendToUser).toHaveBeenCalledWith(
         'contact-1',
         expect.stringContaining('SOS'),
         expect.stringContaining('hiker'),
-        expect.objectContaining({ type: 'sos', lat: 41.7, lng: 44.8 }),
+        { userId: 'user-1', lat: 41.7, lng: 44.8 },
         'sos',
       );
     });
 
-    it('returns sent: false when no emergency contact is set', async () => {
+    it('puts a maps link built from the coordinates into the alert', async () => {
+      withContact();
+
+      await service.triggerSos('user-1', 42.66551234567, 44.61459876543);
+
+      const body = mockNotifications.sendToUser.mock.calls[0][2] as string;
+      expect(body).toContain('https://maps.google.com/?q=42.665512,44.614599');
+    });
+
+    it('returns no_contact when no emergency contact is set', async () => {
       mockAdmin.from.mockReturnValue(
         chain({
           data: { username: 'hiker', emergency_contact_user_id: null },
@@ -291,37 +328,205 @@ describe('UsersService', () => {
       );
 
       const result = await service.triggerSos('user-1', 41.7, 44.8);
-      expect(result.sent).toBe(false);
+
+      expect(result).toEqual({ sent: false, reason: 'no_contact', devices: 0 });
+      expect(mockNotifications.sendToUser).not.toHaveBeenCalled();
     });
+
+    it.each([
+      ['has no registered device', { sent: 0 }],
+      ['rejected every push', { sent: 0, error: 'DeviceNotRegistered' }],
+      ['push call failed', { sent: 0, error: 'socket hang up' }],
+    ])(
+      'reports contact_unreachable when the contact %s',
+      async (_label, push) => {
+        withContact();
+        mockNotifications.sendToUser.mockResolvedValueOnce(push);
+
+        const result = await service.triggerSos('user-1', 41.7, 44.8);
+
+        expect(result).toEqual({
+          sent: false,
+          reason: 'contact_unreachable',
+          devices: 0,
+        });
+      },
+    );
+
+    it.each([
+      [NaN, 44.8],
+      [41.7, Infinity],
+      [91, 44.8],
+      [41.7, -181],
+      ['41.7); DROP TABLE' as unknown as number, 44.8],
+    ])(
+      'rejects coordinates that are not valid numbers (%p, %p)',
+      async (lat, lng) => {
+        await expect(service.triggerSos('user-1', lat, lng)).rejects.toThrow(
+          BadRequestException,
+        );
+        expect(mockAdmin.from).not.toHaveBeenCalled();
+        expect(mockNotifications.sendToUser).not.toHaveBeenCalled();
+      },
+    );
   });
 
   // -------------------------------------------------------------------------
   // setEmergencyContact
   // -------------------------------------------------------------------------
   describe('setEmergencyContact', () => {
-    it('updates profile and notifies the contact', async () => {
-      const updateChain: Record<string, jest.Mock> = {};
-      updateChain.update = jest.fn().mockReturnValue(updateChain);
-      updateChain.eq = jest.fn().mockResolvedValue({ error: null });
+    const updateChain = () => {
+      const c: Record<string, jest.Mock> = {};
+      c.update = jest.fn().mockReturnValue(c);
+      c.eq = jest.fn().mockResolvedValue({ error: null });
+      return c;
+    };
 
-      const profileChain = chain({
-        data: { username: 'hiker' },
+    it('updates profile and notifies the contact', async () => {
+      const setter = chain({
+        data: { username: 'hiker', emergency_contact_user_id: null },
         error: null,
       });
-
+      const contact = chain({ data: { id: 'contact-1' }, error: null });
+      const update = updateChain();
       mockAdmin.from
-        .mockReturnValueOnce(updateChain)
-        .mockReturnValueOnce(profileChain);
+        .mockReturnValueOnce(setter)
+        .mockReturnValueOnce(contact)
+        .mockReturnValueOnce(update);
 
       const result = await service.setEmergencyContact('user-1', 'contact-1');
 
       expect(result.ok).toBe(true);
+      expect(update.update).toHaveBeenCalledWith({
+        emergency_contact_user_id: 'contact-1',
+      });
       expect(mockNotifications.sendToUser).toHaveBeenCalledWith(
         'contact-1',
         'Emergency Contact',
         expect.stringContaining('hiker'),
-        expect.any(Object),
+        { setterId: 'user-1' },
         'emergency_contact',
+      );
+    });
+
+    it('rejects choosing yourself, whatever the letter case of the id', async () => {
+      mockAdmin.from.mockReturnValue(
+        chain({
+          data: { username: 'hiker', emergency_contact_user_id: null },
+          error: null,
+        }),
+      );
+
+      await expect(
+        service.setEmergencyContact('ab-cd', 'AB-CD'),
+      ).rejects.toThrow(BadRequestException);
+      expect(mockNotifications.sendToUser).not.toHaveBeenCalled();
+      // only the caller's profile was read; nothing was written
+      expect(mockAdmin.from).toHaveBeenCalledTimes(1);
+    });
+
+    it('answers 404 when the chosen user does not exist', async () => {
+      mockAdmin.from
+        .mockReturnValueOnce(
+          chain({
+            data: { username: 'hiker', emergency_contact_user_id: null },
+            error: null,
+          }),
+        )
+        .mockReturnValueOnce(
+          chain({ data: null, error: { code: 'PGRST116' } }),
+        );
+
+      await expect(
+        service.setEmergencyContact('user-1', 'ghost'),
+      ).rejects.toThrow(NotFoundException);
+      expect(mockAdmin.from).toHaveBeenCalledTimes(2);
+      expect(mockNotifications.sendToUser).not.toHaveBeenCalled();
+    });
+
+    it('clears the contact with null and notifies nobody', async () => {
+      const update = updateChain();
+      mockAdmin.from
+        .mockReturnValueOnce(
+          chain({
+            data: { username: 'hiker', emergency_contact_user_id: 'contact-1' },
+            error: null,
+          }),
+        )
+        .mockReturnValueOnce(update);
+
+      const result = await service.setEmergencyContact('user-1', null);
+
+      expect(result.ok).toBe(true);
+      expect(update.update).toHaveBeenCalledWith({
+        emergency_contact_user_id: null,
+      });
+      expect(mockNotifications.sendToUser).not.toHaveBeenCalled();
+    });
+
+    it('does not notify again when the same contact is saved twice', async () => {
+      mockAdmin.from
+        .mockReturnValueOnce(
+          chain({
+            data: { username: 'hiker', emergency_contact_user_id: 'contact-1' },
+            error: null,
+          }),
+        )
+        .mockReturnValueOnce(chain({ data: { id: 'contact-1' }, error: null }))
+        .mockReturnValueOnce(updateChain());
+
+      await service.setEmergencyContact('user-1', 'contact-1');
+
+      expect(mockNotifications.sendToUser).not.toHaveBeenCalled();
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // searchUsers
+  // -------------------------------------------------------------------------
+  describe('searchUsers', () => {
+    const searchChain = (rows: object[] = []) => {
+      const c = chain({ data: rows, error: null });
+      mockAdmin.from.mockReturnValue(c);
+      return c;
+    };
+
+    it.each(['', ' ', 'a', ' a ', '%', '_', '..', '*a', 'a,'])(
+      'returns nothing for %p without querying',
+      async (query) => {
+        expect(await service.searchUsers(query)).toEqual([]);
+        expect(mockAdmin.from).not.toHaveBeenCalled();
+      },
+    );
+
+    it('searches username and full name for terms of two or more characters', async () => {
+      const c = searchChain([{ id: 'u1', username: 'anna' }]);
+
+      const result = await service.searchUsers('an');
+
+      expect(result).toHaveLength(1);
+      expect(c.or).toHaveBeenCalledWith(
+        'username.ilike.%an%,full_name.ilike.%an%',
+      );
+    });
+
+    it('escapes LIKE wildcards so they match literally', async () => {
+      const c = searchChain();
+
+      await service.searchUsers('a_b%c');
+
+      expect(c.or).toHaveBeenCalledWith(
+        'username.ilike.%a\\_b\\%c%,full_name.ilike.%a\\_b\\%c%',
+      );
+    });
+
+    it('strips PostgREST filter syntax and the * wildcard', async () => {
+      const c = searchChain();
+
+      await service.searchUsers('ab*),id.neq.(x"\'\\');
+
+      expect(c.or).toHaveBeenCalledWith(
+        'username.ilike.%abidneqx%,full_name.ilike.%abidneqx%',
       );
     });
   });

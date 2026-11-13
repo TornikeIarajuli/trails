@@ -6,6 +6,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { SupabaseService } from '../../config/supabase.config';
+import { throwIfAuthUnavailable } from '../auth-error';
 
 @Injectable()
 export class AdminGuard implements CanActivate {
@@ -28,6 +29,7 @@ export class AdminGuard implements CanActivate {
       error,
     } = await this.supabaseService.getAdminClient().auth.getUser(token);
 
+    throwIfAuthUnavailable(error);
     if (error || !user) {
       throw new UnauthorizedException('Invalid or expired token');
     }

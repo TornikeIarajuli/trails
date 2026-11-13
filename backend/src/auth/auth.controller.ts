@@ -1,8 +1,20 @@
-import { Controller, Post, Body } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  HttpCode,
+  HttpStatus,
+  UseGuards,
+} from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { SignupDto } from './dto/signup.dto';
 import { LoginDto } from './dto/login.dto';
+import { EmailDto } from './dto/email.dto';
+import { RefreshTokenDto } from './dto/refresh-token.dto';
+import { UpdatePasswordDto } from './dto/update-password.dto';
+import { AuthGuard } from '../common/guards/auth.guard';
+import { AccessToken } from '../common/decorators/access-token.decorator';
 
 @Controller('auth')
 export class AuthController {
@@ -22,18 +34,36 @@ export class AuthController {
 
   @Post('resend-verification')
   @Throttle({ default: { ttl: 60000, limit: 3 } })
-  resendVerification(@Body('email') email: string) {
-    return this.authService.resendVerification(email);
+  resendVerification(@Body() dto: EmailDto) {
+    return this.authService.resendVerification(dto.email);
   }
 
   @Post('forgot-password')
   @Throttle({ default: { ttl: 60000, limit: 3 } })
-  forgotPassword(@Body('email') email: string) {
-    return this.authService.forgotPassword(email);
+  forgotPassword(@Body() dto: EmailDto) {
+    return this.authService.forgotPassword(dto.email);
   }
 
   @Post('refresh')
-  refresh(@Body('refresh_token') refreshToken: string) {
-    return this.authService.refreshToken(refreshToken);
+  refresh(@Body() dto: RefreshTokenDto) {
+    return this.authService.refreshToken(dto.refresh_token);
+  }
+
+  @Post('logout')
+  @UseGuards(AuthGuard)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async logout(@AccessToken() accessToken: string): Promise<void> {
+    await this.authService.logout(accessToken);
+  }
+
+  @Post('update-password')
+  @UseGuards(AuthGuard)
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { ttl: 60000, limit: 5 } })
+  updatePassword(
+    @AccessToken() accessToken: string,
+    @Body() dto: UpdatePasswordDto,
+  ) {
+    return this.authService.updatePassword(accessToken, dto.password);
   }
 }

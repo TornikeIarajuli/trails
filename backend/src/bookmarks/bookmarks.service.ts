@@ -1,8 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { SupabaseService } from '../config/supabase.config';
 import { throwIfError } from '../common/supabase-error';
-
-export type BookmarkCategory = 'saved' | 'want_to_hike' | 'in_progress' | 'favorites';
+import type { BookmarkCategory } from './dto/bookmark.dto';
 
 @Injectable()
 export class BookmarksService {
@@ -19,22 +18,21 @@ export class BookmarksService {
       .single();
 
     if (existing) {
-      await admin
+      const { error: deleteError } = await admin
         .from('trail_bookmarks')
         .delete()
         .eq('user_id', userId)
         .eq('trail_id', trailId);
 
+      throwIfError(deleteError);
       return { bookmarked: false };
     }
 
-    const { error } = await admin
-      .from('trail_bookmarks')
-      .insert({
-        user_id: userId,
-        trail_id: trailId,
-        category: category ?? 'saved',
-      });
+    const { error } = await admin.from('trail_bookmarks').insert({
+      user_id: userId,
+      trail_id: trailId,
+      category: category ?? 'saved',
+    });
 
     throwIfError(error);
     return { bookmarked: true };
@@ -43,12 +41,12 @@ export class BookmarksService {
   async updateBookmark(
     userId: string,
     trailId: string,
-    data: { category?: BookmarkCategory; note?: string | null },
+    data: { category?: BookmarkCategory | null; note?: string | null },
   ) {
     const admin = this.supabaseService.getAdminClient();
 
     const updateData: Record<string, unknown> = {};
-    if (data.category !== undefined) updateData.category = data.category;
+    if (data.category) updateData.category = data.category;
     if (data.note !== undefined) updateData.note = data.note;
 
     if (Object.keys(updateData).length === 0) return { updated: false };
@@ -63,7 +61,12 @@ export class BookmarksService {
     return { updated: true };
   }
 
-  async getMyBookmarks(userId: string, page = 1, limit = 20, category?: string) {
+  async getMyBookmarks(
+    userId: string,
+    page = 1,
+    limit = 20,
+    category?: BookmarkCategory,
+  ) {
     const admin = this.supabaseService.getAdminClient();
     const offset = (page - 1) * limit;
 
@@ -112,6 +115,10 @@ export class BookmarksService {
       .eq('trail_id', trailId)
       .single();
 
-    return { bookmarked: !!data, category: data?.category ?? null, note: data?.note ?? null };
+    return {
+      bookmarked: !!data,
+      category: data?.category ?? null,
+      note: data?.note ?? null,
+    };
   }
 }

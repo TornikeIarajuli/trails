@@ -1,13 +1,22 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { SupabaseService } from '../config/supabase.config';
 import { NotificationsService } from '../notifications/notifications.service';
+import { ModerationService } from '../moderation/moderation.service';
 import { throwIfError } from '../common/supabase-error';
+
+// Unfollowing and following again must not push "new follower" every time.
+const FOLLOW_NOTIFICATION_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 @Injectable()
 export class FollowsService {
   constructor(
     private supabaseService: SupabaseService,
     private notificationsService: NotificationsService,
+    private moderationService: ModerationService,
   ) {}
 
   async toggle(followerId: string, followingId: string) {
@@ -25,13 +34,20 @@ export class FollowsService {
       .single();
 
     if (existing) {
-      await admin
+      const { error: deleteError } = await admin
         .from('user_follows')
         .delete()
         .eq('follower_id', followerId)
         .eq('following_id', followingId);
 
+      throwIfError(deleteError);
       return { following: false };
+    }
+
+    if (
+      await this.moderationService.isBlockedEitherWay(followerId, followingId)
+    ) {
+      throw new ForbiddenException('You cannot follow this user');
     }
 
     const { error } = await admin
@@ -40,7 +56,28 @@ export class FollowsService {
 
     throwIfError(error);
 
-    // Send push notification to the followed user
+    this.notifyNewFollower(followerId, followingId).catch(() => {});
+
+    return { following: true };
+  }
+
+  private async notifyNewFollower(followerId: string, followingId: string) {
+    const admin = this.supabaseService.getAdminClient();
+
+    const since = new Date(
+      Date.now() - FOLLOW_NOTIFICATION_WINDOW_MS,
+    ).toISOString();
+    const { data: recent, error: recentError } = await admin
+      .from('notifications')
+      .select('id')
+      .eq('user_id', followingId)
+      .eq('type', 'new_follower')
+      .eq('data->>followerId', followerId)
+      .gte('created_at', since)
+      .limit(1);
+
+    if (!recentError && (recent ?? []).length > 0) return;
+
     const { data: followerProfile } = await admin
       .from('profiles')
       .select('username')
@@ -48,17 +85,13 @@ export class FollowsService {
       .single();
 
     const username = followerProfile?.username ?? 'Someone';
-    this.notificationsService
-      .sendToUser(
-        followingId,
-        'New Follower',
-        `${username} started following you`,
-        { followerId },
-        'new_follower',
-      )
-      .catch(() => {}); // fire-and-forget
-
-    return { following: true };
+    await this.notificationsService.sendToUser(
+      followingId,
+      'New Follower',
+      `${username} started following you`,
+      { followerId },
+      'new_follower',
+    );
   }
 
   async isFollowing(followerId: string, followingId: string) {

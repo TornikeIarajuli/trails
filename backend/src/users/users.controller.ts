@@ -12,10 +12,14 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { UsersService } from './users.service';
 import { AuthGuard } from '../common/guards/auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { PaginationDto } from '../common/dto/pagination.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
+import { EmergencyContactDto, SosDto } from './dto/safety.dto';
+import { SearchUsersQueryDto } from './dto/search-users.dto';
 
 @Controller('users')
 export class UsersController {
@@ -51,23 +55,23 @@ export class UsersController {
 
   @Get('search')
   @UseGuards(AuthGuard)
-  searchUsers(@Query('q') q: string) {
-    return this.usersService.searchUsers(q || '');
+  searchUsers(@Query() query: SearchUsersQueryDto) {
+    return this.usersService.searchUsers(query.q ?? '');
   }
 
   @Get('leaderboard')
-  getLeaderboard(@Query('limit') limit?: string) {
-    const parsed = limit ? parseInt(limit, 10) : 20;
-    return this.usersService.getLeaderboard(Math.min(parsed || 20, 100));
+  getLeaderboard(@Query() query: PaginationDto) {
+    return this.usersService.getLeaderboard(query.limit ?? 20);
   }
 
   @Patch('me/emergency-contact')
   @UseGuards(AuthGuard)
+  @Throttle({ default: { ttl: 60000, limit: 5 } })
   setEmergencyContact(
     @CurrentUser('id') userId: string,
-    @Body('contact_user_id') contactUserId: string | null,
+    @Body() dto: EmergencyContactDto,
   ) {
-    return this.usersService.setEmergencyContact(userId, contactUserId);
+    return this.usersService.setEmergencyContact(userId, dto.contact_user_id);
   }
 
   @Patch('me/heartbeat')
@@ -79,12 +83,9 @@ export class UsersController {
 
   @Post('me/sos')
   @UseGuards(AuthGuard)
-  triggerSos(
-    @CurrentUser('id') userId: string,
-    @Body('lat') lat: number,
-    @Body('lng') lng: number,
-  ) {
-    return this.usersService.triggerSos(userId, lat, lng);
+  @Throttle({ default: { ttl: 60000, limit: 3 } })
+  triggerSos(@CurrentUser('id') userId: string, @Body() dto: SosDto) {
+    return this.usersService.triggerSos(userId, dto.lat, dto.lng);
   }
 
   @Get(':id')

@@ -140,6 +140,33 @@ describe('TrailFilterDto', () => {
       const errors = await checkFilter({ page: 0 });
       expect(errorProps(errors)).toContain('page');
     });
+
+    // Released app builds load the map with limit=200; the shared DTO stops at 100.
+    it.each([200, '200', 500])(
+      'accepts limit = %p (higher cap than the shared pagination DTO)',
+      async (limit) => {
+        const errors = await checkFilter({ limit });
+        expect(errors).toHaveLength(0);
+      },
+    );
+
+    it('still rejects limit = 0 and non-integer limits', async () => {
+      expect(errorProps(await checkFilter({ limit: 0 }))).toContain('limit');
+      expect(errorProps(await checkFilter({ limit: 2.5 }))).toContain('limit');
+      expect(errorProps(await checkFilter({ limit: 'x' }))).toContain('limit');
+    });
+  });
+
+  describe('length limits', () => {
+    it('rejects a search term longer than 100 characters', async () => {
+      const errors = await checkFilter({ search: 'a'.repeat(101) });
+      expect(errorProps(errors)).toContain('search');
+    });
+
+    it('rejects a region longer than 100 characters', async () => {
+      const errors = await checkFilter({ region: 'a'.repeat(101) });
+      expect(errorProps(errors)).toContain('region');
+    });
   });
 });
 
@@ -253,6 +280,50 @@ describe('NearbyQueryDto', () => {
       });
       expect(errorProps(errors)).toContain('radius_km');
     });
+
+    it('accepts radius_km = 300 (maximum) and rejects anything larger', async () => {
+      const atMax = await checkNearby({
+        lat: 41.69,
+        lng: 44.83,
+        radius_km: 300,
+      });
+      expect(atMax).toHaveLength(0);
+
+      const tooFar = await checkNearby({
+        lat: 41.69,
+        lng: 44.83,
+        radius_km: 20000,
+      });
+      expect(errorProps(tooFar)).toContain('radius_km');
+    });
+  });
+
+  describe('coordinate ranges', () => {
+    it.each([
+      [-90, -180],
+      [90, 180],
+      [0, 0],
+    ])('accepts lat %p / lng %p', async (lat, lng) => {
+      expect(await checkNearby({ lat, lng })).toHaveLength(0);
+    });
+
+    it.each([90.01, -90.01, 1000, 'Infinity', 'NaN'])(
+      'rejects lat = %p',
+      async (lat) => {
+        expect(errorProps(await checkNearby({ lat, lng: 44.83 }))).toContain(
+          'lat',
+        );
+      },
+    );
+
+    it.each([180.01, -180.01, 1000, 'Infinity'])(
+      'rejects lng = %p',
+      async (lng) => {
+        expect(errorProps(await checkNearby({ lat: 41.69, lng }))).toContain(
+          'lng',
+        );
+      },
+    );
   });
 
   // Both lat and lng missing

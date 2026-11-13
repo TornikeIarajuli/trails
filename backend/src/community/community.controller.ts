@@ -13,6 +13,7 @@ import { Throttle } from '@nestjs/throttler';
 import { CommunityService } from './community.service';
 import { ReportConditionDto } from './dto/report-condition.dto';
 import { UploadPhotoDto } from './dto/upload-photo.dto';
+import { PaginationDto } from '../common/dto/pagination.dto';
 import { AuthGuard } from '../common/guards/auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 
@@ -58,13 +59,12 @@ export class CommunityController {
   @Get('photos/:trailId')
   getTrailPhotos(
     @Param('trailId', ParseUUIDPipe) trailId: string,
-    @Query('page') page?: string,
-    @Query('limit') limit?: string,
+    @Query() query: PaginationDto,
   ) {
     return this.communityService.getTrailPhotos(
       trailId,
-      page ? parseInt(page) : 1,
-      limit ? parseInt(limit) : 20,
+      query.page,
+      query.limit,
     );
   }
 

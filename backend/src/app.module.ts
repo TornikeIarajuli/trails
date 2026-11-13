@@ -6,6 +6,7 @@ import { SentryModule } from '@sentry/nestjs/setup';
 import { SentryGlobalFilter } from '@sentry/nestjs/setup';
 import { ProxyThrottlerGuard } from './common/guards/proxy-throttler.guard';
 import { CorrelationIdMiddleware } from './common/correlation-id.middleware';
+import { SupabaseModule } from './config/supabase.module';
 import { HealthModule } from './health/health.module';
 import { AuthModule } from './auth/auth.module';
 import { TrailsModule } from './trails/trails.module';
@@ -23,6 +24,7 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { ShopModule } from './shop/shop.module';
 import { CommentsModule } from './comments/comments.module';
 import { EventsModule } from './events/events.module';
+import { ModerationModule } from './moderation/moderation.module';
 
 @Module({
   imports: [
@@ -34,6 +36,7 @@ import { EventsModule } from './events/events.module';
         limit: 60, // 60 requests per minute per IP
       },
     ]),
+    SupabaseModule,
     HealthModule,
     AuthModule,
     TrailsModule,
@@ -51,6 +54,7 @@ import { EventsModule } from './events/events.module';
     ShopModule,
     CommentsModule,
     EventsModule,
+    ModerationModule,
   ],
   providers: [
     { provide: APP_FILTER, useClass: SentryGlobalFilter },

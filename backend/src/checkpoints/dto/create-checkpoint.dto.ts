@@ -5,10 +5,12 @@ import {
   IsEnum,
   IsNumber,
   IsBoolean,
-  IsArray,
+  MaxLength,
   Min,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+import { IsLooseUuid } from '../../common/validators/is-loose-uuid';
+import { IsLngLat } from '../../common/validators/geo';
 
 export enum CheckpointType {
   VIEWPOINT = 'viewpoint',
@@ -27,29 +29,34 @@ export enum CheckpointType {
 }
 
 export class CreateCheckpointDto {
-  @IsString()
-  @IsNotEmpty()
+  @IsLooseUuid()
   trail_id: string;
 
   @IsString()
+  @IsNotEmpty()
+  @MaxLength(200)
   name_en: string;
 
   @IsOptional()
   @IsString()
+  @MaxLength(200)
   name_ka?: string;
 
   @IsOptional()
   @IsString()
+  @MaxLength(5000)
   description_en?: string;
 
   @IsOptional()
   @IsString()
+  @MaxLength(5000)
   description_ka?: string;
 
   @IsEnum(CheckpointType)
   type: CheckpointType;
 
-  @IsArray()
+  // Written into an EWKT string, so only finite in-range numbers are accepted
+  @IsLngLat()
   coordinates: [number, number]; // [lng, lat]
 
   @IsOptional()
@@ -59,6 +66,7 @@ export class CreateCheckpointDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(2048)
   photo_url?: string;
 
   @IsOptional()

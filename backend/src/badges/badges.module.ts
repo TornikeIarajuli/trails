@@ -1,11 +1,10 @@
 import { Module } from '@nestjs/common';
 import { BadgesController } from './badges.controller';
 import { BadgesService } from './badges.service';
-import { SupabaseService } from '../config/supabase.config';
 
 @Module({
   controllers: [BadgesController],
-  providers: [BadgesService, SupabaseService],
+  providers: [BadgesService],
   exports: [BadgesService],
 })
 export class BadgesModule {}

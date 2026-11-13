@@ -57,7 +57,10 @@ export class CommunityService {
       )
       .eq('trail_id', trailId)
       .eq('is_active', true)
-      .gte('reported_at', new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString())
+      .gte(
+        'reported_at',
+        new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString(),
+      )
       .order('reported_at', { ascending: false });
 
     throwIfError(error);
@@ -90,6 +93,23 @@ export class CommunityService {
 
   async uploadPhoto(userId: string, dto: UploadPhotoDto) {
     const admin = this.supabaseService.getAdminClient();
+    const columns = `
+        *,
+        profiles:user_id (id, username, avatar_url)
+      `;
+
+    // POST /media/hike-photo already created the row; released app builds post the URL
+    // here again afterwards, which must not create a duplicate.
+    const { data: existing, error: existingError } = await admin
+      .from('trail_photos')
+      .select(columns)
+      .eq('user_id', userId)
+      .eq('url', dto.url)
+      .limit(1)
+      .maybeSingle();
+
+    throwIfError(existingError);
+    if (existing) return existing;
 
     const { data, error } = await admin
       .from('trail_photos')
@@ -99,15 +119,11 @@ export class CommunityService {
         url: dto.url,
         caption: dto.caption,
       })
-      .select(
-        `
-        *,
-        profiles:user_id (id, username, avatar_url)
-      `,
-      )
+      .select(columns)
       .single();
 
     throwIfError(error);
+    this.trailsService.invalidateCache(dto.trail_id);
     return data;
   }
 
@@ -158,7 +174,7 @@ export class CommunityService {
 
     const { data: photo } = await admin
       .from('trail_photos')
-      .select('id, user_id')
+      .select('id, user_id, trail_id')
       .eq('id', photoId)
       .single();
 
@@ -172,6 +188,7 @@ export class CommunityService {
       .eq('id', photoId);
 
     throwIfError(error);
+    this.trailsService.invalidateCache(photo.trail_id);
     return { message: 'Photo deleted' };
   }
 }

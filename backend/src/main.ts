@@ -3,29 +3,27 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
 import { LoggerService } from './common/logger.service';
+import { trustProxyHops } from './common/env';
 import express from 'express';
 import helmet from 'helmet';
 
 async function bootstrap() {
   const logger = new LoggerService();
 
-  const app = await NestFactory.create(AppModule, {
-    rawBody: true,
-    bodyParser: true,
-    logger,
-  });
+  const app = await NestFactory.create(AppModule, { logger });
 
-  // Trust proxy headers (Render, Cloudflare, etc.) for correct IP-based rate limiting
+  // Number of reverse proxies in front of the app whose X-Forwarded-For entry Express
+  // believes when it derives req.ip (the rate limiter's fallback key).
   const expressApp = app.getHttpAdapter().getInstance();
-  expressApp.set('trust proxy', 1);
+  expressApp.set('trust proxy', trustProxyHops());
 
   // Security headers (CSP, HSTS, X-Frame-Options, etc.)
   app.use(helmet());
 
-  // Cap request body at 15 MB (covers largest photo uploads; rejects abuse)
-  app.use(express.json({ limit: '15mb' }));
-  app.use(express.urlencoded({ limit: '15mb', extended: true }));
-  app.use(express.raw({ limit: '15mb' }));
+  // JSON and form bodies are small. Uploads are raw bodies that the media controller
+  // reads itself, with its own size cap.
+  app.use(express.json({ limit: '1mb' }));
+  app.use(express.urlencoded({ limit: '1mb', extended: true }));
 
   app.setGlobalPrefix('api');
   app.enableCors({

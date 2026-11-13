@@ -4,6 +4,7 @@ import {
   IsEnum,
   IsNumber,
   IsBoolean,
+  MaxLength,
   Min,
 } from 'class-validator';
 import { Type } from 'class-transformer';
@@ -16,18 +17,22 @@ import { TrailDifficulty } from './create-trail.dto';
 export class UpdateTrailDetailsDto {
   @IsOptional()
   @IsString()
+  @MaxLength(200)
   name_en?: string;
 
   @IsOptional()
   @IsString()
+  @MaxLength(200)
   name_ka?: string;
 
   @IsOptional()
   @IsString()
+  @MaxLength(10000)
   description_en?: string;
 
   @IsOptional()
   @IsString()
+  @MaxLength(10000)
   description_ka?: string;
 
   @IsOptional()
@@ -36,6 +41,7 @@ export class UpdateTrailDetailsDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(100)
   region?: string;
 
   @IsOptional()
@@ -58,10 +64,12 @@ export class UpdateTrailDetailsDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(500)
   start_address?: string;
 
   @IsOptional()
   @IsString()
+  @MaxLength(2048)
   cover_image_url?: string;
 
   @IsOptional()

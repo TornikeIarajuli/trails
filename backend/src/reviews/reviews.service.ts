@@ -5,12 +5,16 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { SupabaseService } from '../config/supabase.config';
+import { TrailsService } from '../trails/trails.service';
 import { SubmitReviewDto } from './dto/submit-review.dto';
 import { throwIfError } from '../common/supabase-error';
 
 @Injectable()
 export class ReviewsService {
-  constructor(private supabaseService: SupabaseService) {}
+  constructor(
+    private supabaseService: SupabaseService,
+    private trailsService: TrailsService,
+  ) {}
 
   async submit(userId: string, dto: SubmitReviewDto) {
     const admin = this.supabaseService.getAdminClient();
@@ -43,7 +47,11 @@ export class ReviewsService {
       )
       .single();
 
+    if (error?.code === '23505') {
+      throw new ConflictException('You have already reviewed this trail');
+    }
     throwIfError(error);
+    this.trailsService.invalidateCache(dto.trail_id);
     return data;
   }
 
@@ -75,7 +83,7 @@ export class ReviewsService {
 
     const { data: review } = await admin
       .from('trail_reviews')
-      .select('id, user_id')
+      .select('id, user_id, trail_id')
       .eq('id', reviewId)
       .single();
 
@@ -99,6 +107,7 @@ export class ReviewsService {
       .single();
 
     throwIfError(error);
+    this.trailsService.invalidateCache(review.trail_id);
     return data;
   }
 
@@ -107,7 +116,7 @@ export class ReviewsService {
 
     const { data: review } = await admin
       .from('trail_reviews')
-      .select('id, user_id')
+      .select('id, user_id, trail_id')
       .eq('id', reviewId)
       .single();
 
@@ -121,6 +130,7 @@ export class ReviewsService {
       .eq('id', reviewId);
 
     throwIfError(error);
+    this.trailsService.invalidateCache(review.trail_id);
     return { message: 'Review deleted' };
   }
 }
