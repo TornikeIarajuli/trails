@@ -8,14 +8,16 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { REVIEW_FLAG_CODES, routeSignature } from './apply-lib.mjs';
+import { routeKey, writeDataset } from './lib/dataset.mjs';
 import { elevations } from './lib/dem.mjs';
 import { geoJsonCoords, roundCoord } from './lib/ewkt.mjs';
 import { FACILITY_KIND, Features, KINDS_FOR_TYPE, TYPE_FOR_KIND, endParts, englishLabel, featureLabel, hasProperName, labelMatches, placeNear } from './lib/features.mjs';
 import { LineIndex, bbox, bboxesIntersect, cumulativeM, haversineM, lineLengthM, nearestOnLine, overlapShare, sampleAlong } from './lib/geo.mjs';
 import { difficultyFor, difficultyGap, dinHours, elevationProfile, roundHours } from './lib/hiking.mjs';
 import { cleanName, georgianName, hasGeorgian, latinNames, sameToponym } from './lib/names.mjs';
-import { CONTENT, DATA, WORK, latestSnapshotPath, readJson, readJsonIfExists, writeJson } from './lib/paths.mjs';
+import { DATA, WORK, latestSnapshotPath, readJson, readJsonIfExists, writeJson } from './lib/paths.mjs';
 import { distanceToBorderM, distanceToOccupiedM, distanceToTbilisiM, regionProfile } from './lib/regions.mjs';
+import { terrainNote } from './lib/terrain.mjs';
 import { checkpointId } from './lib/uuid.mjs';
 
 const snapshotPath = latestSnapshotPath();
@@ -655,6 +657,16 @@ for (const t of trailsOut) {
   }
 }
 
+// ---------- terrain (12-terrain.mjs), kept while the route it was computed for is unchanged ----------
+const terrainWork = readJsonIfExists(path.join(WORK, 'terrain.json'), { trails: {} });
+let terrainStale = 0;
+for (const t of trailsOut) {
+  const e = terrainWork.trails[t.id];
+  t.terrain = e && e.route_key === routeKey(t.route) ? e.terrain : null;
+  if (t.terrain) t.provenance.terrain = { source: 'osm', note: terrainNote(t.terrain.fetched_at, e.geometry) };
+  else if (e) terrainStale++;
+}
+
 // ---------- write ----------
 const dataset = {
   generated_at: new Date().toISOString(),
@@ -666,12 +678,14 @@ const dataset = {
     new: trailsOut.filter((t) => t.is_new).length,
     checkpoints: trailsOut.reduce((n, t) => n + t.checkpoints.length, 0),
     photos: trailsOut.reduce((n, t) => n + t.photos.length, 0),
+    terrain: trailsOut.filter((t) => t.terrain).length,
   },
   trails: trailsOut,
 };
-const body = dataset.trails.map((t) => JSON.stringify(t)).join(',\n');
-const { trails, ...head } = dataset;
-fs.writeFileSync(path.join(CONTENT, 'trails.json'), `${JSON.stringify(head).slice(0, -1)},"trails":[\n${body}\n]}\n`);
+writeDataset(dataset);
+if (dataset.counts.terrain < trailsOut.length) {
+  console.log(`terrain: ${dataset.counts.terrain} of ${trailsOut.length} trails${terrainStale ? ` (${terrainStale} routes changed since)` : ''} — run 12-terrain.mjs`);
+}
 writeJson(path.join(WORK, 'build-report.json'), { ...report, georgianAuthored, counts: dataset.counts });
 console.log(`trails.json: ${dataset.counts.existing} existing + ${dataset.counts.new} new trails, ${dataset.counts.checkpoints} checkpoints, ${dataset.counts.photos} photos`);
 const changedCount = trailsOut.filter((t) => !t.is_new && t.changed.length).length;

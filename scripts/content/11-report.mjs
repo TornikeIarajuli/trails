@@ -5,6 +5,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { REVIEW_FLAG_CODES } from './apply-lib.mjs';
+import { SAC_GRADES } from './lib/terrain.mjs';
 import { CACHE, CONTENT, DATA, IMAGES, REPO, WORK, latestSnapshotPath, readJson, readJsonIfExists } from './lib/paths.mjs';
 
 const dataset = readJson(path.join(CONTENT, 'trails.json'));
@@ -26,7 +27,14 @@ for (const t of dataset.trails) {
     credits.push({ trail_id: t.id, trail_name: t.name_en, file: p.file, author: p.author, license: p.license, license_url: p.license_url, source_url: p.source_url });
   }
 }
-fs.writeFileSync(path.join(REPO, 'mobile', 'assets', 'data', 'photo-credits.json'), `${JSON.stringify(credits, null, 2)}\n`);
+// files are rewritten only when their content changes, so an unchanged credit list is left untouched
+const writeIfChanged = (file, text) => {
+  if (fs.existsSync(file) && fs.readFileSync(file, 'utf8') === text) return false;
+  fs.writeFileSync(file, text);
+  return true;
+};
+const wrote = [];
+if (writeIfChanged(path.join(REPO, 'mobile', 'assets', 'data', 'photo-credits.json'), `${JSON.stringify(credits, null, 2)}\n`)) wrote.push('photo-credits.json');
 
 const creditLines = [
   '# Photo credits',
@@ -42,7 +50,7 @@ const creditLines = [
   ...credits.map((c) => `| ${md(c.trail_name)} | \`${c.file.split('/').pop()}\` | ${md(c.author)} | ${c.license_url ? `[${c.license}](${c.license_url})` : c.license} | [Commons file page](${c.source_url}) |`),
   '',
 ];
-fs.writeFileSync(path.join(CONTENT, 'CREDITS.md'), creditLines.join('\n'));
+if (writeIfChanged(path.join(CONTENT, 'CREDITS.md'), creditLines.join('\n'))) wrote.push('CREDITS.md');
 
 // ---------- numbers ----------
 const existing = dataset.trails.filter((t) => !t.is_new);
@@ -101,6 +109,7 @@ L.push(`- Checkpoints: ${cpExisting.length} existing (${moved.length} moved, ${c
 L.push(`- Photos: ${credits.length} real Wikimedia Commons photos for ${dataset.trails.length - noPhoto.length} of ${dataset.trails.length} trails. Cover match: on-trail ${coverClass['on-trail']}, nearby ${coverClass.nearby}, area ${coverClass.area}, place ${coverClass.place}, no photo ${coverClass.none}. All photos: on-trail ${allClass['on-trail']}, nearby ${allClass.nearby}, area ${allClass.area}, place ${allClass.place}. Licences: ${Object.entries(licenceMix).map(([k, v]) => `${k} ${v}`).join(', ')}. \`content/images\`: ${imageFiles} WebP files, ${(imageBytes / 1048576).toFixed(1)} MB.`);
 L.push(`- Elevation profiles (\`elevation_profile\`, ≤ 120 [distance_m, elevation_m] points along the published route, smoothed like the ascent): **${dataset.trails.filter((t) => t.elevation_profile).length}** of ${dataset.trails.length} trails; null for the ${dataset.trails.filter((t) => !t.elevation_profile).length} trails whose route could not be measured.`);
 L.push(`- Review flags (\`review_flags\`, migration 052): **${dataset.trails.filter((t) => t.review_flags.length).length}** of ${dataset.trails.length} trails carry at least one reason to look first (codes below).`);
+L.push(`- Terrain from OpenStreetMap (\`terrain\`, migration 053): **${dataset.trails.filter((t) => t.terrain).length}** of ${dataset.trails.length} trails (section "Terrain" below).`);
 L.push(`- OpenTopoData requests used: ${Object.entries(budget).map(([d, n]) => `${n} on ${d}`).join(', ') || '0'} (limit 1000/day). No route was left unmeasured for lack of budget.`, '');
 
 L.push('## How the values were obtained (measured vs estimated)', '');
@@ -262,6 +271,38 @@ L.push('- Every published photo, the cover included, gets a `trail_media` row wh
 const over = dataset.trails.flatMap((t) => t.photos.filter((p) => p.bytes > (p.role === 'cover' ? 120 : 220) * 1024).map((p) => `${short(t.id)}/${p.file} ${Math.round(p.bytes / 1024)} KB`));
 L.push(`- Size targets (cover ≤ 120 KB at 960 px, gallery ≤ 220 KB at 1280 px): ${over.length ? `${over.length} very detailed photos stay above them at WebP quality 40 (lower quality turns foliage into blotches): ${over.join(', ')}` : 'all photos meet them'}.`, '');
 
+// ---------- terrain ----------
+const withTerrain = dataset.trails.filter((t) => t.terrain);
+L.push(`## Terrain from OpenStreetMap (\`trails.terrain\`, ${withTerrain.length} trails)`, '');
+L.push('For the app\'s "What to bring" list. `scripts/content/12-terrain.mjs` fetches from Overpass, in small boxes along the routes, the paths, tracks and minor roads (`highway` = path, footway, track, bridleway, steps, cycleway, pedestrian, unclassified, residential, service, tertiary, living_street), fords, water points and shelters, cuts each route into ~20 m pieces and matches each piece to the nearest of those ways within 20 m; the matched way\'s `sac_scale` and `surface` add that length to the grade and surface totals. The line matched is the full-resolution OSM line where the pipeline has it (rebuilt and new trails), otherwise the published route. `coverage` is the matched share of the length; a matched way without a surface tag adds to no surface. `max_sac` is the highest grade with at least 100 m. Fords: `ford=*` nodes and ways within 25 m (not `ford=no`), counted once within 100 m of each other. Water points: drinking water, springs, water points and taps within 100 m, once within 50 m; springs tagged `drinking_water=no` are left out. Shelters: `amenity=shelter` and alpine / wilderness huts within 200 m, once within 100 m; bus-stop shelters (`shelter_type=public_transport`) are left out. OSM data © OpenStreetMap contributors (ODbL).', '');
+if (withTerrain.length) {
+  const cov = withTerrain.map((t) => t.terrain.coverage).sort((a, b) => a - b);
+  const q = (p) => cov[Math.min(cov.length - 1, Math.floor(p * cov.length))];
+  const dates = [...new Set(withTerrain.map((t) => t.terrain.fetched_at))].sort();
+  const sacCount = Object.fromEntries([...SAC_GRADES, 'none'].map((g) => [g, withTerrain.filter((t) => (t.terrain.max_sac ?? 'none') === g).length]));
+  const count = (k) => withTerrain.filter((t) => t.terrain[k] > 0);
+  const low = withTerrain.filter((t) => t.terrain.coverage < 0.5).sort((a, b) => a.terrain.coverage - b.terrain.coverage);
+  L.push(`- OSM data of ${dates.join(', ')}. Coverage: median ${q(0.5)}, quartiles ${q(0.25)} / ${q(0.75)}; ${low.length} trails below 0.5.`);
+  L.push(`- Highest SAC grade: ${Object.entries(sacCount).map(([g, n]) => `${g} ${n}`).join(', ')} (none = no grade over ≥ 100 m).`);
+  for (const [k, label] of [['fords', 'fords'], ['water_points', 'water points'], ['shelters', 'shelters or huts']]) {
+    const list = count(k);
+    const max = list.reduce((m, t) => (t.terrain[k] > m.terrain[k] ? t : m), list[0]);
+    L.push(`- Trails with ${label}: ${list.length}${list.length ? ` (most: ${md(max.name_en)}, ${max.terrain[k]})` : ''}.`);
+  }
+  L.push('', '### Highest SAC grades', '', '| Trail | Region | Difficulty | Max SAC | km per grade | Coverage | Fords |', '|---|---|---|---|---|---|---|');
+  const rank = (t) => SAC_GRADES.indexOf(t.terrain.max_sac) * 1000 + (t.terrain.sac_km[t.terrain.max_sac] ?? 0);
+  for (const t of withTerrain.filter((x) => x.terrain.max_sac).sort((a, b) => rank(b) - rank(a)).slice(0, 15)) {
+    L.push(`| ${short(t.id)} ${md(t.name_en)} | ${t.region} | ${t.difficulty} | ${t.terrain.max_sac} | ${Object.entries(t.terrain.sac_km).map(([g, km]) => `${g} ${km}`).join(', ')} | ${t.terrain.coverage} | ${t.terrain.fords} |`);
+  }
+  L.push('', '### Worth a look', '');
+  const easyHigh = withTerrain.filter((t) => t.difficulty === 'easy' && SAC_GRADES.indexOf(t.terrain.max_sac) >= 2);
+  L.push(`- Easy trails graded T3 or higher in OSM (${easyHigh.length}): ${easyHigh.map((t) => `${short(t.id)} ${md(t.name_en)} (${t.terrain.max_sac}, ${t.terrain.sac_km[t.terrain.max_sac]} km)`).join('; ') || 'none'}.`);
+  L.push(`- Coverage below 0.5 (${low.length}) — the route is off the mapped paths or the paths are not mapped: ${low.map((t) => `${short(t.id)} ${md(t.name_en)} ${t.terrain.coverage}`).join('; ') || 'none'}.`);
+  const manyFords = withTerrain.filter((t) => t.terrain.fords >= 10).sort((a, b) => b.terrain.fords - a.terrain.fords);
+  L.push(`- Ten or more fords (${manyFords.length}) — OSM marks every unbridged stream crossing, most of them small brooks: ${manyFords.map((t) => `${md(t.name_en)} ${t.terrain.fords}`).join('; ') || 'none'}.`);
+  L.push('');
+} else L.push('Not computed yet — run `node scripts/content/12-terrain.mjs`.', '');
+
 L.push('## Georgian text written by this pipeline — please review', '');
 L.push('Toponyms come from OSM `name:ka`; joined names and the description template were assembled by the pipeline and need a native speaker\'s check.', '');
 const templateCount = build.georgianAuthored.filter((g) => g.how === 'template').length;
@@ -274,5 +315,5 @@ L.push('- Routes flagged for manual review keep their broken geometry and unveri
 L.push('- SRTM-based ascent is an estimate (see method). Checkpoint elevations are DEM values, not surveyed.');
 L.push('- Descriptions of hand-curated trails were not rewritten (except where they placed the trail in the wrong region); their claims about scenery or facilities were not verified.');
 L.push('- Photos were judged on downscaled contact sheets; a watermark or a subtle problem may have slipped through.', '');
-fs.writeFileSync(path.join(CONTENT, 'REPORT.md'), L.join('\n'));
-console.log(`REPORT.md, CREDITS.md (${credits.length} photos), photo-credits.json written`);
+if (writeIfChanged(path.join(CONTENT, 'REPORT.md'), L.join('\n'))) wrote.push('REPORT.md');
+console.log(`${credits.length} photos credited; written: ${wrote.join(', ') || 'nothing (all unchanged)'}`);

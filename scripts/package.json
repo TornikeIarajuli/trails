@@ -12,6 +12,7 @@
   "type": "commonjs",
   "dependencies": {
     "@supabase/supabase-js": "2.95.3",
+    "osm-pbf-parser": "^2.3.0",
     "pg": "^8.18.0",
     "sharp": "^0.34.5"
   }

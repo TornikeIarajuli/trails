@@ -19,10 +19,11 @@ node content/06-photo-candidates.mjs    # geotagged Commons files along each rou
 node content/06b-photo-places.mjs   # trails with nothing within 10 km: 25 km geotags + Wikidata places (same file)
 node content/07-photos.mjs          # pick + resize photos -> content/images/<trail-id>/*.webp, contact sheets in work/sheets/
 node content/09-build-dataset.mjs   # corrected values, checkpoints, provenance                    -> content/trails.json
+node content/12-terrain.mjs         # OSM terrain along each route (Overpass) -> trails.json `terrain`, work/terrain.json
 node content/10-seed.mjs            # supabase/seed.sql (trails + checkpoints, idempotent upserts)
 node content/11-report.mjs          # content/REPORT.md, content/CREDITS.md, mobile/assets/data/photo-credits.json
 node content/verify.mjs             # checks all of the above (exit code 1 on a problem)
-npm test                            # unit tests (apply tool, EWKT, maths, stitching)
+npm test                            # unit tests (apply tool, EWKT, maths, stitching, terrain); repo root: node --test scripts/content/
 node content/snapshot-to-sql.mjs    # optional: snapshot -> SQL, to load a local Supabase for an apply rehearsal
 ```
 
@@ -37,9 +38,13 @@ scripts). Requests use the generic User-Agent `TrailContentTool/1.0 (hiking app 
 ```sh
 SUPABASE_URL=https://<project>.supabase.co SUPABASE_SERVICE_ROLE_KEY=<service role key> node content/apply.mjs          # dry run
 SUPABASE_URL=… SUPABASE_SERVICE_ROLE_KEY=… node content/apply.mjs --apply                                            # write
+node content/apply.mjs --offline                    # dry run against content/snapshot/ (no keys, no network)
 ```
 
 - Credentials come from the environment only (never printed); without them it refuses to start.
+- `--offline` (or `--snapshot <file>`) plans against the latest production snapshot instead of the database: the
+  same dry-run output, nothing read from the network, nothing written. Columns the snapshot predates are taken as
+  their migration created them (NULL / `{}`), and the bucket is not checked (every photo counts as an upload).
 - Dry run (default) reads the live rows and prints, per trail, every field it would change and the totals per table.
 - `--apply` first writes the live `trails` (without routes), their routes, `trail_checkpoints` and `trail_media`
   rows to `content/backups/<timestamp>/`, then uploads images to the public `trail-media` bucket at
@@ -52,10 +57,54 @@ SUPABASE_URL=… SUPABASE_SERVICE_ROLE_KEY=… node content/apply.mjs --apply   
 - Re-running is safe; a failing trail does not stop the others; the exit code is 1 if anything failed.
 - Other flags: `--only <id,…>`, `--skip-images`, `--skip-new`, `--unpublished-new` (insert new trails unpublished),
   `--update-new` (overwrite new trails that already exist), `--dataset`, `--images`, `--backups`.
-- Needs migrations 051 (`trails.elevation_profile`) and 052 (`trails.review_flags`); it refuses a database without
-  them. Columns added after a trail was first published (these two) carry a baseline in `trails.json` (NULL and `{}`),
-  so they are updated on earlier-published new trails without `--update-new`. `reviewed_at` and `review_notes` belong
-  to the admins and are never written.
+- Needs migrations 051 (`trails.elevation_profile`), 052 (`trails.review_flags`) and 053 (`trails.terrain`); it
+  refuses a database without them. Columns added after a trail was first published (the first two) carry a baseline
+  in `trails.json` (NULL and `{}`), so they are updated on earlier-published new trails without `--update-new`.
+  `terrain` is derived from OSM and nobody edits it, so it has no baseline: it is written whenever the dataset has a
+  value that differs from the live one (compared as JSON with sorted keys); a trail without terrain in the dataset
+  leaves the live value alone. `reviewed_at`, `review_notes` and `gear_notes` belong to the team and are never written.
+
+### Terrain (`trails.terrain`) — `content/12-terrain.mjs`
+
+For the app's "What to bring" list. Run it after `09-build-dataset.mjs` (09 keeps the computed terrain of every
+trail whose route is unchanged, from `content/work/terrain.json`; a changed route needs this step again).
+Overpass is asked for small boxes along the routes (0.02° cells within 250 m of a route, a 0.2° block of them per
+request, so trails sharing ground share requests — about 90 requests for the catalogue), cached in
+`content/cache/overpass/`, one at a time with back-off on 429/504. (The polyline form of `around` returned nothing
+on the main Overpass instance when this was written, so boxes are used and distances are applied locally.)
+
+When the public Overpass instances are at capacity (as for days in November 2026), read a local extract instead:
+
+```bash
+curl -L -o content/cache/osm/georgia-latest.osm.pbf https://download.geofabrik.de/europe/georgia-latest.osm.pbf
+node --max-old-space-size=6144 content/12-terrain.mjs --local content/cache/osm/georgia-YYMMDD.osm.pbf
+```
+
+`content/lib/osm-extract.mjs` answers the same query from the file (the same ways, fords, water points and shelters
+per cell, in Overpass JSON form), so the rest of the step is unchanged; the terrain then dates from the extract.
+Geofabrik's dated file name (`georgia-261113.osm.pbf`) gives that date. Reading the ~100 MB extract takes seconds.
+
+```json
+{ "source": "osm", "fetched_at": "2026-11-13", "coverage": 0.86, "max_sac": "T3",
+  "sac_km": { "T1": 3.2, "T3": 1.1 }, "surfaces_km": { "ground": 5.0, "rock": 0.4 },
+  "fords": 1, "water_points": 2, "shelters": 1 }
+```
+
+- The route is cut into ~20 m pieces; each is matched to the nearest way within 20 m among `highway` = path,
+  footway, track, bridleway, steps, cycleway, pedestrian, unclassified, residential, service, tertiary,
+  living_street. The full-resolution OSM line is used where the pipeline has it (rebuilt and new trails).
+- `coverage` = matched share of the length (2 decimals). `sac_km` / `surfaces_km`: km per grade / surface bucket of
+  the matched ways (1 decimal, only values > 0); a way without the tag adds to neither. `max_sac` = highest grade
+  with at least 100 m, else null. SAC: hiking T1, mountain_hiking T2, demanding_mountain_hiking T3, alpine_hiking
+  T4, demanding_alpine_hiking T5, difficult_alpine_hiking T6. Surfaces: paved (asphalt, concrete…, paved,
+  paving_stones, sett, cobblestone, metal, wood), gravel (gravel, fine_gravel, compacted, unpaved, pebblestone),
+  ground (ground, dirt, earth, mud, sand, soil), grass (grass, grass_paver, meadow), rock (rock, bare_rock, stone,
+  scree, shingle), anything else other.
+- `fords`: `ford=*` nodes and ways (not `ford=no`) within 25 m, hits within 100 m of each other counted once.
+  `water_points`: drinking_water, spring, water_point, water_tap within 100 m, once within 50 m (springs tagged
+  `drinking_water=no` left out). `shelters`: `amenity=shelter`, alpine and wilderness huts within 200 m, once within
+  100 m (bus-stop shelters left out).
+- The matching lives in `content/lib/terrain.mjs` (unit tests in `content/terrain.test.mjs`).
 
 ### Review flags (`trails.review_flags`)
 

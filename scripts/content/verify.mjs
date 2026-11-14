@@ -30,6 +30,7 @@ check(dataset.counts.trails === trails.length, 'counts.trails does not match');
 check(dataset.counts.new === trails.filter((t) => t.is_new).length, 'counts.new does not match');
 check(dataset.counts.checkpoints === trails.reduce((n, t) => n + t.checkpoints.length, 0), 'counts.checkpoints does not match');
 check(dataset.counts.photos === trails.reduce((n, t) => n + t.photos.length, 0), 'counts.photos does not match');
+check(dataset.counts.terrain == null || dataset.counts.terrain === trails.filter((t) => t.terrain).length, 'counts.terrain does not match');
 
 let jumps = 0;
 for (const t of trails) {
@@ -70,6 +71,7 @@ for (const t of trails) {
     check(!t.is_new || has('machine_georgian'), `${where}: new trail without machine_georgian (its Georgian description is a template)`);
     if (rf.length || t.is_new) check(t.changed.includes('review_flags') && Array.isArray(t.baseline?.review_flags) && !t.baseline.review_flags.length, `${where}: review_flags not published against the empty baseline`);
   }
+  if (!t.terrain) warn.push(`${where}: no terrain (run 12-terrain.mjs after 09)`);
   for (const c of t.checkpoints) {
     if (c.elevation_m == null) warn.push(`${where}: checkpoint "${c.name_en}" has no elevation`);
   }
@@ -131,5 +133,5 @@ for (const w of warn) console.log(`warning: ${w}`);
 for (const p of problems) console.log(`PROBLEM: ${p}`);
 const flagCounts = REVIEW_FLAG_CODES.map((c) => `${c} ${trails.filter((t) => t.review_flags?.includes(c)).length}`).join(', ');
 console.log(`review_flags: ${flagCounts}`);
-console.log(`verify: ${trails.length} trails (${trails.filter((t) => t.is_new).length} new), ${trails.filter((t) => t.elevation_profile).length} with an elevation profile, ${photoCount} photos, ${jumps} flagged routes with jumps; ${problems.length} problems, ${warn.length} warnings`);
+console.log(`verify: ${trails.length} trails (${trails.filter((t) => t.is_new).length} new), ${trails.filter((t) => t.elevation_profile).length} with an elevation profile, ${trails.filter((t) => t.terrain).length} with terrain, ${photoCount} photos, ${jumps} flagged routes with jumps; ${problems.length} problems, ${warn.length} warnings`);
 process.exit(problems.length ? 1 : 0);

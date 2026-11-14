@@ -2,6 +2,7 @@
 // EWKT conversion and the per-trail plan (what would change). No I/O in this file.
 import { geoJsonCoords, lineEwkt, pointEwkt } from './lib/ewkt.mjs';
 import { haversineM, lineLengthM } from './lib/geo.mjs';
+import { describeTerrain, stableStringify, terrainProblems } from './lib/terrain.mjs';
 import { isUuidLike, mediaId } from './lib/uuid.mjs';
 
 export const BUCKET = 'trail-media';
@@ -19,9 +20,15 @@ export const TRAIL_GEOMS = ['route', 'start_point', 'end_point'];
 export const TRAIL_JSON = ['elevation_profile'];
 /** text[] columns (NOT NULL DEFAULT '{}'), compared as sets; a blank value means the empty array */
 export const TRAIL_ARRAYS = ['review_flags'];
-export const TRAIL_FIELDS = [...TRAIL_SCALARS, ...TRAIL_JSON, ...TRAIL_ARRAYS, ...TRAIL_GEOMS];
+/**
+ * jsonb columns derived from open data that nobody edits by hand (terrain from OSM): published whenever the
+ * dataset has a value and it differs from live (compared as JSON with sorted keys); null in the dataset leaves
+ * live alone. No baseline, no conflicts.
+ */
+export const TRAIL_DERIVED = ['terrain'];
+export const TRAIL_FIELDS = [...TRAIL_SCALARS, ...TRAIL_JSON, ...TRAIL_ARRAYS, ...TRAIL_DERIVED, ...TRAIL_GEOMS];
 /** columns added by later migrations: the apply tool refuses a database that does not have them yet */
-export const ADDED_TRAIL_COLUMNS = { elevation_profile: '051', review_flags: '052' };
+export const ADDED_TRAIL_COLUMNS = { elevation_profile: '051', review_flags: '052', terrain: '053' };
 /** trails.review_flags codes, in the order they are written (meanings in scripts/README.md) */
 export const REVIEW_FLAG_CODES = [
   'manual_review', 'main_line', 'rebuilt', 'reversed', 'generated_name', 'machine_georgian', 'near_border', 'overlap',
@@ -44,6 +51,7 @@ export function parseArgs(argv) {
   const opts = {
     apply: false, only: null, skipImages: false, skipNew: false, unpublishedNew: false, force: false,
     overwriteConflicts: false, updateNew: false, help: false, dataset: null, images: null, backups: null,
+    dryRun: false, offline: false, snapshot: null,
   };
   const value = (i, flag) => {
     const v = argv[i + 1];
@@ -54,6 +62,9 @@ export function parseArgs(argv) {
     const a = argv[i];
     switch (a) {
       case '--apply': opts.apply = true; break;
+      case '--dry-run': opts.dryRun = true; break;
+      case '--offline': opts.offline = true; break;
+      case '--snapshot': opts.snapshot = value(i, a); opts.offline = true; i++; break;
       case '--skip-images': opts.skipImages = true; break;
       case '--skip-new': opts.skipNew = true; break;
       case '--unpublished-new': opts.unpublishedNew = true; break;
@@ -71,6 +82,7 @@ export function parseArgs(argv) {
       default: throw new Error(`Unknown argument: ${a}`);
     }
   }
+  if (opts.apply && (opts.dryRun || opts.offline)) throw new Error('--apply cannot be combined with --dry-run or --offline');
   if (opts.only) {
     const bad = opts.only.filter((id) => !isUuidLike(id));
     if (bad.length) throw new Error(`--only expects trail ids, got: ${bad.join(', ')}`);
@@ -114,6 +126,7 @@ export function validateDataset(dataset) {
       if (!pairs) problems.push(`${where}: elevation_profile must be 2–120 [distance_m, elevation_m] integer pairs`);
       else if (p[0][0] !== 0 || p.some((x, i) => i > 0 && x[0] < p[i - 1][0])) problems.push(`${where}: elevation_profile must start at 0 m and never go back`);
     }
+    if (t.terrain != null) for (const p of terrainProblems(t.terrain)) problems.push(`${where}: ${p}`);
     if (t.review_flags != null) {
       const f = t.review_flags;
       if (!Array.isArray(f) || f.some((c) => !REVIEW_FLAG_CODES.includes(c)) || new Set(f).size !== f.length) {
@@ -202,7 +215,7 @@ export function matchesSignature(coords, sig) {
 /** Live value (as PostgREST returns it) → the comparable form the dataset uses. */
 export function normalizeLive(field, value) {
   if (TRAIL_ARRAYS.includes(field)) return parseTextArray(value);
-  if (TRAIL_JSON.includes(field) && typeof value === 'string') {
+  if ((TRAIL_JSON.includes(field) || TRAIL_DERIVED.includes(field)) && typeof value === 'string') {
     try {
       return JSON.parse(value);
     } catch {
@@ -243,7 +256,7 @@ export function valuesEqual(field, a, b) {
   if (field === 'route') return sameLine(a, b);
   if (field === 'start_point' || field === 'end_point' || field === 'coordinates') return sameCoord(a, b);
   if (NUMERIC.has(field)) return Math.abs(Number(a) - Number(b)) < 1e-9;
-  if (TRAIL_JSON.includes(field)) return JSON.stringify(a) === JSON.stringify(b);
+  if (TRAIL_JSON.includes(field) || TRAIL_DERIVED.includes(field)) return stableStringify(a) === stableStringify(b);
   return a === b;
 }
 
@@ -273,6 +286,7 @@ export function show(field, value) {
     return `${value.length} pts, ${(lineLengthM(value) / 1000).toFixed(2)} km`;
   }
   if (field === 'start_point' || field === 'end_point' || field === 'coordinates') return `${value[1].toFixed(5)},${value[0].toFixed(5)}`;
+  if (field === 'terrain' && typeof value === 'object') return describeTerrain(value);
   if (field === 'elevation_profile' && Array.isArray(value)) {
     const els = value.map((p) => p[1]);
     return `${value.length} pts, ${Math.min(...els)}–${Math.max(...els)} m over ${(value[value.length - 1][0] / 1000).toFixed(2)} km`;
@@ -344,6 +358,7 @@ export function planTrail(ds, live, opts) {
     const managed = ds.is_new ? TRAIL_FIELDS : ds.changed;
     const patch = {};
     for (const f of managed) {
+      if (TRAIL_DERIVED.includes(f)) continue;
       const liveValue = normalizeLive(f, live.trail[f]);
       const desired = blank(ds[f]) ? null : ds[f];
       // a new trail published earlier: a field with a recorded baseline (e.g. a column added since) is
@@ -365,6 +380,14 @@ export function planTrail(ds, live, opts) {
       } else if (verdict === 'conflict') {
         plan.trail.conflicts.push({ field: f, live: show(f, liveValue), baseline: show(f, ds.baseline?.[f]), desired: show(f, desired), why: 'live value changed since the snapshot (use --overwrite-conflicts to overwrite)' });
       }
+    }
+    // derived from open data (terrain): written whenever the dataset has a value that differs from live
+    for (const f of TRAIL_DERIVED) {
+      if (blank(ds[f])) continue;
+      const liveValue = normalizeLive(f, live.trail[f]);
+      if (valuesEqual(f, liveValue, ds[f])) continue;
+      patch[f] = toDbValue(f, ds[f]);
+      plan.trail.changes.push({ field: f, from: show(f, liveValue), to: show(f, ds[f]) });
     }
 
     // --- cover ---

@@ -1,14 +1,20 @@
 // OpenStreetMap Overpass client: one request at a time, cached by query text, mirrors as fallback.
 import { request, sleep } from './http.mjs';
 
+// the main instance first; public mirrors when it is at capacity (same generic User-Agent, same cache)
 const ENDPOINTS = [
   'https://overpass-api.de/api/interpreter',
+  'https://maps.mail.ru/osm/tools/overpass/api/interpreter',
   'https://overpass.kumi.systems/api/interpreter',
 ];
 
-export async function overpass(query, { refresh = false, label = '' } = {}) {
+/**
+ * POSTs an Overpass QL query and returns the parsed JSON (cached by query text, whichever instance answered).
+ * Options: refresh, label (for log lines), timeoutMs per attempt, rounds over the instance list.
+ */
+export async function overpass(query, { refresh = false, label = '', timeoutMs = 600_000, rounds = 3 } = {}) {
   let lastError;
-  for (let round = 0; round < 3; round++) {
+  for (let round = 0; round < rounds; round++) {
     for (const endpoint of ENDPOINTS) {
       try {
         const res = await request(endpoint, {
@@ -19,10 +25,11 @@ export async function overpass(query, { refresh = false, label = '' } = {}) {
           cacheKey: query,
           throttleKey: 'overpass',
           minIntervalMs: 5000,
-          timeoutMs: 600_000,
+          timeoutMs,
           retries: 2,
           refresh,
           validate: (v) => {
+            if (!Array.isArray(v.elements)) throw new Error('Overpass answer has no elements');
             if (v.remark && /timed out|out of memory|runtime error/i.test(v.remark)) {
               throw new Error(`Overpass remark: ${v.remark}`);
             }

@@ -10,7 +10,7 @@ import {
   STORAGE_PREFIX, describePlan, matchesSignature, parseArgs, planHasWrites, planTrail, publicUrl, routeSignature,
   REVIEW_FLAG_CODES, summarize, validateDataset, valuesEqual,
 } from './apply-lib.mjs';
-import { run } from './apply.mjs';
+import { run, snapshotAdapter, snapshotOrigin } from './apply.mjs';
 import { geoJsonCoords, lineEwkt, pointEwkt } from './lib/ewkt.mjs';
 import { dinHours, difficultyFor, ascentDescent, elevationProfile, roundHours } from './lib/hiking.mjs';
 import { isRfc4122, trailIdForRelation, uuidv5 } from './lib/uuid.mjs';
@@ -76,13 +76,13 @@ function liveRows() {
         id: T1, name_en: 'Gergeti', name_ka: 'გერგეტი', description_en: 'd', description_ka: null, difficulty: 'easy', region: 'Kazbegi',
         distance_km: 6, elevation_gain_m: 500, estimated_hours: 3, start_address: null, route: geo('LineString', oldRoute),
         start_point: geo('Point', oldRoute[0]), end_point: geo('Point', oldRoute[2]),
-        cover_image_url: 'https://images.unsplash.com/photo-1?w=800', is_published: true, elevation_profile: null, review_flags: [],
+        cover_image_url: 'https://images.unsplash.com/photo-1?w=800', is_published: true, elevation_profile: null, review_flags: [], terrain: null,
       },
       {
         id: T2, name_en: 'Owner trail', name_ka: null, description_en: null, description_ka: null, difficulty: 'hard', region: 'Tusheti',
         distance_km: 10, elevation_gain_m: 900, estimated_hours: 5, start_address: null, route: geo('LineString', oldRoute),
         start_point: geo('Point', oldRoute[0]), end_point: geo('Point', oldRoute[2]),
-        cover_image_url: `${SUPA}/storage/v1/object/public/trail-media/covers/${T2}/own.jpg`, is_published: true, elevation_profile: null, review_flags: [],
+        cover_image_url: `${SUPA}/storage/v1/object/public/trail-media/covers/${T2}/own.jpg`, is_published: true, elevation_profile: null, review_flags: [], terrain: null,
       },
     ],
     trail_checkpoints: [
@@ -379,6 +379,87 @@ test('review_flags is published as a text[] with the empty array as its baseline
   bad.review_flags = ['rebuilt', 'rebuilt', 'looks_odd'];
   assert.match(validateDataset({ trails: [bad] }).join(' | '), /review_flags must be distinct codes/);
   assert.ok(REVIEW_FLAG_CODES.includes('manual_review') && REVIEW_FLAG_CODES.includes('area_photo'));
+});
+
+test('terrain is published whenever it differs from live, compared without regard to key order', () => {
+  const live = liveRows();
+  const t1 = dataset().trails[0];
+  const terrain = { source: 'osm', fetched_at: '2026-11-14', coverage: 0.86, max_sac: 'T3', sac_km: { T1: 3.2, T3: 1.1 }, surfaces_km: { ground: 5 }, fords: 2, water_points: 1, shelters: 0 };
+  t1.terrain = terrain;
+  assert.deepEqual(validateDataset({ trails: [t1] }), []);
+  const opts = baseOpts({ skipImages: true });
+  // not in changed[] and no baseline: a derived value, compared with live only
+  const plan = planTrail(t1, { trail: live.trails[0], checkpoints: [], media: [] }, opts);
+  assert.deepEqual(plan.trail.patch.terrain, terrain);
+  assert.match(describePlan(plan).join('\n'), /terrain: null -> T3, 2 fords, 1 water point, 0 shelters, 86 % on OSM ways/);
+  // already published, keys in another order or as text: nothing to do
+  const reordered = Object.fromEntries(Object.entries(terrain).reverse());
+  for (const liveValue of [reordered, JSON.stringify(reordered)]) {
+    const same = planTrail(t1, { trail: { ...live.trails[0], terrain: liveValue }, checkpoints: [], media: [] }, opts);
+    assert.ok(!('terrain' in (same.trail.patch ?? {})));
+  }
+  // newer OSM data replaces an older value without a conflict
+  const older = { ...terrain, fetched_at: '2026-10-01', fords: 1 };
+  const refresh = planTrail(t1, { trail: { ...live.trails[0], terrain: older }, checkpoints: [], media: [] }, opts);
+  assert.deepEqual(refresh.trail.patch.terrain, terrain);
+  assert.equal(refresh.trail.conflicts.length, 0);
+  // no terrain in the dataset: the live value is left alone
+  const none = planTrail({ ...t1, terrain: null }, { trail: { ...live.trails[0], terrain: older }, checkpoints: [], media: [] }, opts);
+  assert.ok(!('terrain' in (none.trail.patch ?? {})));
+  // a new trail is inserted with it, and gets it later without --update-new
+  const n = dataset().trails[2];
+  n.terrain = terrain;
+  const ins = planTrail(n, { trail: null, checkpoints: [], media: [] }, baseOpts());
+  assert.deepEqual(ins.trail.row.terrain, terrain);
+  const liveNew = { ...ins.trail.row, terrain: null, route: geo('LineString', newRoute), start_point: geo('Point', newRoute[0]), end_point: geo('Point', newRoute[3]) };
+  const later = planTrail(n, { trail: liveNew, checkpoints: [], media: [] }, opts);
+  assert.deepEqual(later.trail.patch, { terrain });
+  assert.equal(later.trail.conflicts.length, 0);
+  // the contract is enforced before anything is read
+  assert.match(validateDataset({ trails: [{ ...t1, terrain: { ...terrain, max_sac: 'T9' } }] }).join(' | '), /max_sac/);
+  assert.match(validateDataset({ trails: [{ ...t1, terrain: { ...terrain, fords: undefined } }] }).join(' | '), /fords/);
+});
+
+test('offline planning runs against a snapshot: no keys, no writes, columns added since taken as empty', async () => {
+  const ds = dataset();
+  ds.trails[0].terrain = { source: 'osm', fetched_at: '2026-11-14', coverage: 1, max_sac: 'T2', sac_km: { T2: 5.4 }, surfaces_km: {}, fords: 0, water_points: 0, shelters: 0 };
+  const rows = liveRows();
+  // a snapshot as 01-snapshot.mjs writes it: trails with their checkpoints and media, before migrations 051–053
+  const snapshot = {
+    fetched_at: '2026-11-13T00:00:00Z',
+    trails: rows.trails.map(({ elevation_profile, review_flags, terrain, ...t }) => ({
+      ...t,
+      checkpoints: rows.trail_checkpoints.filter((c) => c.trail_id === t.id),
+      media: rows.trail_media.filter((m) => m.trail_id === t.id),
+    })),
+  };
+  const db = snapshotAdapter(snapshot, 'offline test');
+  assert.equal(snapshotOrigin(snapshot), SUPA);
+  await assert.rejects(db.updateById('trails', T1, {}), /never writes/);
+  const dirs = tempDirs(ds);
+  const logs = [];
+  const res = await run({ db, dataset: ds, opts: baseOpts({ supabaseUrl: snapshotOrigin(snapshot) }), imagesDir: dirs.images, backupsDir: dirs.backups, log: (l) => logs.push(l) });
+  const out = logs.join('\n');
+  assert.equal(res.exitCode, 0);
+  assert.match(out, /Target:  offline test/);
+  assert.match(out, /taken as null, \[\], null/);
+  assert.match(out, /terrain: null -> T2, 0 fords/);
+  assert.ok(!fs.existsSync(dirs.backups));
+
+  // the same from the command line, without credentials
+  const snapFile = path.join(dirs.root, 'production-test.json');
+  const dsFile = path.join(dirs.root, 'trails.json');
+  fs.writeFileSync(snapFile, JSON.stringify(snapshot));
+  fs.writeFileSync(dsFile, JSON.stringify(ds));
+  const env = { ...process.env };
+  delete env.SUPABASE_URL;
+  delete env.SUPABASE_SERVICE_ROLE_KEY;
+  const cli = spawnSync(process.execPath, [path.join(here, 'apply.mjs'), '--offline', '--snapshot', snapFile, '--dataset', dsFile, '--images', dirs.images, '--backups', dirs.backups], { env, encoding: 'utf8' });
+  assert.equal(cli.status, 0, cli.stderr);
+  assert.match(cli.stdout, /DRY RUN/);
+  assert.match(cli.stdout, /production-test\.json/);
+  assert.match(cli.stdout, /terrain 1/);
+  assert.throws(() => parseArgs(['--offline', '--apply']), /cannot be combined/);
 });
 
 test('a trail that disappeared from the database is reported, not recreated', () => {

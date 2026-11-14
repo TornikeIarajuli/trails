@@ -3,6 +3,7 @@
 //
 //   SUPABASE_URL=… SUPABASE_SERVICE_ROLE_KEY=… node scripts/content/apply.mjs            # dry run
 //   SUPABASE_URL=… SUPABASE_SERVICE_ROLE_KEY=… node scripts/content/apply.mjs --apply    # write
+//   node scripts/content/apply.mjs --offline [--snapshot <file>]   # plan against content/snapshot, no keys
 //
 // Flags: --only <trail-id,…>  --skip-images  --skip-new  --unpublished-new  --force
 //        --overwrite-conflicts  --update-new  --dataset <file>  --images <dir>  --backups <dir>
@@ -17,10 +18,13 @@ import {
 
 const HELP = `Publishes content/trails.json and content/images to Supabase.
 
-Environment (required, never printed): SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
+Environment (required, never printed): SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY (not for --offline)
 
-  (no flag)              dry run: read the live rows and print what would change
+  (no flag), --dry-run   dry run: read the live rows and print what would change
   --apply                perform the writes (backs the touched rows up first)
+  --offline              dry run against the latest production snapshot in content/snapshot instead of
+                         the database (no keys, no network; storage is not checked)
+  --snapshot <file>      dry run against this snapshot file (implies --offline)
   --only <id,id,…>       limit to these trail ids
   --skip-images          leave images, cover_image_url and trail_media alone (data only)
   --skip-new             do not insert new trails
@@ -85,6 +89,46 @@ export function supabaseAdapter(client) {
   };
 }
 
+/** Offline stand-in for the database: the rows of a production snapshot (content/snapshot/*.json), read-only. */
+export function snapshotAdapter(snapshot, label = 'offline snapshot') {
+  // columns added after the snapshot was taken hold what their migration created them with
+  const defaults = { elevation_profile: null, review_flags: [], terrain: null };
+  const added = Object.keys(defaults).filter((c) => snapshot.trails.length && snapshot.trails.every((t) => !(c in t)));
+  const tables = {
+    trails: snapshot.trails.map(({ checkpoints, media, ...t }) => ({ ...Object.fromEntries(added.map((c) => [c, structuredClone(defaults[c])])), ...t })),
+    trail_checkpoints: snapshot.trails.flatMap((t) => t.checkpoints ?? []),
+    trail_media: snapshot.trails.flatMap((t) => t.media ?? []),
+  };
+  const refuse = async () => {
+    throw new Error('offline planning never writes');
+  };
+  return {
+    label,
+    notes: [
+      ...(added.length ? [`the snapshot predates ${added.map((c) => `trails.${c}`).join(', ')}; taken as ${added.map((c) => JSON.stringify(defaults[c])).join(', ')}, as the migrations created them`] : []),
+      'storage is not checked offline: every photo counts as an upload',
+    ],
+    async selectIn(table, column, ids) {
+      const want = new Set(ids);
+      return structuredClone(tables[table].filter((r) => want.has(r[column])));
+    },
+    async listObjects() {
+      return [];
+    },
+    insertRows: refuse, upsertRows: refuse, updateById: refuse, deleteByIds: refuse, uploadObject: refuse,
+  };
+}
+
+/** The project URL the snapshot's own storage links point at (public URLs), for cover URLs in an offline plan. */
+export function snapshotOrigin(snapshot) {
+  for (const t of snapshot.trails) {
+    for (const url of [t.cover_image_url, ...(t.media ?? []).map((m) => m.url)]) {
+      if (typeof url === 'string' && url.includes('/storage/v1/object/public/')) return new URL(url).origin;
+    }
+  }
+  return 'https://offline.invalid';
+}
+
 const group = (rows, key) => {
   const map = new Map();
   for (const r of rows) {
@@ -129,7 +173,7 @@ export async function run({ db, dataset, opts, imagesDir, backupsDir, log = cons
   if (opts.skipNew) trails = trails.filter((t) => !t.is_new);
 
   log(`Trail content — ${opts.apply ? 'APPLY' : 'DRY RUN (nothing will be changed)'}`);
-  log(`Target:  ${new URL(opts.supabaseUrl).host}`);
+  log(`Target:  ${db.label ?? new URL(opts.supabaseUrl).host}`);
   log(`Dataset: ${dataset.trails.length} trails (${dataset.trails.filter((t) => t.is_new).length} new), generated ${dataset.generated_at ?? '?'}; in scope: ${trails.length}`);
   const flags = ['only', 'skipImages', 'skipNew', 'unpublishedNew', 'force', 'overwriteConflicts', 'updateNew'].filter((f) => opts[f]);
   if (flags.length) log(`Options: ${flags.join(', ')}`);
@@ -145,6 +189,7 @@ export async function run({ db, dataset, opts, imagesDir, backupsDir, log = cons
   const liveCps = group(live.checkpoints, 'trail_id');
   const liveMedia = group(live.media, 'trail_id');
   log(`Live:    ${live.trails.length} of these trails, ${live.checkpoints.length} checkpoints, ${live.media.length} media rows\n`);
+  for (const note of db.notes ?? []) log(`Note:    ${note}`);
   // columns added by later migrations must exist before anything is planned (PostgREST simply leaves them out)
   const missingColumns = Object.entries(ADDED_TRAIL_COLUMNS).filter(([c]) => live.trails.length && live.trails.every((t) => !(c in t)));
   if (missingColumns.length) {
@@ -286,6 +331,32 @@ async function main() {
     console.log(HELP);
     return 0;
   }
+  const { CONTENT, IMAGES, latestSnapshotPath } = await import('./lib/paths.mjs');
+  const datasetPath = path.resolve(opts.dataset ?? path.join(CONTENT, 'trails.json'));
+  if (!fs.existsSync(datasetPath)) {
+    console.error(`Dataset not found: ${datasetPath}`);
+    return 2;
+  }
+  const imagesDir = path.resolve(opts.images ?? IMAGES);
+  const backupsDir = path.resolve(opts.backups ?? path.join(CONTENT, 'backups'));
+
+  if (opts.offline) {
+    const snapshotPath = path.resolve(opts.snapshot ?? latestSnapshotPath());
+    if (!fs.existsSync(snapshotPath)) {
+      console.error(`Snapshot not found: ${snapshotPath}`);
+      return 2;
+    }
+    const snapshot = JSON.parse(fs.readFileSync(snapshotPath, 'utf8'));
+    const { exitCode } = await run({
+      db: snapshotAdapter(snapshot, `offline — snapshot ${path.basename(snapshotPath)} (fetched ${snapshot.fetched_at ?? '?'})`),
+      dataset: JSON.parse(fs.readFileSync(datasetPath, 'utf8')),
+      opts: { ...opts, supabaseUrl: snapshotOrigin(snapshot) },
+      imagesDir,
+      backupsDir,
+    });
+    return exitCode;
+  }
+
   const supabaseUrl = process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!supabaseUrl || !key) {
@@ -299,12 +370,6 @@ async function main() {
     return 2;
   }
 
-  const { CONTENT, IMAGES } = await import('./lib/paths.mjs');
-  const datasetPath = path.resolve(opts.dataset ?? path.join(CONTENT, 'trails.json'));
-  if (!fs.existsSync(datasetPath)) {
-    console.error(`Dataset not found: ${datasetPath}`);
-    return 2;
-  }
   const dataset = JSON.parse(fs.readFileSync(datasetPath, 'utf8'));
   const { createClient } = await import('@supabase/supabase-js');
   const client = createClient(supabaseUrl, key, { auth: { persistSession: false, autoRefreshToken: false } });
@@ -313,8 +378,8 @@ async function main() {
     db: supabaseAdapter(client),
     dataset,
     opts: { ...opts, supabaseUrl },
-    imagesDir: path.resolve(opts.images ?? IMAGES),
-    backupsDir: path.resolve(opts.backups ?? path.join(CONTENT, 'backups')),
+    imagesDir,
+    backupsDir,
   });
   return exitCode;
 }
