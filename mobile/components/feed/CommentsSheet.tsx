@@ -4,12 +4,14 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  Pressable,
   FlatList,
   Platform,
   StyleSheet,
   ActivityIndicator,
   Alert,
 } from 'react-native';
+import { router } from 'expo-router';
 import { Icon } from '../ui/Icon';
 import { useColors, ColorPalette } from '../../constants/colors';
 import { useComments, useAddComment, useDeleteComment } from '../../hooks/useComments';
@@ -18,25 +20,79 @@ import { useAuthStore } from '../../store/authStore';
 import { Avatar } from '../ui/Avatar';
 import { ErrorState } from '../ui/ErrorState';
 import { ContentMenu } from '../moderation/ContentMenu';
-import { Sheet, SheetTextInput } from '../ui/Sheet';
+import { Sheet, SheetTextInput, useSheet } from '../ui/Sheet';
 import { ActivityComment } from '../../types/comment';
-
-function getRelativeTime(dateStr: string): string {
-  const diffMs = Date.now() - new Date(dateStr).getTime();
-  const minutes = Math.floor(diffMs / 60000);
-  const hours = Math.floor(diffMs / 3600000);
-  const days = Math.floor(diffMs / 86400000);
-  if (minutes < 1) return 'just now';
-  if (minutes < 60) return `${minutes}m`;
-  if (hours < 24) return `${hours}h`;
-  return `${days}d`;
-}
+import { shortTimeAgo } from '../../utils/notificationGroups';
 
 interface CommentsSheetProps {
   activityId: string;
   activityType: string;
   visible: boolean;
   onClose: () => void;
+}
+
+type Styles = ReturnType<typeof createStyles>;
+
+/** One comment. Rendered inside the sheet, so opening the author's profile can close it first. */
+function CommentRow({
+  comment,
+  isOwn,
+  onDelete,
+  styles,
+  Colors,
+}: {
+  comment: ActivityComment;
+  isOwn: boolean;
+  onDelete: (comment: ActivityComment) => void;
+  styles: Styles;
+  Colors: ColorPalette;
+}) {
+  const { dismiss } = useSheet();
+  const username = comment.profiles?.username ?? 'Hiker';
+  const openAuthor = () => dismiss(() => router.push(`/trail/user/${comment.user_id}`));
+
+  return (
+    <View style={styles.commentRow}>
+      <Pressable
+        onPress={openAuthor}
+        hitSlop={6}
+        accessibilityRole="button"
+        accessibilityLabel={`${username}'s profile`}
+      >
+        <Avatar uri={comment.profiles?.avatar_url} name={comment.profiles?.username} size={34} />
+      </Pressable>
+      <View style={styles.commentBody}>
+        <Text style={styles.commentText}>
+          <Text style={styles.commentUsername} onPress={openAuthor} suppressHighlighting>
+            {username}
+          </Text>
+          {` ${comment.comment}`}
+        </Text>
+        <Text style={styles.commentTime}>{shortTimeAgo(comment.created_at)}</Text>
+      </View>
+      {isOwn ? (
+        <TouchableOpacity
+          style={styles.rowAction}
+          onPress={() => onDelete(comment)}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          accessibilityLabel="Delete comment"
+          accessibilityRole="button"
+        >
+          <Icon name="trash-outline" size={17} color={Colors.textSecondary} />
+        </TouchableOpacity>
+      ) : (
+        <ContentMenu
+          style={styles.rowAction}
+          targetType="comment"
+          targetId={comment.id}
+          targetLabel="comment"
+          authorId={comment.user_id}
+          authorName={comment.profiles?.username}
+          iconSize={17}
+        />
+      )}
+    </View>
+  );
 }
 
 export function CommentsSheet({ activityId, activityType, visible, onClose }: CommentsSheetProps) {
@@ -74,43 +130,7 @@ export function CommentsSheet({ activityId, activityType, visible, onClose }: Co
     ]);
   };
 
-  const renderComment = ({ item }: { item: ActivityComment }) => {
-    const isOwn = item.user_id === currentUserId;
-    return (
-      <View style={styles.commentRow}>
-        <Avatar uri={item.profiles?.avatar_url} name={item.profiles?.username} size={34} />
-        <View style={styles.commentBubble}>
-          <View style={styles.commentHeader}>
-            <Text style={styles.commentUsername}>{item.profiles?.username ?? 'User'}</Text>
-            <Text style={styles.commentTime}>{getRelativeTime(item.created_at)}</Text>
-          </View>
-          <Text style={styles.commentText}>{item.comment}</Text>
-        </View>
-        {isOwn ? (
-          <TouchableOpacity
-            style={styles.deleteButton}
-            onPress={() => handleDelete(item)}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            accessibilityLabel="Delete comment"
-            accessibilityRole="button"
-          >
-            <Icon name="trash-outline" size={16} color={Colors.error} />
-          </TouchableOpacity>
-        ) : (
-          <ContentMenu
-            style={styles.deleteButton}
-            targetType="comment"
-            targetId={item.id}
-            targetLabel="comment"
-            authorId={item.user_id}
-            authorName={item.profiles?.username}
-            iconSize={16}
-          />
-        )}
-      </View>
-    );
-  };
-
+  const canSend = !!text.trim() && !addComment.isPending;
   const inputRow = currentUserId ? (
     <View style={styles.inputRow}>
       <SheetTextInput
@@ -125,16 +145,16 @@ export function CommentsSheet({ activityId, activityType, visible, onClose }: Co
         accessibilityLabel="Add a comment"
       />
       <TouchableOpacity
-        style={[styles.sendButton, (!text.trim() || addComment.isPending) && styles.sendButtonDisabled]}
+        style={[styles.sendButton, !canSend && styles.sendButtonDisabled]}
         onPress={handleSend}
-        disabled={!text.trim() || addComment.isPending}
+        disabled={!canSend}
         accessibilityLabel="Send comment"
         accessibilityRole="button"
       >
         {addComment.isPending ? (
           <ActivityIndicator size="small" color={Colors.textOnPrimary} />
         ) : (
-          <Icon name="send" size={18} color={Colors.textOnPrimary} />
+          <Icon name="send" size={20} color={Colors.textOnPrimary} />
         )}
       </TouchableOpacity>
     </View>
@@ -166,12 +186,24 @@ export function CommentsSheet({ activityId, activityType, visible, onClose }: Co
         <FlatList
           data={comments}
           keyExtractor={(item) => item.id}
-          renderItem={renderComment}
+          renderItem={({ item }) => (
+            <CommentRow
+              comment={item}
+              isOwn={item.user_id === currentUserId}
+              onDelete={handleDelete}
+              styles={styles}
+              Colors={Colors}
+            />
+          )}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
           ListEmptyComponent={
-            <Text style={styles.emptyText}>No comments yet. Be the first!</Text>
+            <View style={styles.empty}>
+              <Icon name="chatbubble-outline" size={36} color={Colors.textLight} />
+              <Text style={styles.emptyTitle}>No comments yet</Text>
+              <Text style={styles.emptyText}>Start the conversation.</Text>
+            </View>
           }
         />
       )}
@@ -193,45 +225,48 @@ const createStyles = (Colors: ColorPalette) =>
       paddingBottom: 12,
       flexGrow: 1,
     },
+    empty: {
+      alignItems: 'center',
+      paddingVertical: 36,
+      gap: 6,
+    },
+    emptyTitle: {
+      fontSize: 16,
+      fontWeight: '700',
+      color: Colors.text,
+    },
     emptyText: {
-      textAlign: 'center',
-      color: Colors.textLight,
       fontSize: 14,
-      paddingVertical: 40,
+      color: Colors.textSecondary,
     },
     commentRow: {
       flexDirection: 'row',
       alignItems: 'flex-start',
-      gap: 8,
-      marginBottom: 12,
+      gap: 10,
+      marginBottom: 16,
     },
-    commentBubble: {
+    commentBody: {
       flex: 1,
-      backgroundColor: Colors.background,
-      borderRadius: 12,
-      padding: 10,
-    },
-    commentHeader: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      marginBottom: 4,
+      gap: 3,
     },
     commentUsername: {
-      fontSize: 13,
       fontWeight: '700',
       color: Colors.text,
-    },
-    commentTime: {
-      fontSize: 11,
-      color: Colors.textLight,
     },
     commentText: {
       fontSize: 14,
       color: Colors.text,
       lineHeight: 20,
     },
-    deleteButton: {
-      paddingTop: 10,
+    commentTime: {
+      fontSize: 12,
+      color: Colors.textLight,
+    },
+    rowAction: {
+      width: 36,
+      height: 36,
+      alignItems: 'center',
+      justifyContent: 'center',
     },
     inputRow: {
       flexDirection: 'row',
@@ -241,17 +276,17 @@ const createStyles = (Colors: ColorPalette) =>
     input: {
       flex: 1,
       backgroundColor: Colors.background,
-      borderRadius: 20,
-      paddingHorizontal: 14,
-      paddingVertical: Platform.OS === 'ios' ? 10 : 6,
-      fontSize: 14,
+      borderRadius: 22,
+      paddingHorizontal: 16,
+      paddingVertical: Platform.OS === 'ios' ? 12 : 8,
+      fontSize: 15,
       color: Colors.text,
-      maxHeight: 80,
+      maxHeight: 96,
     },
     sendButton: {
-      width: 38,
-      height: 38,
-      borderRadius: 19,
+      width: 44,
+      height: 44,
+      borderRadius: 22,
       backgroundColor: Colors.primary,
       alignItems: 'center',
       justifyContent: 'center',

@@ -1,124 +1,44 @@
-import React, { useMemo, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
-import { Image } from 'expo-image';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { View, Text, Pressable, StyleSheet, Share } from 'react-native';
 import { router } from 'expo-router';
-import { Icon } from '../ui/Icon';
-import { useColors, ColorPalette } from '../../constants/colors';
+import Animated, {
+  useAnimatedStyle,
+  useReducedMotion,
+  useSharedValue,
+  withSequence,
+  withSpring,
+} from 'react-native-reanimated';
+import { Icon, IconName } from '../ui/Icon';
 import { Avatar } from '../ui/Avatar';
+import { TrailCover } from '../trail/TrailCover';
+import { useColors, ColorPalette } from '../../constants/colors';
 import { FeedItem } from '../../types/feed';
 import { useComments } from '../../hooks/useComments';
 import { useLikes, useToggleLike } from '../../hooks/useLikes';
 import { usePrefetchTrail } from '../../hooks/useTrails';
+import { useFeedTrailStats } from '../../hooks/useFeedTrailStats';
+import { useSettingsStore } from '../../store/settingsStore';
 import { hasLikeSummary } from '../../utils/feedCache';
+import { localName } from '../../utils/i18n';
+import { shortTimeAgo } from '../../utils/notificationGroups';
+import { haptics } from '../../utils/haptics';
+import {
+  commentsLinkLabel,
+  completionChips,
+  conditionLabel,
+  feedAction,
+  feedMedia,
+  likesLabel,
+  reviewStars,
+  shareMessage,
+} from '../../utils/feedPost';
 import { CommentsSheet } from './CommentsSheet';
+import { PostMedia } from './PostMedia';
 import { ContentMenu } from '../moderation/ContentMenu';
 
-function getRelativeTime(dateStr: string): string {
-  const now = Date.now();
-  const then = new Date(dateStr).getTime();
-  const diffMs = now - then;
-  const minutes = Math.floor(diffMs / 60000);
-  const hours = Math.floor(diffMs / 3600000);
-  const days = Math.floor(diffMs / 86400000);
-
-  if (minutes < 1) return 'just now';
-  if (minutes < 60) return `${minutes}m ago`;
-  if (hours < 24) return `${hours}h ago`;
-  if (days < 7) return `${days}d ago`;
-  return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-}
-
-function getConditionLabel(conditionType: string): string {
-  const labels: Record<string, string> = {
-    trail_clear: 'Trail Clear',
-    muddy: 'Muddy',
-    snow: 'Snow',
-    fallen_tree: 'Fallen Tree',
-    flooded: 'Flooded',
-    overgrown: 'Overgrown',
-    damaged: 'Damaged',
-    closed: 'Closed',
-  };
-  return labels[conditionType] || conditionType;
-}
-
-function PhotoCarousel({ urls, onPress, onPressIn, styles, Colors }: {
-  urls: string[];
-  onPress: () => void;
-  onPressIn?: () => void;
-  styles: ReturnType<typeof createStyles>;
-  Colors: ColorPalette;
-}) {
-  const [page, setPage] = useState(0);
-  // Measured rather than derived from the screen width, so each page is exactly as wide as the card body
-  const [width, setWidth] = useState(0);
-
-  const onScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-    if (width > 0) setPage(Math.round(e.nativeEvent.contentOffset.x / width));
-  };
-
-  if (urls.length === 1) {
-    return (
-      <TouchableOpacity activeOpacity={0.8} onPressIn={onPressIn} onPress={onPress} accessibilityRole="button" accessibilityLabel="Open trail">
-        <Image
-          source={{ uri: urls[0] }}
-          placeholder={{ blurhash: 'L76F~B?bWD%M~qxuxEtS%MNFWqxt' }}
-          contentFit="cover"
-          transition={180}
-          cachePolicy="memory-disk"
-          style={styles.photo}
-        />
-      </TouchableOpacity>
-    );
-  }
-
-  return (
-    <View style={styles.carouselContainer}>
-      <View
-        style={styles.carouselWrapper}
-        onLayout={(e) => setWidth(e.nativeEvent.layout.width)}
-      >
-        {width > 0 && (
-          <ScrollView
-            horizontal
-            pagingEnabled
-            showsHorizontalScrollIndicator={false}
-            onMomentumScrollEnd={onScroll}
-          >
-            {urls.map((url, i) => (
-              <TouchableOpacity key={i} activeOpacity={0.8} onPressIn={onPressIn} onPress={onPress} accessibilityRole="button" accessibilityLabel="Open trail">
-                <Image
-                  source={{ uri: url }}
-                  placeholder={{ blurhash: 'L76F~B?bWD%M~qxuxEtS%MNFWqxt' }}
-                  contentFit="cover"
-                  transition={180}
-                  cachePolicy="memory-disk"
-                  style={[styles.carouselPhoto, { width }]}
-                />
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        )}
-      </View>
-      <View style={styles.dotsRow}>
-        {urls.map((_, i) => (
-          <View
-            key={i}
-            style={[styles.dot, i === page ? { backgroundColor: Colors.primary, width: 14 } : { backgroundColor: Colors.border }]}
-          />
-        ))}
-      </View>
-    </View>
-  );
-}
-
-const ACTION_CONFIG: Record<string, { verb: string; icon: string; color: string }> = {
-  completion: { verb: 'completed', icon: 'checkmark-circle', color: '#4CAF50' },
-  photo: { verb: 'uploaded a photo on', icon: 'camera', color: '#2196F3' },
-  condition: { verb: 'reported a condition on', icon: 'warning', color: '#FF9800' },
-  review: { verb: 'reviewed', icon: 'star', color: '#FFC107' },
-};
-const UNKNOWN_ACTION = { verb: 'was active on', icon: 'ellipse', color: '#9E9E9E' };
+/** Liked-heart red: the same in every theme, like Instagram's. */
+export const LIKE_RED = '#E53935';
+const STAR_AMBER = '#FFB800';
 
 const REPORT_LABEL: Record<string, string> = {
   completion: 'hike',
@@ -127,12 +47,77 @@ const REPORT_LABEL: Record<string, string> = {
   review: 'review',
 };
 
+type Styles = ReturnType<typeof createStyles>;
+
+/** One of the big buttons under a post: at least 44pt square, with a ~27pt icon. */
+function ActionButton({
+  icon,
+  color,
+  onPress,
+  label,
+  selected,
+  styles,
+  testID,
+  children,
+}: {
+  icon?: IconName;
+  color: string;
+  onPress: () => void;
+  label: string;
+  selected?: boolean;
+  styles: Styles;
+  testID: string;
+  children?: React.ReactNode;
+}) {
+  return (
+    <Pressable
+      style={({ pressed }) => [styles.action, pressed && styles.actionPressed]}
+      onPress={onPress}
+      hitSlop={4}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={selected === undefined ? undefined : { selected }}
+      testID={testID}
+    >
+      {children ?? (icon ? <Icon name={icon} size={27} color={color} /> : null)}
+    </Pressable>
+  );
+}
+
+/** The heart, which gives a little bounce when the post gets liked. */
+function LikeHeart({ liked, color }: { liked: boolean; color: string }) {
+  const scale = useSharedValue(1);
+  const reducedMotion = useReducedMotion();
+  const wasLiked = useRef(liked);
+
+  useEffect(() => {
+    if (liked && !wasLiked.current && !reducedMotion) {
+      scale.value = withSequence(withSpring(1.3, { damping: 8, stiffness: 320 }), withSpring(1, { damping: 12 }));
+    }
+    wasLiked.current = liked;
+  }, [liked, reducedMotion, scale]);
+
+  const style = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+  return (
+    <Animated.View style={style}>
+      <Icon name={liked ? 'heart' : 'heart-outline'} size={27} color={liked ? LIKE_RED : color} />
+    </Animated.View>
+  );
+}
+
+/**
+ * A post in the feed: who did what on which trail, the photos (double-tap to like), big like,
+ * comment and share buttons, the like count, details (hike stats, caption, condition, rating)
+ * and the way into the comments.
+ */
 export const ActivityCard = React.memo(function ActivityCard({ item }: { item: FeedItem }) {
   const Colors = useColors();
   const styles = useMemo(() => createStyles(Colors), [Colors]);
+  const language = useSettingsStore((s) => s.language);
   const [showComments, setShowComments] = useState(false);
   // The sheet is mounted on first use (not per card), then kept so it can animate out
   const [commentsOpened, setCommentsOpened] = useState(false);
+  const [burst, setBurst] = useState(0);
 
   // Current API versions put the counts on the feed item. Only when they are
   // missing (older backend) fall back to one request per card.
@@ -140,131 +125,202 @@ export const ActivityCard = React.memo(function ActivityCard({ item }: { item: F
   const feedHasCommentCount = typeof item.comment_count === 'number';
 
   const likesFallback = useLikes(item.activity_id, !feedHasLikes);
-  const liked = feedHasLikes ? item.liked_by_me : likesFallback.liked;
-  const likeCount = feedHasLikes ? item.like_count : likesFallback.count;
+  const liked = (feedHasLikes ? item.liked_by_me : likesFallback.liked) ?? false;
+  const likeCount = (feedHasLikes ? item.like_count : likesFallback.count) ?? 0;
 
   const { data: fallbackComments } = useComments(item.activity_id, 1, 50, !feedHasCommentCount);
   const commentCount = feedHasCommentCount ? item.comment_count ?? 0 : fallbackComments?.length ?? 0;
 
   const toggleLike = useToggleLike();
 
-  const config = ACTION_CONFIG[item.activity_type] ?? UNKNOWN_ACTION;
+  const isCompletion = item.activity_type === 'completion';
+  const needsTrailStats = isCompletion && (item.distance_km == null || item.elevation_gain_m == null);
+  const trailStats = useFeedTrailStats(needsTrailStats);
+  const chips = completionChips(item, trailStats.data?.get(item.trail_id));
+
   const prefetchTrail = usePrefetchTrail();
-  const openTrail = () => router.push(`/trail/${item.trail_id}`);
+  const trailName = localName(item.trail_name_en, item.trail_name_ka, language);
+  const openTrail = () => {
+    haptics.tap();
+    router.push(`/trail/${item.trail_id}`);
+  };
   const warmTrail = () => prefetchTrail(item.trail_id);
   const openUser = () => router.push(`/trail/user/${item.user_id}`);
-  const stars = Math.min(5, Math.max(0, parseInt(item.extra_text ?? '', 10) || 0));
+
+  const setLike = (next: boolean) => {
+    // One request at a time per post; the server's answer settles the count
+    if (toggleLike.isPending || next === liked) return;
+    haptics.tap();
+    toggleLike.mutate({ activity_id: item.activity_id, activity_type: item.activity_type });
+  };
+
+  // Like Instagram: a double tap only ever likes, and the heart plays either way
+  const onDoubleTap = () => {
+    setBurst((b) => b + 1);
+    setLike(true);
+  };
 
   const openComments = () => {
     setCommentsOpened(true);
     setShowComments(true);
   };
 
+  const share = () => {
+    haptics.tap();
+    Share.share({ message: shareMessage(item) }).catch(() => {});
+  };
+
+  const media = feedMedia(item);
+  const stars = item.activity_type === 'review' ? reviewStars(item.extra_text) : 0;
+  const caption = item.activity_type === 'photo' ? item.extra_text?.trim() : null;
+  const condition = item.activity_type === 'condition' ? conditionLabel(item.extra_text) : '';
+  const likes = likesLabel(likeCount);
+  const commentsLink = commentsLinkLabel(commentCount);
+
   return (
-    <View style={styles.card}>
-      <TouchableOpacity
-        style={styles.avatarContainer}
-        onPress={openUser}
-        accessibilityRole="button"
-        accessibilityLabel={`View ${item.user_username}'s profile`}
-      >
-        <Avatar
-          uri={item.user_avatar_url}
-          name={item.user_full_name || item.user_username}
-          size={44}
-        />
-      </TouchableOpacity>
-
-      <View style={styles.body}>
-        <View style={styles.headerRow}>
-          <Text style={styles.headerText} numberOfLines={2}>
-            <Text style={styles.username} onPress={openUser}>
-              {item.user_username}
-            </Text>
-            {' '}{config.verb}{' '}
-            <Text style={styles.trailName} onPressIn={warmTrail} onPress={openTrail}>
-              {item.trail_name_en}
-            </Text>
+    <View style={styles.post} testID="feed-post">
+      {/* Header: who, what, where, when */}
+      <View style={styles.header}>
+        <Pressable
+          onPress={openUser}
+          hitSlop={6}
+          accessibilityRole="button"
+          accessibilityLabel={`${item.user_username}'s profile`}
+          testID="post-avatar"
+        >
+          <Avatar uri={item.user_avatar_url} name={item.user_full_name || item.user_username} size={38} />
+        </Pressable>
+        <Text style={styles.headerText} numberOfLines={2}>
+          <Text style={styles.username} onPress={openUser} suppressHighlighting>
+            {item.user_username}
           </Text>
-          <Text style={styles.timestamp}>{getRelativeTime(item.created_at)}</Text>
-        </View>
+          {` ${feedAction(item.activity_type)} `}
+          <Text style={styles.trailName} onPressIn={warmTrail} onPress={openTrail} suppressHighlighting>
+            {trailName}
+          </Text>
+          <Text style={styles.time}>{`  ${shortTimeAgo(item.created_at)}`}</Text>
+        </Text>
+        <ContentMenu
+          style={styles.menu}
+          targetType={item.activity_type}
+          targetId={item.activity_id}
+          targetLabel={REPORT_LABEL[item.activity_type] ?? 'post'}
+          authorId={item.user_id}
+          authorName={item.user_username}
+          iconSize={22}
+        />
+      </View>
 
-        {/* Extra context based on type */}
-        {item.activity_type === 'condition' && item.extra_text && (
-          <View style={[styles.conditionBadge, { backgroundColor: config.color + '20' }]}>
-            <Icon name={config.icon as any} size={14} color={config.color} />
-            <Text style={[styles.conditionText, { color: config.color }]}>
-              {getConditionLabel(item.extra_text)}
-            </Text>
+      {/* Photos, or the trail as a compact card */}
+      {media.kind !== 'none' ? (
+        <PostMedia
+          urls={media.urls}
+          kind={media.kind}
+          onDoubleTap={onDoubleTap}
+          onSingleTap={openTrail}
+          burstTrigger={burst}
+          accessibilityLabel={
+            media.kind === 'cover' ? `${trailName}, trail photo` : `Photo by ${item.user_username} on ${trailName}`
+          }
+        />
+      ) : (
+        <Pressable
+          style={({ pressed }) => [styles.compact, pressed && styles.actionPressed]}
+          onPressIn={warmTrail}
+          onPress={openTrail}
+          accessibilityRole="button"
+          accessibilityLabel={`Open ${trailName}`}
+          testID="post-trail-card"
+        >
+          <TrailCover uri={item.trail_cover_image_url} style={styles.compactCover} iconSize={22} />
+          <View style={styles.compactText}>
+            <Text style={styles.compactTitle} numberOfLines={1}>{trailName}</Text>
+            <Text style={styles.compactHint}>View trail</Text>
           </View>
-        )}
+          <Icon name="chevron-forward" size={18} color={Colors.textLight} />
+        </Pressable>
+      )}
 
-        {item.activity_type === 'review' && stars > 0 && (
-          <View style={styles.ratingRow} accessibilityLabel={`${stars} out of 5 stars`}>
-            {Array.from({ length: stars }).map((_, i) => (
-              <Icon key={i} name="star" size={14} color="#FFC107" />
+      {/* Actions */}
+      <View style={styles.actions}>
+        <ActionButton
+          color={Colors.text}
+          onPress={() => setLike(!liked)}
+          label={liked ? 'Unlike' : 'Like'}
+          selected={liked}
+          styles={styles}
+          testID="like-button"
+        >
+          <LikeHeart liked={liked} color={Colors.text} />
+        </ActionButton>
+        <ActionButton
+          icon="chatbubble-outline"
+          color={Colors.text}
+          onPress={openComments}
+          label={commentCount > 0 ? `Comments, ${commentCount}` : 'Comment'}
+          styles={styles}
+          testID="comment-button"
+        />
+        <ActionButton
+          icon="send"
+          color={Colors.text}
+          onPress={share}
+          label={`Share ${trailName}`}
+          styles={styles}
+          testID="share-button"
+        />
+      </View>
+
+      <View style={styles.details}>
+        {likes ? (
+          <Text style={styles.likes} testID="like-count">{likes}</Text>
+        ) : null}
+
+        {chips.length > 0 && (
+          <View style={styles.chips}>
+            {chips.map((chip) => (
+              <View key={chip.key} style={styles.chip}>
+                <Icon name={chip.icon as IconName} size={14} color={Colors.textSecondary} />
+                <Text style={styles.chipText}>{chip.label}</Text>
+              </View>
             ))}
           </View>
         )}
 
-        {/* Photos — carousel if multiple, single if one */}
-        {item.activity_type === 'completion' && item.photo_urls && item.photo_urls.length > 0 ? (
-          <PhotoCarousel urls={item.photo_urls} onPress={openTrail} onPressIn={warmTrail} styles={styles} Colors={Colors} />
-        ) : item.photo_url ? (
-          <PhotoCarousel urls={[item.photo_url]} onPress={openTrail} onPressIn={warmTrail} styles={styles} Colors={Colors} />
-        ) : item.trail_cover_image_url && item.activity_type === 'completion' ? (
-          <PhotoCarousel urls={[item.trail_cover_image_url]} onPress={openTrail} onPressIn={warmTrail} styles={styles} Colors={Colors} />
+        {stars > 0 && (
+          <View style={styles.stars} accessible accessibilityLabel={`Rated ${stars} out of 5`}>
+            {Array.from({ length: 5 }).map((_, i) => (
+              <Icon key={i} name={i < stars ? 'star' : 'star-outline'} size={17} color={i < stars ? STAR_AMBER : Colors.border} />
+            ))}
+          </View>
+        )}
+
+        {condition ? (
+          <View style={styles.condition}>
+            <Icon name="warning-outline" size={15} color={Colors.warning} />
+            <Text style={styles.conditionText}>{condition}</Text>
+          </View>
         ) : null}
 
-        {/* Actions row: like + comment */}
-        <View style={styles.actionsRow}>
-          <TouchableOpacity
-            style={styles.actionBtn}
-            onPress={() =>
-              toggleLike.mutate({
-                activity_id: item.activity_id,
-                activity_type: item.activity_type,
-              })
-            }
-            disabled={toggleLike.isPending}
-            hitSlop={8}
-            accessibilityLabel={liked ? 'Unlike' : 'Like'}
-            accessibilityRole="button"
-            accessibilityState={{ selected: liked }}
-          >
-            <Icon
-              name={liked ? 'heart' : 'heart-outline'}
-              size={16}
-              color={liked ? '#E53935' : Colors.textSecondary}
-            />
-            {likeCount > 0 && (
-              <Text style={[styles.actionCount, liked && styles.likedCount]}>{likeCount}</Text>
-            )}
-          </TouchableOpacity>
+        {caption ? (
+          <Text style={styles.caption} numberOfLines={3}>
+            <Text style={styles.username} onPress={openUser} suppressHighlighting>
+              {item.user_username}
+            </Text>
+            {` ${caption}`}
+          </Text>
+        ) : null}
 
-          <TouchableOpacity
-            style={styles.actionBtn}
-            onPress={openComments}
-            hitSlop={8}
-            accessibilityLabel={commentCount > 0 ? `Comments, ${commentCount}` : 'Comments'}
-            accessibilityRole="button"
-          >
-            <Icon name="chatbubble-outline" size={15} color={Colors.textSecondary} />
-            {commentCount > 0 && (
-              <Text style={styles.actionCount}>{commentCount}</Text>
-            )}
-          </TouchableOpacity>
+        {item.latest_comment ? (
+          <Text style={styles.caption} numberOfLines={1} onPress={openComments}>
+            <Text style={styles.username}>{item.latest_comment.username}</Text>
+            {` ${item.latest_comment.comment}`}
+          </Text>
+        ) : null}
 
-          <ContentMenu
-            style={styles.menuBtn}
-            targetType={item.activity_type}
-            targetId={item.activity_id}
-            targetLabel={REPORT_LABEL[item.activity_type] ?? 'post'}
-            authorId={item.user_id}
-            authorName={item.user_username}
-            iconSize={16}
-          />
-        </View>
+        <Text style={commentsLink ? styles.commentsLink : styles.addComment} onPress={openComments} testID="comments-link">
+          {commentsLink ?? 'Add a comment…'}
+        </Text>
       </View>
 
       {commentsOpened && (
@@ -279,120 +335,153 @@ export const ActivityCard = React.memo(function ActivityCard({ item }: { item: F
   );
 });
 
-const createStyles = (Colors: ColorPalette) => StyleSheet.create({
-  card: {
-    flexDirection: 'row',
-    backgroundColor: Colors.surface,
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 10,
-    gap: 12,
-    elevation: 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-  },
-  avatarContainer: {
-    paddingTop: 2,
-  },
-  body: {
-    flex: 1,
-  },
-  headerRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    gap: 8,
-  },
-  headerText: {
-    flex: 1,
-    fontSize: 14,
-    color: Colors.textSecondary,
-    lineHeight: 20,
-  },
-  username: {
-    fontWeight: '700',
-    color: Colors.text,
-  },
-  trailName: {
-    fontWeight: '600',
-    color: Colors.primary,
-  },
-  timestamp: {
-    fontSize: 12,
-    color: Colors.textLight,
-    marginTop: 2,
-  },
-  conditionBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    gap: 6,
-    marginTop: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  conditionText: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  ratingRow: {
-    flexDirection: 'row',
-    gap: 2,
-    marginTop: 6,
-  },
-  photo: {
-    width: '100%',
-    height: 180,
-    borderRadius: 10,
-    marginTop: 10,
-    backgroundColor: Colors.borderLight,
-  },
-  carouselContainer: {
-    marginTop: 10,
-  },
-  carouselWrapper: {
-    overflow: 'hidden',
-    borderRadius: 10,
-    height: 180,
-    backgroundColor: Colors.borderLight,
-  },
-  carouselPhoto: {
-    height: 180,
-  },
-  dotsRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 5,
-    marginTop: 6,
-  },
-  dot: {
-    height: 5,
-    width: 5,
-    borderRadius: 3,
-  },
-  actionsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-    marginTop: 10,
-  },
-  actionBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-  },
-  actionCount: {
-    fontSize: 13,
-    color: Colors.textSecondary,
-  },
-  likedCount: {
-    color: '#E53935',
-  },
-  menuBtn: {
-    marginLeft: 'auto',
-  },
-});
+const createStyles = (Colors: ColorPalette) =>
+  StyleSheet.create({
+    post: {
+      backgroundColor: Colors.surface,
+      marginBottom: 8,
+      paddingBottom: 12,
+    },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      paddingLeft: 12,
+      paddingRight: 4,
+      paddingVertical: 10,
+    },
+    headerText: {
+      flex: 1,
+      fontSize: 14,
+      lineHeight: 19,
+      color: Colors.textSecondary,
+    },
+    username: {
+      fontWeight: '700',
+      color: Colors.text,
+    },
+    trailName: {
+      fontWeight: '700',
+      color: Colors.primary,
+    },
+    time: {
+      fontSize: 13,
+      color: Colors.textLight,
+    },
+    menu: {
+      width: 44,
+      height: 44,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    compact: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      marginHorizontal: 12,
+      padding: 10,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: Colors.border,
+      backgroundColor: Colors.background,
+    },
+    compactCover: {
+      width: 56,
+      height: 56,
+      borderRadius: 10,
+      overflow: 'hidden',
+    },
+    compactText: {
+      flex: 1,
+      gap: 2,
+    },
+    compactTitle: {
+      fontSize: 15,
+      fontWeight: '700',
+      color: Colors.text,
+    },
+    compactHint: {
+      fontSize: 13,
+      color: Colors.textSecondary,
+    },
+    actions: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 4,
+      paddingTop: 4,
+    },
+    action: {
+      minWidth: 48,
+      minHeight: 48,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: 24,
+    },
+    actionPressed: {
+      opacity: 0.6,
+    },
+    details: {
+      paddingHorizontal: 14,
+      gap: 6,
+    },
+    likes: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: Colors.text,
+    },
+    chips: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 8,
+    },
+    chip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+      borderRadius: 14,
+      backgroundColor: Colors.background,
+      borderWidth: 1,
+      borderColor: Colors.borderLight,
+    },
+    chipText: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: Colors.text,
+    },
+    stars: {
+      flexDirection: 'row',
+      gap: 2,
+    },
+    condition: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      alignSelf: 'flex-start',
+      gap: 6,
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+      borderRadius: 14,
+      backgroundColor: Colors.warning + '1F',
+    },
+    conditionText: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: Colors.text,
+    },
+    caption: {
+      fontSize: 14,
+      lineHeight: 20,
+      color: Colors.text,
+    },
+    commentsLink: {
+      fontSize: 14,
+      color: Colors.textSecondary,
+      paddingVertical: 2,
+    },
+    addComment: {
+      fontSize: 14,
+      color: Colors.textLight,
+      paddingVertical: 2,
+    },
+  });

@@ -44,7 +44,7 @@ jest.mock('../../components/leaderboard/LeaderboardView', () => {
 });
 jest.mock('../../components/ui/ErrorState', () => ({ ErrorState: () => null }));
 jest.mock('../../components/ui/LoadingSpinner', () => ({ LoadingSpinner: () => null }));
-jest.mock('../../components/ui/Skeleton', () => ({ FeedItemSkeleton: () => null }));
+jest.mock('../../components/feed/FeedPostSkeleton', () => ({ FeedPostSkeleton: () => null }));
 
 import React from 'react';
 import { Text } from 'react-native';

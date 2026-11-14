@@ -14,14 +14,14 @@ import { useWithoutBlocked } from '../../../hooks/useModeration';
 import { ActivityCard } from '../../../components/feed/ActivityCard';
 import { EmptyFeed } from '../../../components/feed/EmptyFeed';
 import { LeaderboardView } from '../../../components/leaderboard/LeaderboardView';
+import { FeedPostSkeleton } from '../../../components/feed/FeedPostSkeleton';
 import { ErrorState } from '../../../components/ui/ErrorState';
 import { LoadingSpinner } from '../../../components/ui/LoadingSpinner';
-import { FeedItemSkeleton } from '../../../components/ui/Skeleton';
 import { FeedItem } from '../../../types/feed';
 import { haptics } from '../../../utils/haptics';
 import { FEED_SEGMENTS, FeedSegment, feedSegmentFromParam } from '../../../utils/feedSegment';
 
-const SKELETON_COUNT = 4;
+const SKELETON_COUNT = 3;
 
 type Styles = ReturnType<typeof createStyles>;
 
@@ -53,9 +53,9 @@ const ActivityList = React.memo(function ActivityList({ styles, Colors }: { styl
 
   if (isLoading) {
     return (
-      <View>
+      <View style={styles.skeletons}>
         {Array.from({ length: SKELETON_COUNT }).map((_, i) => (
-          <FeedItemSkeleton key={i} />
+          <FeedPostSkeleton key={i} />
         ))}
       </View>
     );
@@ -77,12 +77,14 @@ const ActivityList = React.memo(function ActivityList({ styles, Colors }: { styl
       data={items}
       keyExtractor={(item) => `${item.activity_type}-${item.activity_id}`}
       renderItem={({ item }) => <ActivityCard item={item} />}
-      contentContainerStyle={styles.list}
+      // Posts run edge to edge, Instagram-style; an empty feed centres its message
+      contentContainerStyle={[styles.list, items.length === 0 && styles.listEmpty]}
       showsVerticalScrollIndicator={false}
       removeClippedSubviews={true}
-      maxToRenderPerBatch={8}
-      windowSize={5}
-      initialNumToRender={8}
+      // Posts are about a screen tall, so a few at a time is plenty
+      maxToRenderPerBatch={4}
+      windowSize={7}
+      initialNumToRender={3}
       refreshControl={
         <RefreshControl
           refreshing={isRefetching}
@@ -233,9 +235,15 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   paneHidden: {
     opacity: 0,
   },
-  list: {
-    padding: 16,
+  skeletons: {
     paddingTop: 4,
+  },
+  list: {
+    paddingTop: 4,
+    paddingBottom: 16,
+  },
+  listEmpty: {
+    flexGrow: 1,
   },
   footer: {
     paddingVertical: 20,
