@@ -35,6 +35,22 @@ const PREF_ROWS: {
     bg: '#DBEAFE',
   },
   {
+    key: 'new_like',
+    label: 'Likes',
+    description: 'When someone likes your hike, photo, review or trail report',
+    icon: 'heart',
+    color: '#E53935',
+    bg: '#FDE4E4',
+  },
+  {
+    key: 'new_comment',
+    label: 'Comments',
+    description: 'When someone comments on your hike, photo, review, report or group hike',
+    icon: 'chatbubble',
+    color: '#0284C7',
+    bg: '#E0F2FE',
+  },
+  {
     key: 'badge_earned',
     label: 'Badge Earned',
     description: 'When you unlock a new badge',
@@ -70,7 +86,8 @@ export default function NotificationPreferencesScreen() {
 
   const toggle = (key: keyof NotificationPreferences) => {
     if (!prefs) return;
-    updatePrefs.mutate({ [key]: !prefs[key] });
+    // A setting the server does not send yet is on
+    updatePrefs.mutate({ [key]: !(prefs[key] ?? true) });
   };
 
   return (

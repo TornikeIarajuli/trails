@@ -23,6 +23,9 @@ export interface NotificationPreferences {
   completion_approved: boolean;
   event_invite: boolean;
   trail_condition: boolean;
+  /** Older servers do not send these; they count as on. */
+  new_like?: boolean;
+  new_comment?: boolean;
 }
 
 export const notificationsService = {
