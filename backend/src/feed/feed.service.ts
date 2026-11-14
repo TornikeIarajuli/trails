@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { SupabaseService } from '../config/supabase.config';
 import { throwIfError } from '../common/supabase-error';
 import { ModerationService } from '../moderation/moderation.service';
@@ -51,6 +51,28 @@ export class FeedService {
         totalPages: Math.ceil(total / limit),
       },
     };
+  }
+
+  /**
+   * One post, shaped like a feed item, for notification taps: anyone signed in may open it,
+   * unless they blocked its author. Not found when it was deleted, or when it is no longer a
+   * post of its own (a photo now shown under its hike).
+   */
+  async getActivity(userId: string, activityId: string) {
+    const admin = this.supabaseService.getAdminClient();
+    const [result, blocked] = await Promise.all([
+      admin.rpc('get_activity_item', { p_activity_id: activityId }),
+      this.moderationService.getBlockedUserIds(userId),
+    ]);
+
+    throwIfError(result.error);
+    const item = ((result.data ?? []) as FeedItem[])[0];
+    if (!item || blocked.includes(item.user_id)) {
+      throw new NotFoundException('This post is no longer available');
+    }
+
+    const [post] = await this.withEngagement(userId, [item]);
+    return post;
   }
 
   /**

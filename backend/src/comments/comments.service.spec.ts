@@ -17,9 +17,11 @@ type Builder = Record<string, jest.Mock> & { then: unknown };
 
 function makeBuilder(result: object): Builder {
   const self = {} as Builder;
-  ['select', 'insert', 'delete', 'eq', 'order', 'range'].forEach((m) => {
-    self[m] = jest.fn(() => self);
-  });
+  ['select', 'insert', 'delete', 'eq', 'order', 'range', 'limit'].forEach(
+    (m) => {
+      self[m] = jest.fn(() => self);
+    },
+  );
   self.single = jest.fn().mockResolvedValue(result);
   self.then = (res: (v: unknown) => unknown, rej?: (e: unknown) => unknown) =>
     Promise.resolve(result).then(res, rej);
@@ -154,14 +156,14 @@ describe('CommentsService', () => {
     });
 
     it.each([
-      ['completion', 'trail_completions', 'user_id'],
-      ['photo', 'trail_photos', 'user_id'],
-      ['condition', 'trail_conditions', 'user_id'],
-      ['review', 'trail_reviews', 'user_id'],
-      ['event', 'events', 'organizer_id'],
+      ['completion', 'trail_completions', 'user_id', 'hike'],
+      ['photo', 'trail_photos', 'user_id', 'photo'],
+      ['condition', 'trail_conditions', 'user_id', 'trail report'],
+      ['review', 'trail_reviews', 'user_id', 'review'],
+      ['event', 'events', 'organizer_id', 'group hike'],
     ] as const)(
       'notifies the owner of a %s (looked up in %s)',
-      async (activityType, table, ownerColumn) => {
+      async (activityType, table, ownerColumn, noun) => {
         onTable('activity_comments', {
           data: inserted(activityType),
           error: null,
@@ -183,7 +185,7 @@ describe('CommentsService', () => {
         expect(mockNotifications.sendToUser).toHaveBeenCalledWith(
           'owner-1',
           'New Comment',
-          'hiker commented on your activity',
+          `hiker commented on your ${noun}`,
           {
             activityId: 'a1',
             activityType,
@@ -323,11 +325,38 @@ describe('CommentsService', () => {
   // toggleLike
   // -------------------------------------------------------------------------
   describe('toggleLike', () => {
-    it('calls the RPC with correct parameters', async () => {
+    let warnLog: jest.SpyInstance;
+    beforeEach(() => {
+      warnLog = jest
+        .spyOn(Logger.prototype, 'warn')
+        .mockImplementation(() => undefined);
+    });
+    afterEach(() => warnLog.mockRestore());
+
+    const liked = (isLiked: boolean) =>
       mockAdmin.rpc.mockResolvedValue({
-        data: { liked: true, count: 5 },
+        data: { liked: isLiked, count: 5 },
         error: null,
       });
+
+    /** The owner lookup, the check for an earlier notification and the liker's name. */
+    function queueLikeLookups({
+      table = 'trail_completions',
+      ownerId = 'owner-1',
+      earlier = { data: [], error: null } as object,
+    } = {}) {
+      onTable(table, {
+        data: { user_id: ownerId, trail_id: 'trail-9' },
+        error: null,
+      });
+      const check = onTable('notifications', earlier);
+      onTable('profiles', { data: { username: 'nino' }, error: null });
+      return check;
+    }
+
+    it('calls the RPC with correct parameters', async () => {
+      liked(true);
+      queueLikeLookups();
 
       const result = await service.toggleLike(
         'user-1',
@@ -341,6 +370,95 @@ describe('CommentsService', () => {
         p_user_id: 'user-1',
       });
       expect(result).toEqual({ liked: true, count: 5 });
+    });
+
+    it('notifies the owner of a new like', async () => {
+      liked(true);
+      const check = queueLikeLookups();
+
+      await service.toggleLike('user-1', 'a1', 'completion');
+      await flush();
+
+      expect(check.eq).toHaveBeenCalledWith('user_id', 'owner-1');
+      expect(check.eq).toHaveBeenCalledWith('type', 'new_like');
+      expect(check.eq).toHaveBeenCalledWith('data->>activityId', 'a1');
+      expect(check.eq).toHaveBeenCalledWith('data->>actorId', 'user-1');
+      expect(mockNotifications.sendToUser).toHaveBeenCalledWith(
+        'owner-1',
+        'New Like',
+        'nino liked your hike',
+        {
+          activityId: 'a1',
+          activityType: 'completion',
+          actorId: 'user-1',
+          trailId: 'trail-9',
+        },
+        'new_like',
+      );
+    });
+
+    it('notifies once per person: liking again after taking it back stays quiet', async () => {
+      liked(true);
+      queueLikeLookups({ earlier: { data: [{ id: 'n1' }], error: null } });
+
+      await service.toggleLike('user-1', 'a1', 'completion');
+      await flush();
+
+      expect(mockNotifications.sendToUser).not.toHaveBeenCalled();
+    });
+
+    it('does not notify when a like is taken back', async () => {
+      liked(false);
+
+      await service.toggleLike('user-1', 'a1', 'completion');
+      await flush();
+
+      expect(mockAdmin.from).not.toHaveBeenCalled();
+      expect(mockNotifications.sendToUser).not.toHaveBeenCalled();
+    });
+
+    it('does not notify people liking their own activity', async () => {
+      liked(true);
+      onTable('trail_completions', {
+        data: { user_id: 'user-1', trail_id: 'trail-9' },
+        error: null,
+      });
+
+      await service.toggleLike('user-1', 'a1', 'completion');
+      await flush();
+
+      expect(mockNotifications.sendToUser).not.toHaveBeenCalled();
+    });
+
+    it('still notifies when the check for an earlier notification fails', async () => {
+      liked(true);
+      queueLikeLookups({
+        table: 'trail_photos',
+        earlier: { data: null, error: { message: 'boom' } },
+      });
+
+      await service.toggleLike('user-1', 'a1', 'photo');
+      await flush();
+
+      expect(mockNotifications.sendToUser).toHaveBeenCalledWith(
+        'owner-1',
+        'New Like',
+        'nino liked your photo',
+        expect.objectContaining({ activityId: 'a1', actorId: 'user-1' }),
+        'new_like',
+      );
+      expect(warnLog).toHaveBeenCalled();
+    });
+
+    it('still answers when the notification cannot be sent', async () => {
+      liked(true);
+      // nothing queued: the owner lookup throws
+
+      const result = await service.toggleLike('user-1', 'a1', 'review');
+      await flush();
+
+      expect(result).toEqual({ liked: true, count: 5 });
+      expect(warnLog).toHaveBeenCalled();
     });
   });
 });

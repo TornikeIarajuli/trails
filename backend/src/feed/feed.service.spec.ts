@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { Logger } from '@nestjs/common';
+import { Logger, NotFoundException } from '@nestjs/common';
 import { FeedService } from './feed.service';
 import { SupabaseService } from '../config/supabase.config';
 import { ModerationService } from '../moderation/moderation.service';
@@ -171,6 +171,57 @@ describe('FeedService', () => {
 
     expect(result.data.map((i) => i.activity_id)).toEqual(['a1']);
     expect(mockModeration.getBlockedUserIds).toHaveBeenCalledWith('me');
+  });
+
+  describe('getActivity (one post, for notification taps)', () => {
+    it('returns the post with its likes and comments', async () => {
+      rpcResults.set('get_activity_item', {
+        data: [{ ...item('a1'), trail_distance_km: 12.4 }],
+        error: null,
+      });
+      onTable('activity_likes', {
+        data: [{ activity_id: 'a1', user_id: 'me' }],
+        error: null,
+      });
+      onTable('activity_comments', {
+        data: [{ activity_id: 'a1' }, { activity_id: 'a1' }],
+        error: null,
+      });
+
+      const post = await service.getActivity('me', 'a1');
+
+      expect(mockAdmin.rpc).toHaveBeenCalledWith('get_activity_item', {
+        p_activity_id: 'a1',
+      });
+      expect(post).toEqual({
+        ...item('a1'),
+        trail_distance_km: 12.4,
+        like_count: 1,
+        comment_count: 2,
+        liked_by_me: true,
+      });
+    });
+
+    it('is not found when the post no longer exists', async () => {
+      rpcResults.set('get_activity_item', { data: [], error: null });
+
+      await expect(service.getActivity('me', 'gone')).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+    });
+
+    it('is not found when the caller blocked its author', async () => {
+      rpcResults.set('get_activity_item', {
+        data: [item('a1', 'blocked-user')],
+        error: null,
+      });
+      mockModeration.getBlockedUserIds.mockResolvedValue(['blocked-user']);
+
+      await expect(service.getActivity('me', 'a1')).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+      expect(mockAdmin.from).not.toHaveBeenCalled();
+    });
   });
 
   it('returns the items without counts when the counts cannot be loaded', async () => {
