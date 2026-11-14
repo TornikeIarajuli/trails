@@ -49,6 +49,7 @@ import { useGearPlan } from '../../../hooks/useGear';
 import { useGearStore, localDay, shouldShowPrehikeCheck } from '../../../store/gearStore';
 import { useNetworkStatus } from '../../../hooks/useNetworkStatus';
 import { useOfflineMapsStore } from '../../../store/offlineMapsStore';
+import { ProgressRing } from '../../../components/ui/ProgressRing';
 import { TopoDownloadRow, startTopoDownload, topoDownloadSizeLabel } from '../../../components/trail/TopoDownloadRow';
 import { LatLng, TilePlan, planTrailTiles } from '../../../utils/topoTiles';
 
@@ -87,6 +88,7 @@ export default function TrailDetailScreen() {
   const { data: allConditions, refetch: refetchConditions } = useTrailConditions(id);
   const { data: activeCount, refetch: refetchCount } = useActiveHikerCount(id);
   const gear = useGearPlan(isPlaceholderData ? undefined : trail);
+  const topoDownloading = useOfflineMapsStore((s) => (s.active?.trailId === id ? s.active : null));
 
   const [refreshing, setRefreshing] = useState(false);
   const onRefresh = useCallback(async () => {
@@ -293,6 +295,17 @@ export default function TrailDetailScreen() {
         {/* Top-right overlay buttons */}
         <View style={[styles.topRightButtons, { top: insets.top + 8 }]}>
           <TouchableOpacity style={styles.overlayButton} onPress={toggleOfflineSave} accessibilityLabel={isSavedOffline ? 'Remove offline save' : 'Save for offline'} accessibilityRole="button">
+            {/* While this trail's topo map downloads, a ring around the icon shows how far it is */}
+            {topoDownloading && (
+              <ProgressRing
+                progress={topoDownloading.total > 0 ? topoDownloading.done / topoDownloading.total : 0}
+                size={40}
+                strokeWidth={3}
+                color={Colors.primary}
+                trackColor={Colors.borderLight}
+                style={styles.overlayRing}
+              />
+            )}
             <Icon
               name={isSavedOffline ? 'download' : 'download-outline'}
               size={20}
@@ -577,6 +590,9 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     right: 16,
     flexDirection: 'row',
     gap: 8,
+  },
+  overlayRing: {
+    position: 'absolute',
   },
   overlayButton: {
     width: 40,

@@ -97,6 +97,10 @@ describe('TopoDownloadRow', () => {
     const cancel = jest.spyOn(useOfflineMapsStore.getState(), 'cancel');
     render();
     expect(shown()).toContain('Downloading topo map… 25%');
+    // The circular indicator carries the same value
+    const ring = renderer!.root.findAll((n) => n.props.accessibilityRole === 'progressbar')[0];
+    expect(ring.props.accessibilityValue).toEqual({ min: 0, max: 100, now: 25 });
+    expect(shown()).toContain('25%');
     pressText('Cancel');
     expect(cancel).toHaveBeenCalled();
   });

@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { Icon } from '../ui/Icon';
+import { ProgressRing } from '../ui/ProgressRing';
 import { useColors, ColorPalette } from '../../constants/colors';
 import { useNetworkStatus } from '../../hooks/useNetworkStatus';
 import { useOfflineMapsStore } from '../../store/offlineMapsStore';
@@ -79,29 +80,29 @@ export function TopoDownloadRow({ trailId, trailName, plan }: TopoDownloadRowPro
   if (active?.trailId === trailId) {
     const ratio = active.total > 0 ? active.done / active.total : 0;
     const percent = Math.round(ratio * 100);
+    const totalBytes = estimatePlanBytes(plan);
     return (
-      <View
-        style={[styles.row, styles.column]}
-        testID="topo-download-row"
-        accessibilityLabel={`Downloading the topo map, ${percent} percent`}
-      >
-        <View style={styles.progressHeader}>
-          <Text style={styles.title}>Downloading topo map… {percent}%</Text>
-          <TouchableOpacity
-            onPress={() => {
-              haptics.tap();
-              useOfflineMapsStore.getState().cancel();
-            }}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            accessibilityRole="button"
-            accessibilityLabel="Cancel the topo map download"
-          >
-            <Text style={styles.action}>Cancel</Text>
-          </TouchableOpacity>
+      <View style={styles.row} testID="topo-download-row" accessibilityLabel={`Downloading the topo map, ${percent} percent`}>
+        <ProgressRing progress={ratio} size={44} strokeWidth={4} color={Colors.primary} trackColor={Colors.borderLight}>
+          <Text style={styles.ringText}>{percent}%</Text>
+        </ProgressRing>
+        <View style={styles.textBlock}>
+          <Text style={styles.blockTitle}>Downloading topo map… {percent}%</Text>
+          <Text style={styles.hint}>
+            {formatMegabytes(totalBytes * ratio)} of ~{formatMegabytes(totalBytes)} · keep the app open
+          </Text>
         </View>
-        <View style={styles.track}>
-          <View style={[styles.fill, { width: `${Math.max(2, percent)}%` }]} />
-        </View>
+        <TouchableOpacity
+          onPress={() => {
+            haptics.tap();
+            useOfflineMapsStore.getState().cancel();
+          }}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          accessibilityRole="button"
+          accessibilityLabel="Cancel the topo map download"
+        >
+          <Text style={styles.action}>Cancel</Text>
+        </TouchableOpacity>
       </View>
     );
   }
@@ -153,11 +154,6 @@ const createStyles = (Colors: ColorPalette) =>
       borderWidth: 1,
       borderColor: Colors.border,
     },
-    column: {
-      flexDirection: 'column',
-      alignItems: 'stretch',
-      gap: 8,
-    },
     disabled: {
       opacity: 0.6,
     },
@@ -188,20 +184,10 @@ const createStyles = (Colors: ColorPalette) =>
       fontWeight: '700',
       color: Colors.primary,
     },
-    progressHeader: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 10,
-    },
-    track: {
-      height: 6,
-      borderRadius: 3,
-      backgroundColor: Colors.borderLight,
-      overflow: 'hidden',
-    },
-    fill: {
-      height: '100%',
-      borderRadius: 3,
-      backgroundColor: Colors.primary,
+    ringText: {
+      fontSize: 11,
+      fontWeight: '700',
+      color: Colors.text,
+      fontVariant: ['tabular-nums'],
     },
   });
