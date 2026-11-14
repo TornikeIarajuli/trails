@@ -29,6 +29,8 @@ export default function TrailLayout() {
       <Stack.Screen name="user/[id]" />
       <Stack.Screen name="user/followers" />
       <Stack.Screen name="user/regions" />
+      <Stack.Screen name="bookmarks" />
+      <Stack.Screen name="recommendations" />
       <Stack.Screen name="completion/[id]" />
       <Stack.Screen name="[id]/events" />
       <Stack.Screen name="[id]/event/[eventId]/index" />

@@ -260,14 +260,12 @@ export default function HomeScreen() {
           <Text style={[styles.quickChipText, viewMode === 'map' && styles.quickChipTextActive]}>Map</Text>
         </TouchableOpacity>
 
-        {/* These screens live in the Profile tab's stack. `withAnchor` puts the Profile
-            home underneath them, so there is a back button and a way back to the tab bar
-            even when the Profile tab has not been opened yet. */}
+        {/* Opened on the root stack so Back returns here, not to the Profile tab */}
         <TouchableOpacity
           style={styles.quickChip}
           onPress={() => {
             haptics.tap();
-            router.push('/(tabs)/profile/bookmarks' as any, { withAnchor: true });
+            router.push('/trail/bookmarks');
           }}
           accessibilityLabel="My bookmarks"
           accessibilityRole="button"
@@ -280,7 +278,7 @@ export default function HomeScreen() {
           style={styles.quickChip}
           onPress={() => {
             haptics.tap();
-            router.push('/(tabs)/profile/recommendations' as any, { withAnchor: true });
+            router.push('/trail/recommendations');
           }}
           accessibilityLabel="Trail recommendations for you"
           accessibilityRole="button"
