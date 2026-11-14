@@ -80,6 +80,8 @@ const post = (extra: Partial<FeedItem> = {}): FeedItem => ({
   trail_name_en: 'Juta to Roshka',
   trail_name_ka: null,
   trail_cover_image_url: null,
+  trail_distance_km: 12.4,
+  trail_elevation_gain_m: 860,
   like_count: 2,
   liked_by_me: false,
   comment_count: 3,
@@ -157,10 +159,6 @@ function deferred<T>() {
 
 beforeEach(() => {
   jest.clearAllMocks();
-  getTrails.mockResolvedValue({
-    data: [{ id: 't1', distance_km: 12.4, elevation_gain_m: 860 }],
-    pagination: { page: 1, limit: 500, total: 1, totalPages: 1 },
-  });
 });
 
 afterEach(() => {
@@ -183,10 +181,11 @@ describe('a post', () => {
     expect(shown()).toContain('View all 3 comments');
   });
 
-  it('shows the trail’s distance and ascent under a completion', async () => {
-    await render([post()]);
-    expect(shown()).toEqual(expect.arrayContaining(['12.4 km', '860 m']));
-    expect(getTrails).toHaveBeenCalledWith({ limit: 500 });
+  it('shows the trail’s distance and ascent and the hiker’s time under a completion', async () => {
+    await render([post({ elapsed_seconds: 4 * 3600 + 20 * 60 })]);
+    expect(shown()).toEqual(expect.arrayContaining(['12.4 km', '860 m', '4h 20m']));
+    // The numbers come with the feed: no download of the whole trail list
+    expect(getTrails).not.toHaveBeenCalled();
   });
 
   it('turns a review without a photo into a compact trail card with its stars', async () => {
@@ -194,8 +193,8 @@ describe('a post', () => {
     expect(pressable('post-trail-card')).toBeDefined();
     expect(hostByTestId('post-pager')).toHaveLength(0);
     expect(renderer!.root.findAll((n) => n.props.accessibilityLabel === 'Rated 4 out of 5').length).toBeGreaterThan(0);
-    // Trail stats are only fetched for completions
-    expect(getTrails).not.toHaveBeenCalled();
+    // Hike numbers are only for completions
+    expect(shown()).not.toContain('12.4 km');
   });
 
   it('shows a photo post’s caption after the username', async () => {

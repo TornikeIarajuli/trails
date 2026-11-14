@@ -87,27 +87,38 @@ export interface StatChip {
   label: string;
 }
 
-export interface TrailStats {
-  distance_km: number | null;
-  elevation_gain_m: number | null;
+/** A faster average than this is not a hike on foot. */
+const MAX_HIKING_KMH = 15;
+/** The shortest believable hike when the trail's length is unknown. */
+const MIN_HIKE_SECONDS = 5 * 60;
+
+/**
+ * Whether a completion's time can be real: no faster than a fast trail run over the trail's
+ * distance, or at least a few minutes when that is unknown. Times from testing, or from a
+ * recording that stopped early, would otherwise say "1 min" under a 20 km trail.
+ */
+export function isPlausibleHikeTime(seconds: number, distanceKm: number | null | undefined): boolean {
+  if (!(seconds > 0)) return false;
+  if (distanceKm != null && distanceKm > 0) return distanceKm / (seconds / 3600) <= MAX_HIKING_KMH;
+  return seconds >= MIN_HIKE_SECONDS;
 }
 
 /**
- * Chips under a completion: distance, ascent and the hiker's time. The feed may not carry the
- * hike's own numbers, so distance and ascent fall back to the trail's. A past hike (marked as
- * done, hiked before the app) has no time and says so instead.
+ * Chips under a completion: the trail's distance and ascent, and the hiker's time when it can
+ * be real. A past hike (marked as done, hiked before the app) has no time and says so instead.
  */
-export function completionChips(item: FeedItem, trail: TrailStats | undefined): StatChip[] {
+export function completionChips(item: FeedItem): StatChip[] {
   if (item.activity_type !== 'completion') return [];
   const chips: StatChip[] = [];
-  const distance = item.distance_km ?? trail?.distance_km ?? null;
-  const ascent = item.elevation_gain_m ?? trail?.elevation_gain_m ?? null;
+  const distance = item.trail_distance_km;
+  const ascent = item.trail_elevation_gain_m;
+  const seconds = item.elapsed_seconds;
   if (distance != null && distance > 0) chips.push({ key: 'distance', icon: 'walk-outline', label: formatDistance(distance) });
   if (ascent != null && ascent > 0) chips.push({ key: 'ascent', icon: 'trending-up', label: `${Math.round(ascent)} m` });
   if (item.source === 'past') {
     chips.push({ key: 'past', icon: 'time-outline', label: 'Hiked before the app' });
-  } else if (typeof item.elapsed_seconds === 'number' && item.elapsed_seconds > 0) {
-    chips.push({ key: 'time', icon: 'time-outline', label: formatElapsed(item.elapsed_seconds) });
+  } else if (seconds != null && isPlausibleHikeTime(seconds, distance)) {
+    chips.push({ key: 'time', icon: 'time-outline', label: formatElapsed(seconds) });
   }
   return chips;
 }

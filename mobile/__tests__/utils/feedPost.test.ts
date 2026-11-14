@@ -5,6 +5,7 @@ import {
   feedAction,
   feedMedia,
   formatElapsed,
+  isPlausibleHikeTime,
   likesLabel,
   reviewStars,
   shareMessage,
@@ -104,26 +105,49 @@ describe('labels', () => {
 });
 
 describe('completionChips', () => {
-  const trail = { distance_km: 12.4, elevation_gain_m: 860 };
+  const trail = { trail_distance_km: 12.4, trail_elevation_gain_m: 860 };
 
-  it('shows the trail’s distance and ascent when the post has no numbers of its own', () => {
-    expect(completionChips(item(), trail).map((c) => c.label)).toEqual(['12.4 km', '860 m']);
+  it('shows the trail’s distance and ascent', () => {
+    expect(completionChips(item(trail)).map((c) => c.label)).toEqual(['12.4 km', '860 m']);
   });
 
-  it('prefers the hike’s own numbers and adds its time', () => {
-    const chips = completionChips(item({ distance_km: 13.1, elevation_gain_m: 902, elapsed_seconds: 5 * 3600 + 5 * 60 }), trail);
-    expect(chips.map((c) => c.label)).toEqual(['13.1 km', '902 m', '5h 5m']);
+  it('adds how long the hike took', () => {
+    const chips = completionChips(item({ ...trail, elapsed_seconds: 5 * 3600 + 5 * 60 }));
+    expect(chips.map((c) => c.label)).toEqual(['12.4 km', '860 m', '5h 5m']);
+  });
+
+  it('leaves out a time nobody could walk the trail in', () => {
+    // 12.4 km in 38 s (testing, or a recording that stopped early)
+    expect(completionChips(item({ ...trail, elapsed_seconds: 38 })).map((c) => c.key)).toEqual(['distance', 'ascent']);
+    // Unknown length: only a few minutes or more
+    expect(completionChips(item({ elapsed_seconds: 120 }))).toEqual([]);
+    expect(completionChips(item({ elapsed_seconds: 30 * 60 })).map((c) => c.label)).toEqual(['30 min']);
   });
 
   it('marks a past hike “before the app”, with no time', () => {
-    const chips = completionChips(item({ source: 'past', elapsed_seconds: 3600 }), trail);
+    const chips = completionChips(item({ ...trail, source: 'past', elapsed_seconds: 3600 }));
     expect(chips.map((c) => c.key)).toEqual(['distance', 'ascent', 'past']);
     expect(chips[2].label).toBe('Hiked before the app');
   });
 
   it('shows nothing it does not know, and nothing for other kinds of post', () => {
-    expect(completionChips(item(), undefined)).toEqual([]);
-    expect(completionChips(item({ activity_type: 'photo' }), trail)).toEqual([]);
+    expect(completionChips(item())).toEqual([]);
+    expect(completionChips(item({ trail_distance_km: 0, trail_elevation_gain_m: null, elapsed_seconds: 0 }))).toEqual([]);
+    expect(completionChips(item({ ...trail, activity_type: 'photo' }))).toEqual([]);
+  });
+});
+
+describe('isPlausibleHikeTime', () => {
+  it('allows up to a fast trail run over the trail’s distance', () => {
+    expect(isPlausibleHikeTime(3600, 15)).toBe(true); // 15 km/h
+    expect(isPlausibleHikeTime(3600, 15.5)).toBe(false);
+    expect(isPlausibleHikeTime(4 * 60, 0.3)).toBe(true); // a short walk to a waterfall
+  });
+
+  it('wants a few minutes when the length is unknown, and never nothing', () => {
+    expect(isPlausibleHikeTime(5 * 60, null)).toBe(true);
+    expect(isPlausibleHikeTime(4 * 60, undefined)).toBe(false);
+    expect(isPlausibleHikeTime(0, 10)).toBe(false);
   });
 });
 

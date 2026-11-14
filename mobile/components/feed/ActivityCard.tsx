@@ -16,7 +16,6 @@ import { FeedItem } from '../../types/feed';
 import { useComments } from '../../hooks/useComments';
 import { useLikes, useToggleLike } from '../../hooks/useLikes';
 import { usePrefetchTrail } from '../../hooks/useTrails';
-import { useFeedTrailStats } from '../../hooks/useFeedTrailStats';
 import { useSettingsStore } from '../../store/settingsStore';
 import { hasLikeSummary } from '../../utils/feedCache';
 import { localName } from '../../utils/i18n';
@@ -133,10 +132,7 @@ export const ActivityCard = React.memo(function ActivityCard({ item }: { item: F
 
   const toggleLike = useToggleLike();
 
-  const isCompletion = item.activity_type === 'completion';
-  const needsTrailStats = isCompletion && (item.distance_km == null || item.elevation_gain_m == null);
-  const trailStats = useFeedTrailStats(needsTrailStats);
-  const chips = completionChips(item, trailStats.data?.get(item.trail_id));
+  const chips = completionChips(item);
 
   const prefetchTrail = usePrefetchTrail();
   const trailName = localName(item.trail_name_en, item.trail_name_ka, language);

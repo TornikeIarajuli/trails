@@ -19,11 +19,12 @@ export interface FeedItem {
   like_count?: number;
   comment_count?: number;
   liked_by_me?: boolean;
-  // Not sent by the API yet; shown when a future version adds them.
-  /** A completion's own numbers (the post falls back to the trail's distance and ascent). */
-  distance_km?: number | null;
-  elevation_gain_m?: number | null;
+  /** The trail's distance and ascent, shown under completions. */
+  trail_distance_km?: number | null;
+  trail_elevation_gain_m?: number | null;
+  /** How long the hike took; only completions have it, and not all of them. */
   elapsed_seconds?: number | null;
+  // Not sent by the API yet; shown when a future version adds them.
   /** 'past' for a trail marked as done before the app. */
   source?: 'hike' | 'past' | null;
   latest_comment?: { username: string; comment: string } | null;
