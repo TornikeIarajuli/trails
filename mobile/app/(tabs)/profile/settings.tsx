@@ -15,6 +15,9 @@ import { useOfflineMapsStore } from '../../../store/offlineMapsStore';
 import { offlineMapsSize } from '../../../services/offlineMaps';
 import { formatMegabytes } from '../../../utils/topoTiles';
 import { haptics } from '../../../utils/haptics';
+import { ThemePicker } from '../../../components/settings/ThemePicker';
+import { withBottomInset } from '../../../utils/insets';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const GPS_OPTIONS: { value: GpsAccuracy; label: string; hint: string }[] = [
   { value: 'low', label: 'Battery Saver', hint: 'GPS with fewer updates. Uses the least battery; the recorded track is coarser.' },
@@ -170,13 +173,12 @@ function OfflineMapsRow({ styles, Colors }: { styles: ReturnType<typeof createSt
 }
 
 export default function SettingsScreen() {
+  const insets = useSafeAreaInsets();
   const Colors = useColors();
   const styles = useMemo(() => createStyles(Colors), [Colors]);
 
   const language = useSettingsStore((s) => s.language);
   const setLanguage = useSettingsStore((s) => s.setLanguage);
-  const isDarkMode = useSettingsStore((s) => s.isDarkMode);
-  const toggleDarkMode = useSettingsStore((s) => s.toggleDarkMode);
   const gpsAccuracy = useSettingsStore((s) => s.gpsAccuracy);
   const setGpsAccuracy = useSettingsStore((s) => s.setGpsAccuracy);
 
@@ -247,23 +249,12 @@ export default function SettingsScreen() {
       />
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={styles.container}
+        contentContainerStyle={withBottomInset(styles.container, insets.bottom)}
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Appearance</Text>
-          <View style={styles.row}>
-            <View style={styles.rowLeft}>
-              <Icon name="moon-outline" size={20} color={Colors.text} />
-              <Text style={styles.rowLabel}>Dark Mode</Text>
-            </View>
-            <Switch
-              value={isDarkMode}
-              onValueChange={toggleDarkMode}
-              trackColor={{ true: Colors.primary, false: Colors.border }}
-              thumbColor={Colors.surface}
-            />
-          </View>
+          <ThemePicker />
         </View>
 
         <View style={styles.section}>

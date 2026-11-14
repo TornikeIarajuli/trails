@@ -26,6 +26,8 @@ import {
   CATEGORY_LABELS,
   CATEGORY_ICONS,
 } from '../../../services/bookmarks';
+import { withBottomInset } from '../../../utils/insets';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const CATEGORIES: (BookmarkCategory | undefined)[] = [
   undefined,
@@ -38,6 +40,7 @@ const CATEGORIES: (BookmarkCategory | undefined)[] = [
 const CATEGORY_ORDER: BookmarkCategory[] = ['saved', 'want_to_hike', 'in_progress', 'favorites'];
 
 export default function BookmarksScreen() {
+  const insets = useSafeAreaInsets();
   const Colors = useColors();
   const styles = useMemo(() => createStyles(Colors), [Colors]);
   const [activeCategory, setActiveCategory] = useState<BookmarkCategory | undefined>(undefined);
@@ -153,7 +156,7 @@ export default function BookmarksScreen() {
         data={bookmarks}
         keyExtractor={(item) => item.id}
         renderItem={renderItem}
-        contentContainerStyle={styles.listContent}
+        contentContainerStyle={withBottomInset(styles.listContent, insets.bottom)}
         onEndReached={() => {
           if (hasNextPage && !isFetchingNextPage) fetchNextPage();
         }}

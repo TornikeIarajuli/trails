@@ -36,6 +36,8 @@ import {
   regionsHeaderText,
   sortRegions,
 } from '../../../utils/regionProgress';
+import { withBottomInset } from '../../../utils/insets';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const GEORGIA = { latitude: 42.2, longitude: 43.5, latitudeDelta: 3.2, longitudeDelta: 6.5 };
 const MAP_HEIGHT = 240;
@@ -188,6 +190,7 @@ function RegionRow({
 }
 
 export default function RegionsScreen() {
+  const insets = useSafeAreaInsets();
   const Colors = useColors();
   const styles = useMemo(() => createStyles(Colors), [Colors]);
   const { userId } = useLocalSearchParams<{ userId?: string }>();
@@ -277,7 +280,7 @@ export default function RegionsScreen() {
           ref={listRef}
           data={regions}
           keyExtractor={(r) => r.region}
-          contentContainerStyle={styles.list}
+          contentContainerStyle={withBottomInset(styles.list, insets.bottom)}
           renderItem={({ item }) => (
             <RegionRow
               region={item}

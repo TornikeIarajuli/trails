@@ -15,6 +15,8 @@ import {
   useUpdateNotificationPrefs,
 } from '../../../hooks/useNotifications';
 import { NotificationPreferences } from '../../../services/notifications';
+import { withBottomInset } from '../../../utils/insets';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const PREF_ROWS: {
   key: keyof NotificationPreferences;
@@ -59,6 +61,7 @@ const PREF_ROWS: {
 ];
 
 export default function NotificationPreferencesScreen() {
+  const insets = useSafeAreaInsets();
   const Colors = useColors();
   const styles = useMemo(() => createStyles(Colors), [Colors]);
 
@@ -84,7 +87,7 @@ export default function NotificationPreferencesScreen() {
       />
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={withBottomInset(styles.content, insets.bottom)}
         showsVerticalScrollIndicator={false}
       >
         <Text style={styles.hint}>

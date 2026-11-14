@@ -20,7 +20,7 @@ export function EmptyFeed() {
         onPress={() => router.push('/search')}
         accessibilityRole="button"
       >
-        <Icon name="search-outline" size={18} color="#fff" />
+        <Icon name="search-outline" size={18} color={Colors.textOnPrimary} />
         <Text style={styles.buttonText}>Find Hikers</Text>
       </TouchableOpacity>
     </View>
@@ -58,6 +58,6 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   buttonText: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#fff',
+    color: Colors.textOnPrimary,
   },
 });

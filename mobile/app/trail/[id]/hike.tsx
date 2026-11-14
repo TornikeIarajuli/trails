@@ -617,7 +617,7 @@ export default function HikeScreen() {
         accessibilityLabel={uploading ? 'Uploading photo' : 'Take photo'}
         accessibilityRole="button"
       >
-        <Icon name={uploading ? 'hourglass-outline' : 'camera'} size={26} color="#fff" />
+        <Icon name={uploading ? 'hourglass-outline' : 'camera'} size={26} color={Colors.textOnPrimary} />
       </TouchableOpacity>
 
       {/* Bottom info */}

@@ -12,8 +12,11 @@ import {
 } from '../../../hooks/useModeration';
 import { Avatar } from '../../../components/ui/Avatar';
 import { queryKeys } from '../../../utils/queryKeys';
+import { withBottomInset } from '../../../utils/insets';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function BlockedUsersScreen() {
+  const insets = useSafeAreaInsets();
   const Colors = useColors();
   const styles = useMemo(() => createStyles(Colors), [Colors]);
   const blocked = useBlockedUserIds();
@@ -55,7 +58,7 @@ export default function BlockedUsersScreen() {
       />
       <FlatList
         style={styles.container}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={withBottomInset(styles.content, insets.bottom)}
         data={ids}
         keyExtractor={(id) => id}
         renderItem={({ item: id, index }) => {

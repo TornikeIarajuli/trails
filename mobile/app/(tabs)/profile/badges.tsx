@@ -91,7 +91,7 @@ export default function BadgesScreen() {
         <View style={{ width: 24 }} />
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: insets.bottom + 16 }}>
         {/* Overall progress card */}
         <View style={styles.progressCard}>
           <View style={styles.progressTopRow}>

@@ -18,6 +18,8 @@ import { DifficultyBadge } from '../../../components/trail/DifficultyBadge';
 import { TrailCover } from '../../../components/trail/TrailCover';
 import { ErrorState } from '../../../components/ui/ErrorState';
 import { TrailDifficulty } from '../../../types/trail';
+import { withBottomInset } from '../../../utils/insets';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const DIFFICULTY_LABELS: Record<string, string> = {
   easy: 'Easy',
@@ -27,6 +29,7 @@ const DIFFICULTY_LABELS: Record<string, string> = {
 };
 
 export default function RecommendationsScreen() {
+  const insets = useSafeAreaInsets();
   const Colors = useColors();
   const styles = useMemo(() => createStyles(Colors), [Colors]);
 
@@ -142,7 +145,7 @@ export default function RecommendationsScreen() {
             keyExtractor={(item) => item.id}
             renderItem={renderItem}
             ListHeaderComponent={renderHeader}
-            contentContainerStyle={styles.listContent}
+            contentContainerStyle={withBottomInset(styles.listContent, insets.bottom)}
             refreshControl={
               <RefreshControl refreshing={isRefetching} onRefresh={refetch} />
             }

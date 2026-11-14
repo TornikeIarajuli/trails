@@ -28,6 +28,8 @@ import { queryKeys } from '../../../utils/queryKeys';
 import { getErrorMessage, getErrorStatus } from '../../../utils/showError';
 import { useRegionProgress } from '../../../hooks/useRegionProgress';
 import { completionDateLabel, isPastHike } from '../../../utils/pastHikes';
+import { withBottomInset } from '../../../utils/insets';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 function formatDate(dateStr: string) {
   const d = new Date(dateStr);
@@ -107,13 +109,13 @@ function FollowButton({ userId, Colors, styles }: { userId: string; Colors: Colo
       disabled={toggleFollow.isPending || isLoading}
     >
       {toggleFollow.isPending ? (
-        <ActivityIndicator size="small" color={isFollowing ? Colors.primary : '#fff'} />
+        <ActivityIndicator size="small" color={isFollowing ? Colors.primary : Colors.textOnPrimary} />
       ) : (
         <>
           <Icon
             name={isFollowing ? 'checkmark' : 'person-add-outline'}
             size={16}
-            color={isFollowing ? Colors.primary : '#fff'}
+            color={isFollowing ? Colors.primary : Colors.textOnPrimary}
           />
           <Text style={[styles.followButtonText, isFollowing && styles.followButtonTextActive]}>
             {isFollowing ? 'Following' : 'Follow'}
@@ -245,6 +247,7 @@ function EmergencyContactButton({ userId, Colors, styles }: { userId: string; Co
 }
 
 export default function PublicProfileScreen() {
+  const insets = useSafeAreaInsets();
   const Colors = useColors();
   const styles = useMemo(() => createStyles(Colors), [Colors]);
 
@@ -311,7 +314,7 @@ export default function PublicProfileScreen() {
       />
       <ScrollView
         style={styles.container}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={withBottomInset(styles.content, insets.bottom)}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
@@ -543,7 +546,7 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   followButtonText: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#fff',
+    color: Colors.textOnPrimary,
   },
   followButtonTextActive: {
     color: Colors.primary,

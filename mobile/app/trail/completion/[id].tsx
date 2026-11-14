@@ -244,7 +244,7 @@ export default function CompletionDetailScreen() {
         visible={showBadgeModal}
         onClose={() => setShowBadgeModal(false)}
       />
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: insets.bottom + 16 }}>
         {/* Cover Image */}
         {trail?.cover_image_url ? (
           <Image source={{ uri: trail.cover_image_url }} style={styles.coverImage} cachePolicy="memory-disk" />

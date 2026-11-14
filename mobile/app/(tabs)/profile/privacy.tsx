@@ -2,8 +2,11 @@ import React, { useMemo } from 'react';
 import { ScrollView, Text, View, StyleSheet } from 'react-native';
 import { Stack } from 'expo-router';
 import { useColors, ColorPalette } from '../../../constants/colors';
+import { withBottomInset } from '../../../utils/insets';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function PrivacyPolicyScreen() {
+  const insets = useSafeAreaInsets();
   const Colors = useColors();
   const styles = useMemo(() => createStyles(Colors), [Colors]);
 
@@ -19,7 +22,7 @@ export default function PrivacyPolicyScreen() {
           headerShadowVisible: false,
         }}
       />
-      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      <ScrollView style={styles.container} contentContainerStyle={withBottomInset(styles.content, insets.bottom)}>
         <Text style={styles.updated}>Last updated: November 2026</Text>
 
         <Section title="1. Introduction" styles={styles}>

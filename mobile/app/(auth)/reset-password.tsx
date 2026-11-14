@@ -25,9 +25,12 @@ import {
   parseRecoveryLink,
 } from '../../utils/recoveryLink';
 import { getErrorMessage, getErrorStatus } from '../../utils/showError';
+import { withBottomInset } from '../../utils/insets';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 /** Opened by the link in the password-reset e-mail (`mikiri-trails://reset-password#…`). */
 export default function ResetPasswordScreen() {
+  const insets = useSafeAreaInsets();
   const Colors = useColors();
   const styles = useMemo(() => createStyles(Colors), [Colors]);
 
@@ -186,7 +189,7 @@ export default function ResetPasswordScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={withBottomInset(styles.scrollContent, insets.bottom)}
         keyboardShouldPersistTaps="handled"
       >
         {content}

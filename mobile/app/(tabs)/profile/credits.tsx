@@ -3,6 +3,8 @@ import { View, Text, FlatList, StyleSheet, Linking, Alert } from 'react-native';
 import { Stack } from 'expo-router';
 import { useColors, ColorPalette } from '../../../constants/colors';
 import photoCreditsJson from '../../../assets/data/photo-credits.json';
+import { withBottomInset } from '../../../utils/insets';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface PhotoCredit {
   trail_id: string;
@@ -37,6 +39,7 @@ function Link({ url, children, style }: { url: string; children: React.ReactNode
 }
 
 export default function CreditsScreen() {
+  const insets = useSafeAreaInsets();
   const Colors = useColors();
   const styles = useMemo(() => createStyles(Colors), [Colors]);
 
@@ -109,7 +112,7 @@ export default function CreditsScreen() {
       />
       <FlatList
         style={styles.container}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={withBottomInset(styles.content, insets.bottom)}
         data={PHOTO_CREDITS}
         keyExtractor={(item, index) => `${item.trail_id}-${item.file}-${index}`}
         ListHeaderComponent={header}

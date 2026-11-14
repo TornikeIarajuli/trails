@@ -100,7 +100,7 @@ export default function ProductDetailScreen() {
             activeOpacity={0.8}
             accessibilityRole="link"
           >
-            <Icon name="open-outline" size={18} color="#FFFFFF" />
+            <Icon name="open-outline" size={18} color={Colors.textOnPrimary} />
             <Text style={styles.visitButtonText}>Visit Shop</Text>
           </TouchableOpacity>
         </View>
@@ -195,7 +195,7 @@ const createStyles = (Colors: ColorPalette) =>
       borderRadius: 12,
     },
     visitButtonText: {
-      color: '#FFFFFF',
+      color: Colors.textOnPrimary,
       fontSize: 16,
       fontWeight: '700',
     },

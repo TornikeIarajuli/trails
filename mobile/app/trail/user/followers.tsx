@@ -15,6 +15,8 @@ import { LoadingSpinner } from '../../../components/ui/LoadingSpinner';
 import { ErrorState } from '../../../components/ui/ErrorState';
 import { useFollowList } from '../../../hooks/useFollows';
 import { FollowRow } from '../../../types/follow';
+import { withBottomInset } from '../../../utils/insets';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type Tab = 'followers' | 'following';
 
@@ -44,6 +46,7 @@ function UserRow({ user, styles }: { user: FollowRow; styles: any }) {
 }
 
 export default function FollowersScreen() {
+  const insets = useSafeAreaInsets();
   const Colors = useColors();
   const styles = useMemo(() => createStyles(Colors), [Colors]);
 
@@ -117,7 +120,7 @@ export default function FollowersScreen() {
             data={rows}
             keyExtractor={(item) => item.id}
             renderItem={({ item }) => <UserRow user={item} styles={styles} />}
-            contentContainerStyle={styles.list}
+            contentContainerStyle={withBottomInset(styles.list, insets.bottom)}
             onEndReached={() => {
               if (active.hasNextPage && !active.isFetchingNextPage) active.fetchNextPage();
             }}

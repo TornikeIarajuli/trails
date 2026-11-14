@@ -16,8 +16,11 @@ import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
 import { useLogin, isEmailNotConfirmed } from '../../hooks/useAuth';
 import { getErrorMessage } from '../../utils/showError';
+import { withBottomInset } from '../../utils/insets';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function LoginScreen() {
+  const insets = useSafeAreaInsets();
   const Colors = useColors();
   const styles = useMemo(() => createStyles(Colors), [Colors]);
 
@@ -52,7 +55,7 @@ export default function LoginScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={withBottomInset(styles.scrollContent, insets.bottom)}
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.header}>

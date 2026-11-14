@@ -11,6 +11,8 @@ import { TrailCompletion } from '../../../types/completion';
 import { bestWeekStreak } from '../../../utils/weekStreak';
 import { isPastHike } from '../../../utils/pastHikes';
 import { BADGE_ICON_MAP, BADGE_CATEGORY_COLOR } from '../../../components/badges/badgeConstants';
+import { withBottomInset } from '../../../utils/insets';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -66,6 +68,7 @@ function computeAnalytics(completions: TrailCompletion[]) {
 // ── component ─────────────────────────────────────────────────────────────────
 
 export default function AnalyticsScreen() {
+  const insets = useSafeAreaInsets();
   const Colors = useColors();
   const styles = useMemo(() => createStyles(Colors), [Colors]);
 
@@ -103,7 +106,7 @@ export default function AnalyticsScreen() {
           headerShadowVisible: false,
         }}
       />
-      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      <ScrollView style={styles.container} contentContainerStyle={withBottomInset(styles.content, insets.bottom)}>
         {!stats && isError ? (
           <ErrorState
             error={error}
@@ -221,11 +224,12 @@ export default function AnalyticsScreen() {
                   {userBadges.map((ub) => {
                     const badge = ub.badges;
                     const iconName = BADGE_ICON_MAP[badge.icon] ?? 'ribbon';
-                    const color = BADGE_CATEGORY_COLOR[badge.category] ?? Colors.primary;
+                    const categoryColor = BADGE_CATEGORY_COLOR[badge.category];
                     return (
                       <View key={ub.id} style={styles.badgeItem}>
-                        <View style={[styles.badgeIcon, { backgroundColor: color }]}>
-                          <Icon name={iconName as any} size={22} color="#fff" />
+                        <View style={[styles.badgeIcon, { backgroundColor: categoryColor ?? Colors.primary }]}>
+                          {/* Category colours take white; the theme's primary has its own text colour */}
+                          <Icon name={iconName as any} size={22} color={categoryColor ? '#fff' : Colors.textOnPrimary} />
                         </View>
                         <Text style={styles.badgeName} numberOfLines={2}>{badge.name_en}</Text>
                         <Text style={styles.badgeDate}>

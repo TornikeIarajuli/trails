@@ -28,6 +28,8 @@ import {
   EVENT_DESCRIPTION_MAX,
   EVENT_TITLE_MAX,
 } from '../../../utils/eventForm';
+import { withBottomInset } from '../../../utils/insets';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type PickerMode = 'date' | 'time' | null;
 
@@ -92,6 +94,7 @@ function EventCard({
 }
 
 export default function TrailEventsScreen() {
+  const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
   const Colors = useColors();
   const styles = useMemo(() => createStyles(Colors), [Colors]);
@@ -274,7 +277,7 @@ export default function TrailEventsScreen() {
       <FlatList
         data={events}
         keyExtractor={(e) => e.id}
-        contentContainerStyle={styles.listContent}
+        contentContainerStyle={withBottomInset(styles.listContent, insets.bottom)}
         keyboardShouldPersistTaps="handled"
         // An element, not a function: a new function each render would remount the form
         ListHeaderComponent={form}
@@ -399,7 +402,7 @@ const createStyles = (Colors: ColorPalette) =>
       alignItems: 'center',
     },
     submitBtnBusy: { opacity: 0.7 },
-    submitText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+    submitText: { color: Colors.textOnPrimary, fontWeight: '700', fontSize: 15 },
     card: {
       backgroundColor: Colors.surface,
       borderRadius: 12,

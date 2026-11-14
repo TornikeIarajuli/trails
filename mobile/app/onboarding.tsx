@@ -151,7 +151,7 @@ export default function OnboardingScreen() {
             {isLastPage ? 'Get Started' : 'Next'}
           </Text>
           {!isLastPage && (
-            <Icon name="arrow-forward" size={20} color="#fff" />
+            <Icon name="arrow-forward" size={20} color={Colors.textOnPrimary} />
           )}
         </TouchableOpacity>
       </View>
@@ -255,6 +255,6 @@ const createStyles = (Colors: ColorPalette) =>
     buttonText: {
       fontSize: 17,
       fontWeight: '700',
-      color: '#fff',
+      color: Colors.textOnPrimary,
     },
   });

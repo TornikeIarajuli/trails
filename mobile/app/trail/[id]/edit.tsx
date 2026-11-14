@@ -29,6 +29,8 @@ import { TrailDifficulty, TrailMedia } from '../../../types/trail';
 import { queryKeys } from '../../../utils/queryKeys';
 import { getErrorMessage } from '../../../utils/showError';
 import { buildTrailUpdate, trailToForm, TrailEditForm } from '../../../utils/trailEditForm';
+import { withBottomInset } from '../../../utils/insets';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const DIFFICULTIES: TrailDifficulty[] = ['easy', 'medium', 'hard', 'ultra'];
 
@@ -142,6 +144,7 @@ function MediaGrid({
 }
 
 export default function TrailEditScreen() {
+  const insets = useSafeAreaInsets();
   const Colors = useColors();
   const styles = useMemo(() => createStyles(Colors), [Colors]);
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -296,7 +299,7 @@ export default function TrailEditScreen() {
       {header}
       <ScrollView
         style={styles.container}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={withBottomInset(styles.content, insets.bottom)}
         keyboardShouldPersistTaps="handled"
       >
         {isError && (

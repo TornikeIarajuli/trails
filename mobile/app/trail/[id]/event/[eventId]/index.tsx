@@ -369,9 +369,9 @@ export default function EventDetailScreen() {
               accessibilityRole="button"
             >
               {addComment.isPending ? (
-                <ActivityIndicator size="small" color="#fff" />
+                <ActivityIndicator size="small" color={Colors.textOnPrimary} />
               ) : (
-                <Icon name="send" size={18} color="#fff" />
+                <Icon name="send" size={18} color={Colors.textOnPrimary} />
               )}
             </TouchableOpacity>
           </View>
@@ -393,8 +393,8 @@ const createStyles = (Colors: ColorPalette) =>
       borderRadius: 14,
       alignItems: 'center',
     },
-    dateText: { fontSize: 18, fontWeight: '700', color: '#fff' },
-    timeText: { fontSize: 14, color: '#fff', opacity: 0.85, marginTop: 4 },
+    dateText: { fontSize: 18, fontWeight: '700', color: Colors.textOnPrimary },
+    timeText: { fontSize: 14, color: Colors.textOnPrimary, opacity: 0.85, marginTop: 4 },
     section: {
       marginHorizontal: 16,
       marginBottom: 16,

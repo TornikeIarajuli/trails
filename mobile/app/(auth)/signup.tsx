@@ -15,6 +15,8 @@ import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
 import { useSignup } from '../../hooks/useAuth';
 import { validatePassword } from '../../utils/passwordRules';
+import { withBottomInset } from '../../utils/insets';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 function friendlyAuthError(msg: string): string {
   const m = msg.toLowerCase();
@@ -40,6 +42,7 @@ function friendlyAuthError(msg: string): string {
 }
 
 export default function SignupScreen() {
+  const insets = useSafeAreaInsets();
   const Colors = useColors();
   const styles = useMemo(() => createStyles(Colors), [Colors]);
 
@@ -89,7 +92,7 @@ export default function SignupScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={withBottomInset(styles.scrollContent, insets.bottom)}
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.header}>

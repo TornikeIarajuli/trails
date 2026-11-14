@@ -134,7 +134,7 @@ export function ProfileCard({ profile }: ProfileCardProps) {
             <Icon
               name={avatarMutation.isPending ? 'hourglass-outline' : 'camera'}
               size={13}
-              color="#fff"
+              color={Colors.textOnPrimary}
             />
           </View>
         </TouchableOpacity>

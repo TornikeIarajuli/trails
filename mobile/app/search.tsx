@@ -17,8 +17,11 @@ import { useWithoutBlocked } from '../hooks/useModeration';
 import { Avatar } from '../components/ui/Avatar';
 import { ErrorState } from '../components/ui/ErrorState';
 import { queryKeys } from '../utils/queryKeys';
+import { withBottomInset } from '../utils/insets';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function SearchScreen() {
+  const insets = useSafeAreaInsets();
   const Colors = useColors();
   const styles = useMemo(() => createStyles(Colors), [Colors]);
   const [query, setQuery] = useState('');
@@ -79,7 +82,7 @@ export default function SearchScreen() {
         <FlatList
           data={results}
           keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.list}
+          contentContainerStyle={withBottomInset(styles.list, insets.bottom)}
           renderItem={({ item }) => (
             <TouchableOpacity
               style={styles.userRow}

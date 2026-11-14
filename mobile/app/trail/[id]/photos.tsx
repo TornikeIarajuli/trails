@@ -29,6 +29,7 @@ import { LoadingSpinner } from '../../../components/ui/LoadingSpinner';
 import { ErrorState } from '../../../components/ui/ErrorState';
 import { ContentMenu } from '../../../components/moderation/ContentMenu';
 import { TrailPhoto } from '../../../types/community';
+import { withBottomInset } from '../../../utils/insets';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const PHOTO_SIZE = (SCREEN_WIDTH - 48) / 2;
@@ -182,7 +183,7 @@ export default function PhotoGalleryScreen() {
           renderItem={renderPhoto}
           numColumns={2}
           columnWrapperStyle={styles.row}
-          contentContainerStyle={styles.list}
+          contentContainerStyle={withBottomInset(styles.list, insets.bottom)}
           showsVerticalScrollIndicator={false}
           onEndReached={() => {
             if (hasNextPage && !isFetchingNextPage) fetchNextPage();
@@ -223,9 +224,9 @@ export default function PhotoGalleryScreen() {
           accessibilityState={{ busy: isUploading, disabled: isUploading }}
         >
           {isUploading ? (
-            <ActivityIndicator color="#fff" />
+            <ActivityIndicator color={Colors.textOnPrimary} />
           ) : (
-            <Icon name="camera" size={24} color="#fff" />
+            <Icon name="camera" size={24} color={Colors.textOnPrimary} />
           )}
         </TouchableOpacity>
       )}

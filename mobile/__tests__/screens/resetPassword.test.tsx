@@ -10,6 +10,9 @@ jest.mock('expo-linking', () => ({
   getLinkingURL: () => mockLinkingUrl,
 }));
 jest.mock('expo-router', () => ({ router: { replace: jest.fn() } }));
+jest.mock('react-native-safe-area-context', () => ({
+  useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
+}));
 jest.mock('@expo/vector-icons', () => ({ Ionicons: () => null }));
 jest.mock('expo-secure-store', () => ({
   getItemAsync: jest.fn(async (key: string) => mockSecureStore.get(key) ?? null),

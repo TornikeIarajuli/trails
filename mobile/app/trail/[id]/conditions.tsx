@@ -22,6 +22,7 @@ import { ContentMenu } from '../../../components/moderation/ContentMenu';
 import { TrailCondition } from '../../../types/community';
 import { formatDate } from '../../../utils/formatters';
 import { sortConditionsBySeverity } from '../../../utils/conditions';
+import { withBottomInset } from '../../../utils/insets';
 
 const SEVERITY_COLORS: Record<string, string> = {
   info: '#2196F3',
@@ -131,7 +132,7 @@ export default function ConditionsScreen() {
         data={conditions}
         keyExtractor={(item) => item.id}
         renderItem={renderCondition}
-        contentContainerStyle={styles.list}
+        contentContainerStyle={withBottomInset(styles.list, insets.bottom)}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl

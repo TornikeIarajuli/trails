@@ -11,7 +11,8 @@ import {
 import { useLocalSearchParams, router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Icon } from '../../../components/ui/Icon';
-import { useColors, ColorPalette } from '../../../constants/colors';
+import { useColors, useIsDarkTheme, ColorPalette } from '../../../constants/colors';
+import { statusTone } from '../../../constants/statusTones';
 import { useTrail } from '../../../hooks/useTrails';
 import { useAuthStore } from '../../../store/authStore';
 import { useHikeStore } from '../../../store/hikeStore';
@@ -57,6 +58,7 @@ const NO_TOPO_PLAN: TilePlan = { tiles: [], minZoom: 0, maxZoom: null, droppedZo
 
 export default function TrailDetailScreen() {
   const Colors = useColors();
+  const isDarkTheme = useIsDarkTheme();
   const styles = useMemo(() => createStyles(Colors), [Colors]);
 
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -339,14 +341,14 @@ export default function TrailDetailScreen() {
         )}
 
         {trail.status && trail.status !== 'open' && (
-          <View style={[styles.statusBanner, STATUS_BANNER_BG[trail.status]]}>
+          <View style={[styles.statusBanner, { backgroundColor: statusTone(trail.status, isDarkTheme).backgroundColor }]}>
             <Icon
               name={trail.status === 'closed' ? 'close-circle' : 'warning'}
               size={18}
-              color={STATUS_BANNER_ICON[trail.status]}
+              color={statusTone(trail.status, isDarkTheme).color}
             />
             <View style={styles.statusBannerText}>
-              <Text style={[styles.statusBannerTitle, { color: STATUS_BANNER_ICON[trail.status] }]}>
+              <Text style={[styles.statusBannerTitle, { color: statusTone(trail.status, isDarkTheme).color }]}>
                 Trail {STATUS_LABEL_DETAIL[trail.status]}
               </Text>
               {trail.status_note ? (
@@ -553,16 +555,6 @@ const STATUS_LABEL_DETAIL: Record<string, string> = {
   closed: 'Closed',
   seasonal: 'Seasonally Closed',
   maintenance: 'Under Maintenance',
-};
-const STATUS_BANNER_BG: Record<string, object> = {
-  closed: { backgroundColor: '#FEF2F2' },
-  seasonal: { backgroundColor: '#FFFBEB' },
-  maintenance: { backgroundColor: '#EFF6FF' },
-};
-const STATUS_BANNER_ICON: Record<string, string> = {
-  closed: '#DC2626',
-  seasonal: '#D97706',
-  maintenance: '#2563EB',
 };
 
 const createStyles = (Colors: ColorPalette) => StyleSheet.create({
