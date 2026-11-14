@@ -64,7 +64,8 @@ export const GEAR_DISPLAY_ORDER: readonly GearKey[] = DISPLAY_ORDER;
 
 const LEVEL_ORDER: Record<GearLevel, number> = { essential: 0, recommended: 1, optional: 2 };
 
-const SAC_DESCRIPTION: Record<SacGrade, string> = {
+/** What each SAC grade means, in a few words (also on the trail's terrain card). */
+export const SAC_DESCRIPTION: Record<SacGrade, string> = {
   T1: 'Easy path',
   T2: 'Mountain path',
   T3: 'Demanding mountain path',

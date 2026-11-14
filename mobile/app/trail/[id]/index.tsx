@@ -45,6 +45,7 @@ import { localName } from '../../../utils/i18n';
 import { isRouteUnverified, UNVERIFIED_ROUTE_MESSAGE } from '../../../utils/trailReview';
 import { TrailProblemModal } from '../../../components/trail/TrailProblemModal';
 import { GearCard } from '../../../components/trail/GearCard';
+import { TerrainCard } from '../../../components/trail/TerrainCard';
 import { TrailCompletionStatus } from '../../../components/trail/TrailCompletionStatus';
 import { useGearPlan } from '../../../hooks/useGear';
 import { useGearStore, localDay, shouldShowPrehikeCheck } from '../../../store/gearStore';
@@ -417,6 +418,9 @@ export default function TrailDetailScreen() {
             distanceKm={trail.distance_km}
             elevationGainM={trail.elevation_gain_m}
           />
+
+          {/* What the trail is like underfoot: grade, ground, river crossings, water, huts */}
+          {trail.terrain ? <TerrainCard terrain={trail.terrain} /> : null}
 
           {gear && (
             <GearCard
