@@ -190,7 +190,9 @@ export const ActivityCard = React.memo(function ActivityCard({
   const caption = item.activity_type === 'photo' ? item.extra_text?.trim() : null;
   const condition = item.activity_type === 'condition' ? conditionLabel(item.extra_text) : '';
   const likes = likesLabel(likeCount);
-  const commentsLink = commentsLinkLabel(commentCount);
+  const latestComment = item.latest_comment ?? null;
+  // Like Instagram: a single comment is simply shown; "View all" only when there are more
+  const commentsLink = latestComment && commentCount <= 1 ? null : commentsLinkLabel(commentCount);
 
   return (
     <View style={styles.post} testID="feed-post">
@@ -326,16 +328,31 @@ export const ActivityCard = React.memo(function ActivityCard({
           </Text>
         ) : null}
 
-        {item.latest_comment ? (
-          <Text style={styles.caption} numberOfLines={1} onPress={openComments}>
-            <Text style={styles.username}>{item.latest_comment.username}</Text>
-            {` ${item.latest_comment.comment}`}
+        {commentsLink ? (
+          <Text style={styles.commentsLink} onPress={openComments} testID="comments-link">
+            {commentsLink}
           </Text>
         ) : null}
 
-        <Text style={commentsLink ? styles.commentsLink : styles.addComment} onPress={openComments} testID="comments-link">
-          {commentsLink ?? 'Add a comment…'}
-        </Text>
+        {latestComment ? (
+          <Text
+            style={styles.caption}
+            numberOfLines={2}
+            onPress={openComments}
+            accessibilityRole="button"
+            accessibilityHint="Opens the comments"
+            testID="latest-comment"
+          >
+            <Text style={styles.username}>{latestComment.username}</Text>
+            {` ${latestComment.comment}`}
+          </Text>
+        ) : null}
+
+        {!commentsLink && !latestComment ? (
+          <Text style={styles.addComment} onPress={openComments} testID="comments-link">
+            Add a comment…
+          </Text>
+        ) : null}
       </View>
 
       {commentsOpened && (

@@ -197,6 +197,27 @@ describe('a post', () => {
     expect(shown()).not.toContain('12.4 km');
   });
 
+  it('shows the newest comment under the post, and opens the comments from it', async () => {
+    await render([post({ comment_count: 3, latest_comment: { id: 'k1', username: 'gio', comment: 'Beautiful!' } })]);
+    expect(shown()).toEqual(expect.arrayContaining(['View all 3 comments', 'gio Beautiful!']));
+
+    act(() => pressable('latest-comment').props.onPress());
+    expect(shown()).toContain('Comments for c1');
+  });
+
+  it('shows a single comment as it is, without “View 1 comment”', async () => {
+    await render([post({ comment_count: 1, latest_comment: { id: 'k1', username: 'gio', comment: 'Beautiful!' } })]);
+    expect(shown()).toContain('gio Beautiful!');
+    expect(shown()).not.toContain('View 1 comment');
+    expect(shown()).not.toContain('Add a comment…');
+  });
+
+  it('invites the first comment when there is none', async () => {
+    await render([post({ comment_count: 0, latest_comment: null })]);
+    expect(shown()).toContain('Add a comment…');
+    expect(byTestId('latest-comment')).toHaveLength(0);
+  });
+
   it('shows a photo post’s caption after the username', async () => {
     await render([post({ activity_id: 'p1', activity_type: 'photo', extra_text: 'Snow on the pass', photo_urls: null })]);
     expect(shown()).toContain('nino Snow on the pass');

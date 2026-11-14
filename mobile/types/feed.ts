@@ -24,8 +24,16 @@ export interface FeedItem {
   trail_elevation_gain_m?: number | null;
   /** How long the hike took; only completions have it, and not all of them. */
   elapsed_seconds?: number | null;
-  // Not sent by the API yet; shown when a future version adds them.
+  /** The newest comment, by someone the viewer has not blocked; shown under the post. */
+  latest_comment?: FeedComment | null;
+  // Not sent by the API yet; shown when a future version adds it.
   /** 'past' for a trail marked as done before the app. */
   source?: 'hike' | 'past' | null;
-  latest_comment?: { username: string; comment: string } | null;
+}
+
+export interface FeedComment {
+  id?: string;
+  user_id?: string;
+  username: string;
+  comment: string;
 }

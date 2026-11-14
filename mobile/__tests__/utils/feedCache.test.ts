@@ -6,6 +6,8 @@ import {
   withCommentCountDelta,
   withLikeState,
   withLikeToggled,
+  withNewComment,
+  withoutComment,
 } from '../../utils/feedCache';
 import type { FeedItem } from '../../types/feed';
 
@@ -70,6 +72,26 @@ describe('withCommentCountDelta', () => {
     expect(withCommentCountDelta(item('a', { comment_count: 1 }), 1).comment_count).toBe(2);
     expect(withCommentCountDelta(item('a', { comment_count: 0 }), -1).comment_count).toBe(0);
     expect(withCommentCountDelta(item('a'), 1).comment_count).toBeUndefined();
+  });
+});
+
+describe('withNewComment / withoutComment', () => {
+  const gio = { id: 'k1', user_id: 'u5', username: 'gio', comment: 'Beautiful!' };
+
+  it('counts a new comment and shows it under the post', () => {
+    const next = withNewComment(item('a', { comment_count: 2, latest_comment: null }), gio);
+    expect(next.comment_count).toBe(3);
+    expect(next.latest_comment).toEqual(gio);
+  });
+
+  it('takes a deleted comment away, and its preview when it was the one shown', () => {
+    const shown = withoutComment(item('a', { comment_count: 3, latest_comment: gio }), 'k1');
+    expect(shown.comment_count).toBe(2);
+    expect(shown.latest_comment).toBeNull();
+
+    const other = withoutComment(item('a', { comment_count: 3, latest_comment: gio }), 'k2');
+    expect(other.comment_count).toBe(2);
+    expect(other.latest_comment).toEqual(gio);
   });
 });
 

@@ -1,6 +1,6 @@
 import type { InfiniteData } from '@tanstack/react-query';
 import type { PaginatedResponse } from '../types/api';
-import type { FeedItem } from '../types/feed';
+import type { FeedComment, FeedItem } from '../types/feed';
 
 export type FeedPages = InfiniteData<PaginatedResponse<FeedItem>>;
 
@@ -54,4 +54,18 @@ export function withLikeState(item: FeedItem, liked: boolean, count: number): Fe
 export function withCommentCountDelta(item: FeedItem, delta: number): FeedItem {
   if (typeof item.comment_count !== 'number') return item;
   return { ...item, comment_count: Math.max(0, item.comment_count + delta) };
+}
+
+/** A comment just posted: counted, and shown under the post as its newest. */
+export function withNewComment(item: FeedItem, comment: FeedComment): FeedItem {
+  return { ...withCommentCountDelta(item, 1), latest_comment: comment };
+}
+
+/**
+ * A comment just deleted: no longer counted, and gone from under the post when it was the one
+ * shown there (the next refresh brings the one before it).
+ */
+export function withoutComment(item: FeedItem, commentId: string): FeedItem {
+  const next = withCommentCountDelta(item, -1);
+  return item.latest_comment?.id === commentId ? { ...next, latest_comment: null } : next;
 }
