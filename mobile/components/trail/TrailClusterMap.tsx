@@ -6,6 +6,10 @@ import { TrailSummary } from '../../types/trail';
 import { toLatLng } from '../../utils/mapPoint';
 import { clusterPoints, MapRegion, regionForPoints } from '../../utils/mapClusters';
 import { haptics } from '../../utils/haptics';
+import { useMapStyle } from '../../hooks/useMapStyle';
+import { TopoTileLayer, topoMapType } from '../map/TopoTileLayer';
+import { MapStyleToggle } from '../map/MapStyleToggle';
+import { TopoAttribution } from '../map/TopoAttribution';
 
 interface TrailClusterMapProps {
   trails: TrailSummary[];
@@ -51,6 +55,7 @@ function ClusterBubble({ count, onPress, coordinate, color }: {
  */
 export function TrailClusterMap({ trails, initialRegion, onOpenTrail }: TrailClusterMapProps) {
   const Colors = useColors();
+  const { topo, offline, toggle } = useMapStyle();
   const mapRef = useRef<MapView>(null);
   const [region, setRegion] = useState<MapRegion>(initialRegion);
   const [size, setSize] = useState({ width: 0, height: 0 });
@@ -87,9 +92,11 @@ export function TrailClusterMap({ trails, initialRegion, onOpenTrail }: TrailClu
         style={StyleSheet.absoluteFill}
         provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
         initialRegion={initialRegion}
+        mapType={topoMapType(topo)}
         // Regroup only once the camera stops moving
         onRegionChangeComplete={(next: Region) => setRegion(next)}
       >
+        {topo && <TopoTileLayer offline={offline} />}
         {clusters.map((cluster) => {
           if (cluster.points.length > 1) {
             return (
@@ -117,6 +124,8 @@ export function TrailClusterMap({ trails, initialRegion, onOpenTrail }: TrailClu
           );
         })}
       </MapView>
+      <MapStyleToggle topo={topo} onToggle={toggle} style={styles.toggle} />
+      {topo && <TopoAttribution />}
     </View>
   );
 }
@@ -124,6 +133,11 @@ export function TrailClusterMap({ trails, initialRegion, onOpenTrail }: TrailClu
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  toggle: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
   },
   bubble: {
     minWidth: 36,

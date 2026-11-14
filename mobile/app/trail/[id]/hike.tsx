@@ -40,6 +40,10 @@ import { classifySyncFailure } from '../../../utils/syncQueue';
 import { MAX_FIX_ACCURACY_M, buildPendingCompletion, isWithinCheckinRange } from '../../../utils/track';
 import { recordKeptPastMark } from '../../../utils/pastHikes';
 import { RecordHikeResponse } from '../../../types/completion';
+import { useMapStyle } from '../../../hooks/useMapStyle';
+import { TopoTileLayer, topoMapType } from '../../../components/map/TopoTileLayer';
+import { MapStyleToggle } from '../../../components/map/MapStyleToggle';
+import { TopoAttribution } from '../../../components/map/TopoAttribution';
 
 // Isolated timer component — only this re-renders every second
 function HikeTimer({ styles }: { styles: ReturnType<typeof createStyles> }) {
@@ -112,6 +116,8 @@ export default function HikeScreen() {
   const finishedRef = useRef(false);
   const mapRef = useRef<MapView>(null);
   const hasInitialLocation = useRef(false);
+  // Offline the standard map cannot load, so the topo tiles kept on the phone take over
+  const { topo, offline, toggle: toggleMapStyle } = useMapStyle({ autoTopoWhenOffline: true });
 
   const hydrated = useHikeStore((s) => s._hydrated);
   const isActive = useHikeStore((s) => s.isActive);
@@ -499,7 +505,10 @@ export default function HikeScreen() {
         provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
         initialRegion={Config.DEFAULT_MAP_REGION}
         showsUserLocation
+        mapType={topoMapType(topo)}
       >
+        {topo && <TopoTileLayer offline={offline} />}
+
         {/* Trail route polyline */}
         {routeCoords.length > 1 && (
           <Polyline
@@ -583,6 +592,23 @@ export default function HikeScreen() {
         </TouchableOpacity>
       )}
 
+      {/* Map style, above the photo button. Offline there is nothing else to switch to. */}
+      {offline ? (
+        <View
+          style={[styles.offlineMapBadge, { bottom: 268 + insets.bottom }]}
+          accessibilityLabel="Offline: showing the topo map saved on this phone"
+        >
+          <Ionicons name="cloud-offline-outline" size={14} color="#263238" />
+          <Text style={styles.offlineMapBadgeText}>Offline topo map</Text>
+        </View>
+      ) : (
+        <MapStyleToggle
+          topo={topo}
+          onToggle={toggleMapStyle}
+          style={[styles.mapStyleToggle, { bottom: 268 + insets.bottom }]}
+        />
+      )}
+
       {/* Photo button */}
       <TouchableOpacity
         style={[styles.photoButton, { bottom: 200 + insets.bottom }]}
@@ -596,6 +622,8 @@ export default function HikeScreen() {
 
       {/* Bottom info */}
       <View style={[styles.bottomBar, { paddingBottom: insets.bottom + 8 }]}>
+        {/* The panel covers the bottom of the map, so the topo credit goes on top of it */}
+        {topo && <TopoAttribution variant="inline" style={styles.topoCredit} />}
         <Text style={styles.trailName}>{trail?.name_en ?? 'Loading...'}</Text>
         <Text style={[styles.hint, locationBlocked && !saving && styles.hintWarning]}>{hint}</Text>
 
@@ -791,6 +819,35 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     fontSize: 13,
     color: Colors.textSecondary,
     fontStyle: 'italic',
+  },
+  mapStyleToggle: {
+    position: 'absolute',
+    right: 16,
+  },
+  offlineMapBadge: {
+    position: 'absolute',
+    right: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    minHeight: 34,
+    paddingHorizontal: 11,
+    borderRadius: 17,
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+  },
+  offlineMapBadgeText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#263238',
+  },
+  topoCredit: {
+    color: Colors.textSecondary,
+    marginBottom: 6,
   },
   photoButton: {
     position: 'absolute',

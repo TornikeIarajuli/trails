@@ -43,6 +43,7 @@ export default function PrivacyPolicy() {
             <li><strong>Expo:</strong> delivery of push notifications (your push token and the content of each notification).</li>
             <li><strong>PostHog:</strong> product analytics, hosted in the United States (usage events, device information, and your user ID and email address as identifier).</li>
             <li><strong>Sentry:</strong> error logs from the API, which can include technical details of the request that failed.</li>
+            <li><strong>Google Maps, OpenTopoMap and Open-Meteo:</strong> the App loads map images directly from Google Maps (the standard map) or OpenTopoMap (the topographic map), and trail weather from Open-Meteo. Like any website, these services receive your device&apos;s IP address and the map area or location being looked up. Topographic map images you view or save stay on your phone until you delete them in Settings.</li>
           </ul>
           <p className="mt-2">Data travels between the App and our servers over encrypted connections (HTTPS). Photos you upload are stored at public web addresses: anyone who has the link to a photo can open it without signing in.</p>
         </section>

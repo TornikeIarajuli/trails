@@ -15,6 +15,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { useColors, ColorPalette } from '../../../constants/colors';
 import { useRegionProgress } from '../../../hooks/useRegionProgress';
 import { useTrails, usePrefetchTrail } from '../../../hooks/useTrails';
+import { useMapStyle } from '../../../hooks/useMapStyle';
+import { TopoTileLayer, topoMapType } from '../../../components/map/TopoTileLayer';
+import { MapStyleToggle } from '../../../components/map/MapStyleToggle';
+import { TopoAttribution } from '../../../components/map/TopoAttribution';
 import { haptics } from '../../../utils/haptics';
 import { useSettingsStore } from '../../../store/settingsStore';
 import { ErrorState } from '../../../components/ui/ErrorState';
@@ -190,6 +194,7 @@ export default function RegionsScreen() {
   const { data, isLoading, error, refetch, isRefetching } = useRegionProgress(userId || undefined);
   const [expanded, setExpanded] = useState<string | null>(null);
   const listRef = useRef<FlatList<RegionProgress>>(null);
+  const { topo, offline, toggle } = useMapStyle();
 
   const regions = useMemo(() => sortRegions(data?.regions ?? []), [data]);
 
@@ -257,11 +262,15 @@ export default function RegionsScreen() {
             provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
             initialRegion={GEORGIA}
             toolbarEnabled={false}
+            mapType={topoMapType(topo)}
           >
+            {topo && <TopoTileLayer offline={offline} />}
             {regions.map((region) => (
               <RegionMarker key={region.region} region={region} onPress={() => showRegion(region.region)} />
             ))}
           </MapView>
+          <MapStyleToggle topo={topo} onToggle={toggle} style={styles.mapToggle} />
+          {topo && <TopoAttribution />}
         </View>
 
         <FlatList
@@ -327,6 +336,7 @@ const createStyles = (Colors: ColorPalette) =>
       paddingVertical: 12,
     },
     mapWrap: { height: MAP_HEIGHT },
+    mapToggle: { position: 'absolute', top: 10, right: 10 },
     list: { padding: 16, gap: 10 },
     skeletonTitle: { marginHorizontal: 16, marginVertical: 14 },
     skeletonRow: { marginHorizontal: 16, marginTop: 10 },

@@ -4,6 +4,10 @@ import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
 import { useColors, ColorPalette } from '../../constants/colors';
 import { Checkpoint } from '../../types/checkpoint';
 import { parseGeoPoint } from '../../utils/geo';
+import { useMapStyle } from '../../hooks/useMapStyle';
+import { TopoTileLayer, topoMapType } from '../map/TopoTileLayer';
+import { MapStyleToggle } from '../map/MapStyleToggle';
+import { TopoAttribution } from '../map/TopoAttribution';
 
 const OSM_COPYRIGHT_URL = 'https://www.openstreetmap.org/copyright';
 
@@ -24,6 +28,7 @@ export function TrailMap({
 }: TrailMapProps) {
   const Colors = useColors();
   const styles = useMemo(() => createStyles(Colors), [Colors]);
+  const { topo, offline, toggle } = useMapStyle();
 
   // Parse checkpoint coordinates
   const parsedCheckpoints = checkpoints
@@ -70,7 +75,9 @@ export function TrailMap({
           style={styles.map}
           provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
           initialRegion={region}
+          mapType={topoMapType(topo)}
         >
+          {topo && <TopoTileLayer offline={offline} />}
           {route.length > 1 && (
             <Polyline
               coordinates={route}
@@ -94,15 +101,20 @@ export function TrailMap({
             />
           ))}
         </MapView>
+        <MapStyleToggle topo={topo} onToggle={toggle} style={styles.toggle} />
+        {topo && <TopoAttribution />}
       </View>
-      {/* The route and checkpoints come from OpenStreetMap (ODbL), which requires this credit */}
-      <Text
-        style={styles.attribution}
-        onPress={() => Linking.openURL(OSM_COPYRIGHT_URL).catch(() => {})}
-        accessibilityRole="link"
-      >
-        Map data © OpenStreetMap contributors
-      </Text>
+      {/* The route and checkpoints come from OpenStreetMap (ODbL), which requires this credit.
+          The topo credit on the map already includes it. */}
+      {!topo && (
+        <Text
+          style={styles.attribution}
+          onPress={() => Linking.openURL(OSM_COPYRIGHT_URL).catch(() => {})}
+          accessibilityRole="link"
+        >
+          Map data © OpenStreetMap contributors
+        </Text>
+      )}
     </View>
   );
 }
@@ -115,6 +127,11 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   },
   map: {
     ...StyleSheet.absoluteFillObject,
+  },
+  toggle: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
   },
   placeholder: {
     backgroundColor: Colors.borderLight,

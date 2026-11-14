@@ -47,6 +47,12 @@ import { GearCard } from '../../../components/trail/GearCard';
 import { TrailCompletionStatus } from '../../../components/trail/TrailCompletionStatus';
 import { useGearPlan } from '../../../hooks/useGear';
 import { useGearStore, localDay, shouldShowPrehikeCheck } from '../../../store/gearStore';
+import { useNetworkStatus } from '../../../hooks/useNetworkStatus';
+import { useOfflineMapsStore } from '../../../store/offlineMapsStore';
+import { TopoDownloadRow, startTopoDownload, topoDownloadSizeLabel } from '../../../components/trail/TopoDownloadRow';
+import { LatLng, TilePlan, planTrailTiles } from '../../../utils/topoTiles';
+
+const NO_TOPO_PLAN: TilePlan = { tiles: [], minZoom: 0, maxZoom: null, droppedZooms: [] };
 
 export default function TrailDetailScreen() {
   const Colors = useColors();
@@ -92,6 +98,20 @@ export default function TrailDetailScreen() {
   const [isSavedOffline, setIsSavedOffline] = useState(() =>
     trailCache.isTrailSavedOffline(id),
   );
+  const isOffline = useNetworkStatus() === 'offline';
+
+  // The topo tiles to save for this trail: around everything the map shows
+  const topoPlan = useMemo(() => {
+    if (!trail || isPlaceholderData) return NO_TOPO_PLAN;
+    const points: LatLng[] = [
+      ...parseGeoLineString(trail.route),
+      ...[parseGeoPoint(trail.start_point), parseGeoPoint(trail.end_point)].filter((p): p is LatLng => !!p),
+      ...(trail.checkpoints ?? [])
+        .map((cp) => parseGeoPoint(cp.coordinates))
+        .filter((p): p is LatLng => !!p),
+    ];
+    return planTrailTiles(points);
+  }, [trail, isPlaceholderData]);
 
   // Cache trail data when loaded + track view (never the list stand-in: it would become the
   // "offline copy" and lack the route, checkpoints and media)
@@ -112,8 +132,38 @@ export default function TrailDetailScreen() {
     } else if (trail) {
       trailCache.saveTrailOffline(id, trail);
       setIsSavedOffline(true);
-      Alert.alert('Saved', 'Trail saved for offline viewing');
+      offerTopoDownload();
     }
+  };
+
+  // Saving the trail keeps its details; the topo map is offered alongside, never fetched unasked
+  const offerTopoDownload = () => {
+    const maps = useOfflineMapsStore.getState();
+    maps.load();
+    if (topoPlan.tiles.length === 0 || maps.saved[id] || maps.active?.trailId === id) {
+      Alert.alert('Saved', 'Trail saved for offline viewing');
+      return;
+    }
+    if (isOffline) {
+      Alert.alert(
+        'Saved',
+        'Trail saved for offline viewing. Connect to the internet to also save its topo map.',
+      );
+      return;
+    }
+    Alert.alert(
+      'Saved for offline viewing',
+      `Also download the topo map for this trail (${topoDownloadSizeLabel(topoPlan)})? The map then works without signal.`,
+      [
+        { text: 'Not now', style: 'cancel' },
+        {
+          text: 'Download',
+          onPress: () => {
+            if (trail) startTopoDownload(id, trail.name_en, topoPlan);
+          },
+        },
+      ],
+    );
   };
 
   if (!trail) {
@@ -405,13 +455,16 @@ export default function TrailDetailScreen() {
           {isPlaceholderData ? (
             <View style={styles.mapLoading} />
           ) : (
-            <TrailMap
-              route={parseGeoLineString(trail.route)}
-              startPoint={parseGeoPoint(trail.start_point) ?? undefined}
-              endPoint={parseGeoPoint(trail.end_point) ?? undefined}
-              checkpoints={checkpoints}
-              height={220}
-            />
+            <>
+              <TrailMap
+                route={parseGeoLineString(trail.route)}
+                startPoint={parseGeoPoint(trail.start_point) ?? undefined}
+                endPoint={parseGeoPoint(trail.end_point) ?? undefined}
+                checkpoints={checkpoints}
+                height={220}
+              />
+              <TopoDownloadRow trailId={id} trailName={trail.name_en} plan={topoPlan} />
+            </>
           )}
 
           <CheckpointList checkpoints={checkpoints} />

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Switch, Alert, ScrollView, ActivityIndicator, Share } from 'react-native';
 import { Stack, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -11,6 +11,10 @@ import { logout } from '../../../hooks/useAuth';
 import { usersService } from '../../../services/users';
 import { queryKeys } from '../../../utils/queryKeys';
 import { getErrorMessage } from '../../../utils/showError';
+import { useOfflineMapsStore } from '../../../store/offlineMapsStore';
+import { offlineMapsSize } from '../../../services/offlineMaps';
+import { formatMegabytes } from '../../../utils/topoTiles';
+import { haptics } from '../../../utils/haptics';
 
 const GPS_OPTIONS: { value: GpsAccuracy; label: string; hint: string }[] = [
   { value: 'low', label: 'Battery Saver', hint: 'GPS with fewer updates. Uses the least battery; the recorded track is coarser.' },
@@ -96,6 +100,72 @@ function EmergencyContactRow({ styles, Colors }: { styles: ReturnType<typeof cre
         <Ionicons name="chevron-forward" size={18} color={Colors.textLight} />
       )}
     </TouchableOpacity>
+  );
+}
+
+/** Topo maps on the phone: saved trails plus tiles kept from browsing, with a way to clear them. */
+function OfflineMapsRow({ styles, Colors }: { styles: ReturnType<typeof createStyles>; Colors: ColorPalette }) {
+  const load = useOfflineMapsStore((s) => s.load);
+  const savedCount = useOfflineMapsStore((s) => Object.keys(s.saved).length);
+  const downloading = useOfflineMapsStore((s) => s.active !== null);
+  const [bytes, setBytes] = useState<number | null>(null);
+
+  useEffect(() => {
+    load();
+    // Adding up the tile files can take a moment with many of them: after the first frame
+    const timer = setTimeout(() => setBytes(offlineMapsSize()), 0);
+    return () => clearTimeout(timer);
+  }, [load, savedCount, downloading]);
+
+  const hasMaps = savedCount > 0 || (bytes ?? 0) > 0;
+  let subtitle: string;
+  if (bytes === null) subtitle = 'Checking…';
+  else if (!hasMaps) subtitle = 'Nothing saved on this phone';
+  else {
+    subtitle = `${formatMegabytes(bytes)} on this phone`;
+    if (savedCount > 0) subtitle += ` · ${savedCount} trail${savedCount === 1 ? '' : 's'} saved`;
+  }
+  if (downloading) subtitle += ' · downloading…';
+
+  const confirmDeleteAll = () => {
+    Alert.alert(
+      'Delete all offline maps?',
+      'Topo maps saved for trails, and map tiles kept from browsing, are removed from this phone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete all',
+          style: 'destructive',
+          onPress: () => {
+            haptics.tap();
+            useOfflineMapsStore.getState().deleteAll();
+            setBytes(0);
+          },
+        },
+      ],
+    );
+  };
+
+  return (
+    <View style={styles.row}>
+      <View style={styles.rowLeft}>
+        <Ionicons name="map-outline" size={20} color={Colors.text} />
+        <View style={styles.rowTextBlock}>
+          <Text style={styles.rowLabel}>Offline maps</Text>
+          <Text style={styles.rowSubtitle}>{subtitle}</Text>
+        </View>
+      </View>
+      {hasMaps && (
+        <TouchableOpacity
+          onPress={confirmDeleteAll}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          accessibilityRole="button"
+          accessibilityLabel="Delete all offline maps"
+        >
+          <Text style={styles.deleteAllText}>Delete all</Text>
+        </TouchableOpacity>
+      )}
+    </View>
   );
 }
 
@@ -236,6 +306,11 @@ export default function SettingsScreen() {
               </View>
             </TouchableOpacity>
           ))}
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Maps</Text>
+          <OfflineMapsRow styles={styles} Colors={Colors} />
         </View>
 
         <View style={styles.section}>
@@ -450,6 +525,11 @@ const createStyles = (Colors: ColorPalette) =>
     },
     actionText: {
       fontSize: 16,
+      color: Colors.error,
+      fontWeight: '600',
+    },
+    deleteAllText: {
+      fontSize: 14,
       color: Colors.error,
       fontWeight: '600',
     },

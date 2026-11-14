@@ -3,6 +3,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type Language = 'en' | 'ka';
 export type GpsAccuracy = 'low' | 'balanced' | 'high';
+/** The base map on every map screen: the platform map, or OpenTopoMap's topographic tiles. */
+export type MapStyle = 'standard' | 'topo';
 
 const STORAGE_KEY = 'app_settings';
 
@@ -11,11 +13,13 @@ interface SettingsState {
   isDarkMode: boolean;
   hasSeenOnboarding: boolean;
   gpsAccuracy: GpsAccuracy;
+  mapStyle: MapStyle;
   _hydrated: boolean;
   setLanguage: (lang: Language) => void;
   toggleDarkMode: () => void;
   setHasSeenOnboarding: () => void;
   setGpsAccuracy: (accuracy: GpsAccuracy) => void;
+  setMapStyle: (style: MapStyle) => void;
   hydrate: () => Promise<void>;
 }
 
@@ -24,6 +28,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   isDarkMode: false,
   hasSeenOnboarding: false,
   gpsAccuracy: 'balanced',
+  mapStyle: 'standard',
   _hydrated: false,
 
   setLanguage: (language) => {
@@ -46,6 +51,11 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     persist(get());
   },
 
+  setMapStyle: (mapStyle) => {
+    set({ mapStyle });
+    persist(get());
+  },
+
   hydrate: async () => {
     try {
       const raw = await AsyncStorage.getItem(STORAGE_KEY);
@@ -56,6 +66,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
           isDarkMode: data.isDarkMode ?? false,
           hasSeenOnboarding: data.hasSeenOnboarding ?? false,
           gpsAccuracy: data.gpsAccuracy ?? 'balanced',
+          mapStyle: data.mapStyle === 'topo' ? 'topo' : 'standard',
           _hydrated: true,
         });
       } else {
@@ -68,9 +79,9 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
 }));
 
 function persist(state: SettingsState) {
-  const { language, isDarkMode, hasSeenOnboarding, gpsAccuracy } = state;
+  const { language, isDarkMode, hasSeenOnboarding, gpsAccuracy, mapStyle } = state;
   AsyncStorage.setItem(
     STORAGE_KEY,
-    JSON.stringify({ language, isDarkMode, hasSeenOnboarding, gpsAccuracy }),
+    JSON.stringify({ language, isDarkMode, hasSeenOnboarding, gpsAccuracy, mapStyle }),
   ).catch(() => {});
 }

@@ -54,6 +54,17 @@ export default function CreditsScreen() {
       </View>
 
       <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Topographic map</Text>
+        <Text style={styles.body}>
+          Map style © OpenTopoMap (CC-BY-SA); map data © OpenStreetMap contributors, SRTM. Topo map
+          tiles come from OpenTopoMap's servers and are kept on this phone once viewed or saved.
+        </Text>
+        <Link url="https://opentopomap.org/about" style={styles.link}>
+          opentopomap.org/about
+        </Link>
+      </View>
+
+      <View style={styles.section}>
         <Text style={styles.sectionTitle}>Elevation</Text>
         <Text style={styles.body}>
           Elevation data: NASA Shuttle Radar Topography Mission (SRTM).
