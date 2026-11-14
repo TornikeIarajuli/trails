@@ -99,7 +99,12 @@ export class UsersService {
 
   async updateProfile(
     userId: string,
-    data: { full_name?: string; bio?: string; contact_info?: string | null },
+    data: {
+      full_name?: string;
+      bio?: string;
+      contact_info?: string | null;
+      instagram_handle?: string | null;
+    },
   ) {
     const admin = this.supabaseService.getAdminClient();
 
@@ -416,7 +421,7 @@ export class UsersService {
     const { data: profile, error } = await admin
       .from('profiles')
       .select(
-        'id, username, full_name, avatar_url, bio, total_trails_completed, created_at, last_seen_at',
+        'id, username, full_name, avatar_url, bio, instagram_handle, total_trails_completed, created_at, last_seen_at',
       )
       .eq('id', userId)
       .single();
