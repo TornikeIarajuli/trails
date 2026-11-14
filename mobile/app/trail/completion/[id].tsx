@@ -35,6 +35,7 @@ import { analytics } from '../../../utils/analytics';
 import { describeCompletionOutcome, describeReason } from '../../../utils/verification';
 import { VerificationReason } from '../../../types/completion';
 import { completionDateLabel, isPastHike, pastHikeYear } from '../../../utils/pastHikes';
+import { HowWasTheTrail } from '../../../components/completion/HowWasTheTrail';
 
 function formatElapsedTime(seconds: number): string {
   const h = Math.floor(seconds / 3600);
@@ -417,6 +418,9 @@ export default function CompletionDetailScreen() {
               })()}
             </View>
           )}
+
+          {/* Right after a recorded hike: rate the trail and say how it was, in a tap */}
+          {justFinished && !past && completion.trail_id ? <HowWasTheTrail trailId={completion.trail_id} /> : null}
 
           {/* Action Buttons */}
           <TouchableOpacity
