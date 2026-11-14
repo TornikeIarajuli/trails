@@ -64,7 +64,7 @@ export default function LoginScreen() {
             style={styles.logo}
             contentFit="contain"
           />
-          <Text style={styles.appName}>GZA</Text>
+          <Text style={styles.appName}>Kvali</Text>
           <Text style={styles.subtitle}>Discover. Hike. Conquer.</Text>
         </View>
 

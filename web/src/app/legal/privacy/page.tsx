@@ -1,4 +1,4 @@
-export const metadata = { title: "Privacy Policy - Mikiri Trails" };
+export const metadata = { title: "Privacy Policy - Kvali" };
 
 export default function PrivacyPolicy() {
   return (
@@ -9,7 +9,7 @@ export default function PrivacyPolicy() {
       <div className="prose prose-gray max-w-none space-y-6">
         <section>
           <h2 className="text-xl font-semibold mt-8 mb-3">1. Information We Collect</h2>
-          <p>When you use Mikiri Trails, we collect:</p>
+          <p>When you use Kvali, we collect:</p>
           <ul className="list-disc pl-6 space-y-1">
             <li><strong>Account information:</strong> email address, username, and the optional profile details you add (name, bio, profile photo, contact details).</li>
             <li><strong>Location data:</strong> GPS coordinates while you record a hike, your position when you ask for trails near you, and your position when you trigger SOS. When you finish a hike, the recorded GPS track is sent to our servers and stored there to verify the completion. If you set a &ldquo;Back by&rdquo; time for a hike, your position is also sent to our servers about every 10 minutes during that hike. Warnings near the occupation line and the state border are worked out on your phone; nothing is sent for them.</li>
@@ -80,7 +80,7 @@ export default function PrivacyPolicy() {
 
         <section>
           <h2 className="text-xl font-semibold mt-8 mb-3">7. Children&apos;s Privacy</h2>
-          <p>Mikiri Trails is not intended for children under 13. We do not knowingly collect data from children under 13.</p>
+          <p>Kvali is not intended for children under 13. We do not knowingly collect data from children under 13.</p>
         </section>
 
         <section>

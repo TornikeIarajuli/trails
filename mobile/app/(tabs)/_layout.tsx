@@ -117,7 +117,7 @@ function Header() {
   return (
     <View>
       <View style={[styles.header, { paddingTop: insets.top + 6 }]}>
-        <Text style={styles.appTitle}>Mikiri Trails</Text>
+        <Text style={styles.appTitle}>Kvali</Text>
         <View style={styles.headerActions}>
           <Pressable
             onPress={() => router.push('/search')}

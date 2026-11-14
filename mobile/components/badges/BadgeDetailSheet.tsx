@@ -56,7 +56,7 @@ function BadgeDetail({ badge, earned, earnedAt, progress }: Omit<Props, 'badge' 
 
   const handleShare = async () => {
     await Share.share({
-      message: `🏆 I earned the "${badge.name_en}" badge on GZA Trails!\n${badge.description_en}`,
+      message: `🏆 I earned the "${badge.name_en}" badge on Kvali!\n${badge.description_en}`,
     });
   };
 

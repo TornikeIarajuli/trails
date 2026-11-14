@@ -132,7 +132,7 @@ describe('suggestionReason', () => {
     );
     expect(suggestionReason({ followed_by: null, mutual_count: 0, total_trails_completed: 1 })).toBe('1 hike');
     expect(suggestionReason({ followed_by: null, mutual_count: 0, total_trails_completed: 9 })).toBe('9 hikes');
-    expect(suggestionReason({ followed_by: null, mutual_count: 0, total_trails_completed: 0 })).toBe('New on Mikiri');
+    expect(suggestionReason({ followed_by: null, mutual_count: 0, total_trails_completed: 0 })).toBe('New on Kvali');
   });
 });
 

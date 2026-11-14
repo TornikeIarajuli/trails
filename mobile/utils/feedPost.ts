@@ -125,5 +125,5 @@ export function completionChips(item: FeedItem): StatChip[] {
 
 /** What the share sheet sends for a post: who did what, where, and a link to the trail. */
 export function shareMessage(item: FeedItem): string {
-  return `${item.user_username} ${feedAction(item.activity_type)} ${item.trail_name_en} on Mikiri Trails.\n\nmikiri-trails://trail/${item.trail_id}`;
+  return `${item.user_username} ${feedAction(item.activity_type)} ${item.trail_name_en} on Kvali.\n\nmikiri-trails://trail/${item.trail_id}`;
 }

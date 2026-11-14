@@ -112,7 +112,7 @@ export default function OnboardingScreen() {
           style={styles.logo}
           contentFit="contain"
         />
-        <Text style={styles.logoName}>GZA</Text>
+        <Text style={styles.logoName}>Kvali</Text>
       </View>
 
       <FlatList

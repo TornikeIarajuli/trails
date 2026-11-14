@@ -43,7 +43,7 @@ export function AdminSidebar() {
   return (
     <aside className="w-60 border-r bg-muted/30 flex flex-col min-h-screen">
       <div className="p-4 border-b">
-        <h1 className="text-lg font-bold">Mikiri Trails</h1>
+        <h1 className="text-lg font-bold">Kvali</h1>
         <p className="text-xs text-muted-foreground">Admin Panel</p>
       </div>
       <nav className="flex-1 p-2 space-y-1">

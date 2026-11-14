@@ -36,7 +36,7 @@ const CONTOURS = [
 
 /**
  * The picture shared for a finished hike: the route's shape, the trail, the date and the
- * numbers, on a dark green background, sized for an Instagram story. Drawn with SVG, so it can
+ * numbers, on a dark green background, sized for an Instagram story, signed Kvali. Drawn with SVG, so it can
  * be turned into a PNG on the phone (react-native-svg's toDataURL).
  */
 export const ShareCard = forwardRef<ShareCardHandle, { data: ShareCardData; width: number }>(function ShareCard(
@@ -92,7 +92,7 @@ export const ShareCard = forwardRef<ShareCardHandle, { data: ShareCardData; widt
       </G>
 
       <SvgText x={CARD_WIDTH / 2} y={150} fill="#D8F3DC" fontSize={34} fontWeight="700" letterSpacing={8} textAnchor="middle" opacity={0.85}>
-        MIKIRI TRAILS
+        KVALI
       </SvgText>
 
       {drawing ? (

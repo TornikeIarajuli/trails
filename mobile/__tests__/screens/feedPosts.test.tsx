@@ -341,7 +341,7 @@ describe('going places from a post', () => {
     await render([post()]);
     act(() => pressable('share-button').props.onPress());
     expect(share).toHaveBeenCalledWith({
-      message: 'nino completed Juta to Roshka on Mikiri Trails.\n\nmikiri-trails://trail/t1',
+      message: 'nino completed Juta to Roshka on Kvali.\n\nmikiri-trails://trail/t1',
     });
     share.mockRestore();
   });

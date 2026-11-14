@@ -1,4 +1,4 @@
-export const metadata = { title: "Terms of Service - Mikiri Trails" };
+export const metadata = { title: "Terms of Service - Kvali" };
 
 export default function TermsOfService() {
   return (
@@ -9,12 +9,12 @@ export default function TermsOfService() {
       <div className="prose prose-gray max-w-none space-y-6">
         <section>
           <h2 className="text-xl font-semibold mt-8 mb-3">1. Acceptance of Terms</h2>
-          <p>By downloading, installing, or using the Mikiri Trails mobile application (&quot;App&quot;), you agree to be bound by these Terms of Service. If you do not agree, do not use the App.</p>
+          <p>By downloading, installing, or using the Kvali mobile application (&quot;App&quot;), you agree to be bound by these Terms of Service. If you do not agree, do not use the App.</p>
         </section>
 
         <section>
           <h2 className="text-xl font-semibold mt-8 mb-3">2. Description of Service</h2>
-          <p>Mikiri Trails is a hiking companion app for trails in Georgia. The App allows users to discover trails, track hikes with GPS, complete checkpoints, earn badges, write reviews, and interact with other hikers.</p>
+          <p>Kvali is a hiking companion app for trails in Georgia. The App allows users to discover trails, track hikes with GPS, complete checkpoints, earn badges, write reviews, and interact with other hikers.</p>
           <p className="mt-2">A hike counts as a completed trail when the GPS track the App records during the hike follows enough of the trail&apos;s route. A hike that cannot be verified this way is kept as pending: it does not count towards badges or the leaderboard unless it is approved after a manual review.</p>
         </section>
 
@@ -30,7 +30,7 @@ export default function TermsOfService() {
 
         <section>
           <h2 className="text-xl font-semibold mt-8 mb-3">4. User Content</h2>
-          <p>You retain ownership of content you submit (photos, reviews, profile information). By submitting content, you grant Mikiri Trails a non-exclusive, worldwide, royalty-free license to use, display, and distribute your content within the App and for promotional purposes.</p>
+          <p>You retain ownership of content you submit (photos, reviews, profile information). By submitting content, you grant Kvali a non-exclusive, worldwide, royalty-free license to use, display, and distribute your content within the App and for promotional purposes.</p>
           <p className="mt-2">You agree not to submit content that is:</p>
           <ul className="list-disc pl-6 space-y-1">
             <li>Illegal, harmful, threatening, or harassing.</li>
@@ -42,15 +42,15 @@ export default function TermsOfService() {
 
         <section>
           <h2 className="text-xl font-semibold mt-8 mb-3">5. Trail Safety</h2>
-          <p>Mikiri Trails provides trail information for reference only. You acknowledge that:</p>
+          <p>Kvali provides trail information for reference only. You acknowledge that:</p>
           <ul className="list-disc pl-6 space-y-1">
             <li>Trail conditions may change and may not be reflected in the App.</li>
             <li>You are solely responsible for your own safety while hiking.</li>
             <li>GPS tracking and checkpoint distances are approximate and should not be relied upon for navigation.</li>
             <li>You should always carry appropriate gear, supplies, and a backup navigation method.</li>
-            <li>Mikiri Trails is not a substitute for proper trail maps or navigation tools.</li>
+            <li>Kvali is not a substitute for proper trail maps or navigation tools.</li>
           </ul>
-          <p className="mt-2"><strong>SOS.</strong> The SOS button sends a push notification with your current location to the emergency contact you have chosen in the App, who must be another Mikiri Trails user. It does not contact emergency services or a rescue team. The alert only arrives if both phones have an internet connection and your contact has notifications turned on, so it may be delayed or never delivered. In an emergency, call the emergency number (112 in Georgia).</p>
+          <p className="mt-2"><strong>SOS.</strong> The SOS button sends a push notification with your current location to the emergency contact you have chosen in the App, who must be another Kvali user. It does not contact emergency services or a rescue team. The alert only arrives if both phones have an internet connection and your contact has notifications turned on, so it may be delayed or never delivered. In an emergency, call the emergency number (112 in Georgia).</p>
         </section>
 
         <section>
@@ -68,7 +68,7 @@ export default function TermsOfService() {
 
         <section>
           <h2 className="text-xl font-semibold mt-8 mb-3">7. Intellectual Property and Data Sources</h2>
-          <p>The App&apos;s design, features, and branding belong to the operator of Mikiri Trails. You may not copy, modify, distribute, or create derivative works based on them without permission.</p>
+          <p>The App&apos;s design, features, and branding belong to the operator of Kvali. You may not copy, modify, distribute, or create derivative works based on them without permission.</p>
           <p className="mt-2">The trail data is not ours alone and stays under its own licences:</p>
           <ul className="list-disc pl-6 space-y-1">
             <li>Trail routes and map data are derived from OpenStreetMap, © <a href="https://www.openstreetmap.org/copyright" className="text-blue-600 underline">OpenStreetMap contributors</a>, and are available under the <a href="https://opendatacommons.org/licenses/odbl/" className="text-blue-600 underline">Open Database License (ODbL)</a>.</li>
@@ -90,7 +90,7 @@ export default function TermsOfService() {
 
         <section>
           <h2 className="text-xl font-semibold mt-8 mb-3">10. Limitation of Liability</h2>
-          <p>To the maximum extent permitted by law, Mikiri Trails shall not be liable for any indirect, incidental, special, or consequential damages, including but not limited to personal injury, property damage, or data loss arising from your use of the App or reliance on trail information.</p>
+          <p>To the maximum extent permitted by law, Kvali shall not be liable for any indirect, incidental, special, or consequential damages, including but not limited to personal injury, property damage, or data loss arising from your use of the App or reliance on trail information.</p>
         </section>
 
         <section>

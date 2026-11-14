@@ -26,11 +26,11 @@ export default function TermsOfServiceScreen() {
         <Text style={styles.updated}>Last updated: November 2026</Text>
 
         <Section title="1. Acceptance of Terms" styles={styles}>
-          By creating an account or using the Georgia Trails app, you agree to be bound by these Terms of Service. If you do not agree, please do not use the app.
+          By creating an account or using the Kvali app, you agree to be bound by these Terms of Service. If you do not agree, please do not use the app.
         </Section>
 
         <Section title="2. Description of Service" styles={styles}>
-          Georgia Trails is a mobile application for discovering, tracking, and sharing hiking trails in Georgia (the country). Features include trail browsing, GPS-tracked hike recording, completion verification, community photos, trail condition reports, group hike events, and a badge/leaderboard system.
+          Kvali is a mobile application for discovering, tracking, and sharing hiking trails in Georgia (the country). Features include trail browsing, GPS-tracked hike recording, completion verification, community photos, trail condition reports, group hike events, and a badge/leaderboard system.
         </Section>
 
         <Section title="3. User Accounts" styles={styles}>
@@ -55,14 +55,14 @@ export default function TermsOfServiceScreen() {
         </Section>
 
         <Section title="6. Community Content" styles={styles}>
-          By submitting photos, reviews, comments, or trail condition reports, you grant Georgia Trails a non-exclusive, royalty-free license to display that content within the app.{'\n\n'}
+          By submitting photos, reviews, comments, or trail condition reports, you grant Kvali a non-exclusive, royalty-free license to display that content within the app.{'\n\n'}
           You retain ownership of content you submit. You are solely responsible for the accuracy and legality of content you post. We may remove any content that violates these Terms without notice.
         </Section>
 
         <Section title="7. Safety Disclaimer" styles={styles}>
-          Hiking involves inherent risks including injury, adverse weather, and dangerous terrain. Georgia Trails provides information for reference purposes only.{'\n\n'}
+          Hiking involves inherent risks including injury, adverse weather, and dangerous terrain. Kvali provides information for reference purposes only.{'\n\n'}
           Trail conditions, difficulty ratings, and route information may not be current or accurate. Always check official sources before hiking, carry appropriate gear, and inform someone of your plans.{'\n\n'}
-          Georgia Trails is not responsible for any injury, loss, or damage arising from your use of the app or participation in hiking activities.
+          Kvali is not responsible for any injury, loss, or damage arising from your use of the app or participation in hiking activities.
         </Section>
 
         <Section title="8. Emergency SOS" styles={styles}>
@@ -70,12 +70,12 @@ export default function TermsOfServiceScreen() {
         </Section>
 
         <Section title="9. Intellectual Property" styles={styles}>
-          The Georgia Trails app, its design, logo, and original content are owned by GZA Trails and are protected by copyright and intellectual property laws. You may not copy, reproduce, or redistribute any part of the app without our written permission.{'\n\n'}
+          The Kvali app, its design, logo, and original content are owned by the operator of Kvali and are protected by copyright and intellectual property laws. You may not copy, reproduce, or redistribute any part of the app without our written permission.{'\n\n'}
           Trail data is not ours alone and stays under its own licences: trail routes and map data are derived from OpenStreetMap, © OpenStreetMap contributors, and are available under the Open Database License (ODbL); trail photos are credited to their authors and used under the licence stated for each photo (Settings → Data sources & photo credits); elevation data comes from NASA's Shuttle Radar Topography Mission (SRTM). Nothing in these Terms limits the rights those licences give you.
         </Section>
 
         <Section title="10. Limitation of Liability" styles={styles}>
-          To the maximum extent permitted by law, Georgia Trails and its operators shall not be liable for any indirect, incidental, special, or consequential damages arising from your use of the app, including but not limited to personal injury, property damage, data loss, or trail navigation errors.
+          To the maximum extent permitted by law, Kvali and its operators shall not be liable for any indirect, incidental, special, or consequential damages arising from your use of the app, including but not limited to personal injury, property damage, data loss, or trail navigation errors.
         </Section>
 
         <Section title="11. Changes to Terms" styles={styles}>

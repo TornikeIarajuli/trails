@@ -21,7 +21,7 @@ export function suggestionReason(hiker: Pick<SuggestedHiker, 'followed_by' | 'mu
   }
   const hikes = hiker.total_trails_completed ?? 0;
   if (hikes > 0) return `${hikes} ${hikes === 1 ? 'hike' : 'hikes'}`;
-  return 'New on Mikiri';
+  return 'New on Kvali';
 }
 
 function HikerCard({ hiker, styles, Colors }: { hiker: SuggestedHiker; styles: Styles; Colors: ColorPalette }) {

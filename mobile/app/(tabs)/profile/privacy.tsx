@@ -26,7 +26,7 @@ export default function PrivacyPolicyScreen() {
         <Text style={styles.updated}>Last updated: November 2026</Text>
 
         <Section title="1. Introduction" styles={styles}>
-          Georgia Trails ("we", "our", or "us") is committed to protecting your personal information. This Privacy Policy explains how we collect, use, and safeguard your data when you use the Georgia Trails mobile application.
+          Kvali ("we", "our", or "us") is committed to protecting your personal information. This Privacy Policy explains how we collect, use, and safeguard your data when you use the Kvali mobile application.
         </Section>
 
         <Section title="2. Information We Collect" styles={styles}>
@@ -66,7 +66,7 @@ export default function PrivacyPolicyScreen() {
         </Section>
 
         <Section title="7. Children's Privacy" styles={styles}>
-          Georgia Trails is not directed at children under 13. We do not knowingly collect personal information from children under 13. If you believe a child has provided us with personal information, please contact us so we can delete it.
+          Kvali is not directed at children under 13. We do not knowingly collect personal information from children under 13. If you believe a child has provided us with personal information, please contact us so we can delete it.
         </Section>
 
         <Section title="8. Your Rights" styles={styles}>

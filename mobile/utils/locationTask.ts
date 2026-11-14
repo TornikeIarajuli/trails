@@ -68,7 +68,7 @@ export async function startBackgroundTracking(): Promise<boolean> {
       pausesUpdatesAutomatically: false,
       showsBackgroundLocationIndicator: true,
       foregroundService: {
-        notificationTitle: 'Mikiri Trails',
+        notificationTitle: 'Kvali',
         notificationBody: 'Recording your hike…',
       },
     });

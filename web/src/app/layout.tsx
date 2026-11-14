@@ -8,8 +8,8 @@ const geistSans = Geist({
 });
 
 export const metadata: Metadata = {
-  title: "Mikiri Trails Admin",
-  description: "Admin panel for Mikiri Trails",
+  title: "Kvali Admin",
+  description: "Admin panel for Kvali",
 };
 
 export default function RootLayout({

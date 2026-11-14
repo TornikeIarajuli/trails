@@ -161,7 +161,7 @@ describe('saveTrailTopo', () => {
   it('identifies the app to the tile server', async () => {
     await saveTrailTopo('gergeti', 'Gergeti', plan(GERGETI.slice(0, 1)), { control: { cancelled: false }, ...noWait });
     expect(fs.requests).toEqual([
-      { url: urlOf('10/638/377'), headers: { 'User-Agent': 'MikiriTrails (Android hiking app)' } },
+      { url: urlOf('10/638/377'), headers: { 'User-Agent': 'Kvali (Android hiking app)' } },
     ]);
   });
 

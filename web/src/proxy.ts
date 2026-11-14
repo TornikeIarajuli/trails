@@ -14,7 +14,7 @@ export async function proxy(request: NextRequest) {
 
   return new NextResponse('Authentication required', {
     status: 401,
-    headers: { 'WWW-Authenticate': 'Basic realm="Mikiri Admin", charset="UTF-8"' },
+    headers: { 'WWW-Authenticate': 'Basic realm="Kvali Admin", charset="UTF-8"' },
   });
 }
 

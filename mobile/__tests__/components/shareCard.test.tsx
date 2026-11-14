@@ -40,7 +40,7 @@ it('draws the trail, the date and the numbers', () => {
   expect(drawn).toContain('Kazbegi · 14 November 2026');
   expect(drawn).toContain('12 km');
   expect(drawn).toContain('ASCENT');
-  expect(drawn).toContain('MIKIRI TRAILS');
+  expect(drawn).toContain('KVALI');
 });
 
 it('is story-shaped, and draws the route when there is one', () => {

@@ -11,7 +11,7 @@ export const TOPO_ATTRIBUTION =
   'Map data: © OpenStreetMap contributors, SRTM | Map style: © OpenTopoMap (CC-BY-SA)';
 export const TOPO_ATTRIBUTION_URL = 'https://opentopomap.org/about';
 /** Sent with the tiles the app downloads itself, so the tile server can tell who is asking. */
-export const TOPO_USER_AGENT = 'MikiriTrails (Android hiking app)';
+export const TOPO_USER_AGENT = 'Kvali (Android hiking app)';
 /** Tiles kept from browsing are refreshed (in the background, still shown meanwhile) after this. */
 export const TILE_CACHE_MAX_AGE_S = 30 * 24 * 60 * 60;
 

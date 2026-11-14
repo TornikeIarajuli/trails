@@ -25,7 +25,7 @@ const GPS_OPTIONS: { value: GpsAccuracy; label: string; hint: string }[] = [
   { value: 'high', label: 'High Precision', hint: 'Best accuracy the phone can give. Uses the most battery.' },
 ];
 
-const APP_NAME = Constants.expoConfig?.name ?? 'GZA';
+const APP_NAME = Constants.expoConfig?.name ?? 'Kvali';
 const APP_VERSION = Constants.expoConfig?.version;
 
 function EmergencyContactRow({ styles, Colors }: { styles: ReturnType<typeof createStyles>; Colors: ColorPalette }) {

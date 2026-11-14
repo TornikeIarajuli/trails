@@ -154,7 +154,7 @@ describe('isPlausibleHikeTime', () => {
 describe('shareMessage', () => {
   it('says who did what and links to the trail', () => {
     expect(shareMessage(item())).toBe(
-      'nino completed Juta to Roshka on Mikiri Trails.\n\nmikiri-trails://trail/t1',
+      'nino completed Juta to Roshka on Kvali.\n\nmikiri-trails://trail/t1',
     );
   });
 });
