@@ -8,6 +8,7 @@ import request from 'supertest';
 import type { App } from 'supertest/types';
 import { UsersController } from './users.controller';
 import { UsersService } from './users.service';
+import { CheckinsService } from './checkins.service';
 import { AuthGuard } from '../common/guards/auth.guard';
 
 const progress = {
@@ -28,7 +29,10 @@ describe('UsersController regions routes', () => {
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({
       controllers: [UsersController],
-      providers: [{ provide: UsersService, useValue: usersService }],
+      providers: [
+        { provide: UsersService, useValue: usersService },
+        { provide: CheckinsService, useValue: {} },
+      ],
     })
       .overrideGuard(AuthGuard)
       .useValue({
