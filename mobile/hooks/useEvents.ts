@@ -11,6 +11,15 @@ export function useTrailEvents(trailId: string) {
   });
 }
 
+/** Upcoming group hikes on every trail (Explore and the Group hikes screen). */
+export function useUpcomingEvents() {
+  return useQuery({
+    queryKey: queryKeys.events.upcoming(),
+    queryFn: () => eventsService.getUpcomingEvents(),
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
 export function useEvent(id: string) {
   return useQuery({
     queryKey: queryKeys.events.detail(id),

@@ -95,7 +95,8 @@ function EventCard({
 
 export default function TrailEventsScreen() {
   const insets = useSafeAreaInsets();
-  const { id } = useLocalSearchParams<{ id: string }>();
+  // ?create=1 (from Plan a group hike) opens the form straight away
+  const { id, create } = useLocalSearchParams<{ id: string; create?: string }>();
   const Colors = useColors();
   const styles = useMemo(() => createStyles(Colors), [Colors]);
   const isDarkMode = useSettingsStore((s) => s.isDarkMode);
@@ -108,7 +109,7 @@ export default function TrailEventsScreen() {
   const createEvent = useCreateEvent();
   const deleteEvent = useDeleteEvent();
 
-  const [showForm, setShowForm] = useState(false);
+  const [showForm, setShowForm] = useState(() => create === '1' && isAuthenticated);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [scheduledAt, setScheduledAt] = useState(nextFullHour);

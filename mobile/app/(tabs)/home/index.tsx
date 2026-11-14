@@ -25,6 +25,7 @@ import { TrailDifficulty, TrailSummary } from '../../../types/trail';
 import { TrailCardSkeleton } from '../../../components/ui/Skeleton';
 import { Config } from '../../../constants/config';
 import { haptics } from '../../../utils/haptics';
+import { GroupHikesStrip } from '../../../components/events/GroupHikesStrip';
 
 const RADIUS_OPTIONS = [5, 15, 25] as const;
 type Radius = (typeof RADIUS_OPTIONS)[number];
@@ -286,6 +287,19 @@ export default function HomeScreen() {
           <Icon name="compass-outline" size={16} color={Colors.textSecondary} />
           <Text style={styles.quickChipText}>For You</Text>
         </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.quickChip}
+          onPress={() => {
+            haptics.tap();
+            router.push('/trail/group-hikes' as never);
+          }}
+          accessibilityLabel="Upcoming group hikes"
+          accessibilityRole="button"
+        >
+          <Icon name="people-outline" size={16} color={Colors.textSecondary} />
+          <Text style={styles.quickChipText}>Group hikes</Text>
+        </TouchableOpacity>
       </ScrollView>
 
       {locating && (
@@ -356,6 +370,8 @@ export default function HomeScreen() {
               colors={[Colors.primary]}
             />
           }
+          // Upcoming group hikes lead the plain list (not while searching or filtering)
+          ListHeaderComponent={!debouncedSearch && !difficulty && !region && !nearbyMode ? <GroupHikesStrip /> : null}
           ListEmptyComponent={renderEmpty()}
           ListFooterComponent={
             !nearbyMode && trailsQuery.isFetchingNextPage ? (

@@ -138,6 +138,7 @@ export const queryKeys = {
   // Events
   events: {
     trail: (trailId: string) => ['events', 'trail', trailId] as const,
+    upcoming: () => ['events', 'upcoming'] as const,
     detail: (id: string) => ['events', id] as const,
     root: () => ['events'] as const,
   },

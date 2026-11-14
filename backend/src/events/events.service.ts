@@ -29,12 +29,15 @@ export class EventsService {
 
     let query = admin
       .from('events')
+      // The trail's picture, region and difficulty and who has joined let the app show the
+      // list as cards with a "Joined" mark, without opening each event
       .select(
         `
         *,
         organizer:organizer_id (id, username, avatar_url),
-        trails:trail_id (id, name_en),
-        participant_count:event_participants(count)
+        trails:trail_id (id, name_en, region, difficulty, cover_image_url),
+        participant_count:event_participants(count),
+        participants:event_participants(user_id)
       `,
       )
       .gte('scheduled_at', new Date().toISOString())

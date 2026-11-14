@@ -73,6 +73,12 @@ describe('EventsService', () => {
 
       const result = await service.findAll();
       expect(result).toEqual(events);
+      // Cards need the trail's picture and region, and the app marks events the user joined
+      const columns = String(listChain.select.mock.calls[0][0]);
+      expect(columns).toContain(
+        'trails:trail_id (id, name_en, region, difficulty, cover_image_url)',
+      );
+      expect(columns).toContain('participants:event_participants(user_id)');
     });
 
     it('filters by trail_id when provided', async () => {
