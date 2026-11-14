@@ -53,7 +53,7 @@ export default function HomeScreen() {
       ...(difficulty && { difficulty }),
       ...(region && { region }),
       ...(debouncedSearch && { search: debouncedSearch }),
-      limit: viewMode === 'map' ? 200 : 20,
+      limit: viewMode === 'map' ? 500 : 20, // the map shows every published trail (API maximum 500)
     }),
     [difficulty, region, debouncedSearch, viewMode],
   );
@@ -97,9 +97,20 @@ export default function HomeScreen() {
   const refreshing = activeQuery.isRefetching && !trailsQuery.isFetchingNextPage;
   const nearbyFiltersActive = !!difficulty || debouncedSearch.trim().length > 0;
   const listFiltersActive = nearbyFiltersActive || !!region;
+  // For the filter sheet's "Show N trails": the list's full total (not just the loaded
+  // pages), or in Near Me everything that is shown
+  const resultCount = nearbyMode
+    ? (nearbyQuery.data ? nearbyTrails.length : null)
+    : (trailsQuery.data?.pages[0]?.pagination.total ?? null);
 
   const clearFilters = () => {
     setSearch('');
+    setDifficulty(null);
+    setRegion(null);
+  };
+
+  // The sheet's "Clear all" leaves the search alone: the search bar is outside the sheet
+  const clearSheetFilters = () => {
     setDifficulty(null);
     setRegion(null);
   };
@@ -183,12 +194,18 @@ export default function HomeScreen() {
         onSearchChange={setSearch}
         difficulty={difficulty}
         onDifficultyChange={setDifficulty}
-        region={nearbyMode ? null : region}
-        onRegionChange={nearbyMode ? () => {} : setRegion}
-        regions={nearbyMode ? [] : (regions ?? [])}
+        region={region}
+        onRegionChange={setRegion}
+        regions={regions ?? []}
+        // The nearby endpoint takes no region, so Near Me ignores it (and keeps it for later)
+        regionNote={nearbyMode ? `Near Me shows trails within ${radius} km of you, in any region.` : null}
+        onClearAll={clearSheetFilters}
+        resultCount={resultCount}
+        resultsLoading={activeQuery.isLoading}
       />
 
-      {/* Quick action chips */}
+      {/* Modes and shortcuts, not filters: Near Me (with its radius below) and Map change
+          how trails are found and shown, so they stay one tap away instead of in the sheet */}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}

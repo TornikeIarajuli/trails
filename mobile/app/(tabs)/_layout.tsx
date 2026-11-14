@@ -17,11 +17,12 @@ const TAB_CONFIG: {
   route: string;
   icon: IoniconsName;
   activeIcon: IoniconsName;
+  /** Other top-level routes shown as this tab (the leaderboard now lives in the Feed). */
+  alsoActiveFor?: string[];
 }[] = [
   { name: 'home', label: 'Explore', route: '/(tabs)/home', icon: 'compass-outline', activeIcon: 'compass' },
-  { name: 'feed', label: 'Feed', route: '/(tabs)/feed', icon: 'newspaper-outline', activeIcon: 'newspaper' },
+  { name: 'feed', label: 'Feed', route: '/(tabs)/feed', icon: 'newspaper-outline', activeIcon: 'newspaper', alsoActiveFor: ['leaderboard'] },
   { name: 'shop', label: 'Shop', route: '/(tabs)/shop', icon: 'bag-outline', activeIcon: 'bag' },
-  { name: 'leaderboard', label: 'Ranks', route: '/(tabs)/leaderboard', icon: 'trophy-outline', activeIcon: 'trophy' },
   { name: 'alerts', label: 'Alerts', route: '/(tabs)/alerts', icon: 'notifications-outline', activeIcon: 'notifications' },
   { name: 'profile', label: 'Profile', route: '/(tabs)/profile', icon: 'person-outline', activeIcon: 'person' },
 ];
@@ -148,7 +149,10 @@ function BottomTabBar() {
   return (
     <View style={[styles.tabBar, { paddingBottom: Math.max(insets.bottom, 8) }]}>
       {TAB_CONFIG.map((tab) => {
-        const isActive = pathname === '/' ? tab.name === 'home' : pathname.includes(`/${tab.name}`);
+        const isActive =
+          pathname === '/'
+            ? tab.name === 'home'
+            : [tab.name, ...(tab.alsoActiveFor ?? [])].some((name) => pathname.includes(`/${name}`));
         return (
           <AnimatedTabButton
             key={tab.name}
@@ -191,9 +195,11 @@ export default function TabsLayout() {
         <Tabs.Screen name="home" />
         <Tabs.Screen name="feed" />
         <Tabs.Screen name="shop" />
-        <Tabs.Screen name="leaderboard" />
         <Tabs.Screen name="alerts" />
         <Tabs.Screen name="profile" />
+        {/* Not in the tab bar any more: the leaderboard is a segment of the Feed. The route
+            stays so old links still work; its screen sends them on to the Feed. */}
+        <Tabs.Screen name="leaderboard" options={{ href: null }} />
       </Tabs>
       {!isSubScreen && <BottomTabBar />}
     </View>

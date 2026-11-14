@@ -1,18 +1,18 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   View,
   Text,
   TextInput,
-  ScrollView,
   TouchableOpacity,
   StyleSheet,
+  Keyboard,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors, ColorPalette } from '../../constants/colors';
 import { TrailDifficulty } from '../../types/trail';
 import { haptics } from '../../utils/haptics';
-
-const DIFFICULTIES: (TrailDifficulty | null)[] = [null, 'easy', 'medium', 'hard', 'ultra'];
+import { activeFilterCount } from '../../utils/trailFilters';
+import { TrailFilterSheet } from './TrailFilterSheet';
 
 interface TrailFiltersProps {
   search: string;
@@ -22,8 +22,16 @@ interface TrailFiltersProps {
   region: string | null;
   onRegionChange: (r: string | null) => void;
   regions: string[];
+  /** Shown in place of the region choices when they do not apply; the region then does not count as set. */
+  regionNote?: string | null;
+  /** Clears every filter in the sheet (not the search). */
+  onClearAll: () => void;
+  /** Trails matching the current search and filters, or null while that is not known. */
+  resultCount: number | null;
+  resultsLoading: boolean;
 }
 
+/** The Explore search bar, and a Filters button that opens the difficulty and region filters. */
 export function TrailFilters({
   search,
   onSearchChange,
@@ -32,80 +40,80 @@ export function TrailFilters({
   region,
   onRegionChange,
   regions,
+  regionNote,
+  onClearAll,
+  resultCount,
+  resultsLoading,
 }: TrailFiltersProps) {
   const Colors = useColors();
   const styles = useMemo(() => createStyles(Colors), [Colors]);
+  const [sheetOpen, setSheetOpen] = useState(false);
+
+  const activeCount = activeFilterCount({ difficulty, region: regionNote ? null : region });
+  const filtersLabel = activeCount > 0 ? `Filters, ${activeCount} active` : 'Filters';
 
   return (
     <View style={styles.container}>
-      <View style={styles.searchRow}>
-        <Ionicons name="search" size={20} color={Colors.textLight} style={styles.searchIcon} />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search trails..."
-          placeholderTextColor={Colors.textLight}
-          value={search}
-          onChangeText={onSearchChange}
-          accessibilityLabel="Search trails"
-          testID="search-input"
-        />
-        {search.length > 0 && (
-          <TouchableOpacity onPress={() => onSearchChange('')} accessibilityLabel="Clear search" accessibilityRole="button">
-            <Ionicons name="close-circle" size={20} color={Colors.textLight} />
-          </TouchableOpacity>
-        )}
-      </View>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chips}>
-        {DIFFICULTIES.map((d) => (
-          <TouchableOpacity
-            key={d ?? 'all'}
-            style={[styles.chip, difficulty === d && styles.chipActive]}
-            onPress={() => {
-              haptics.select();
-              onDifficultyChange(d);
-            }}
-          >
-            <Text style={[styles.chipText, difficulty === d && styles.chipTextActive]}>
-              {d ? d.charAt(0).toUpperCase() + d.slice(1) : 'All'}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-      {regions.length > 0 && (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chips}>
-          <TouchableOpacity
-            style={[styles.chip, styles.regionChip, region === null && styles.regionChipActive]}
-            onPress={() => {
-              haptics.select();
-              onRegionChange(null);
-            }}
-          >
-            <Ionicons
-              name="map-outline"
-              size={14}
-              color={region === null ? Colors.textOnPrimary : Colors.textSecondary}
-              style={{ marginRight: 4 }}
-            />
-            <Text style={[styles.chipText, region === null && styles.regionChipTextActive]}>
-              All Regions
-            </Text>
-          </TouchableOpacity>
-          {regions.map((r) => (
-            <TouchableOpacity
-              key={r}
-              style={[styles.chip, styles.regionChip, region === r && styles.regionChipActive]}
-              onPress={() => {
-                haptics.select();
-                onRegionChange(r);
-              }}
-            >
-              <Text style={[styles.chipText, region === r && styles.regionChipTextActive]}>
-                {r}
-              </Text>
+      <View style={styles.row}>
+        <View style={styles.searchRow}>
+          <Ionicons name="search" size={20} color={Colors.textLight} style={styles.searchIcon} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search trails..."
+            placeholderTextColor={Colors.textLight}
+            value={search}
+            onChangeText={onSearchChange}
+            accessibilityLabel="Search trails"
+            testID="search-input"
+          />
+          {search.length > 0 && (
+            <TouchableOpacity onPress={() => onSearchChange('')} accessibilityLabel="Clear search" accessibilityRole="button">
+              <Ionicons name="close-circle" size={20} color={Colors.textLight} />
             </TouchableOpacity>
-          ))}
-        </ScrollView>
-      )}
+          )}
+        </View>
+
+        <TouchableOpacity
+          style={[styles.filterButton, activeCount > 0 && styles.filterButtonActive]}
+          onPress={() => {
+            haptics.tap();
+            Keyboard.dismiss();
+            setSheetOpen(true);
+          }}
+          activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel={filtersLabel}
+          accessibilityHint="Opens difficulty and region filters"
+          testID="filters-button"
+        >
+          <Ionicons
+            name="options-outline"
+            size={18}
+            color={activeCount > 0 ? Colors.primary : Colors.textSecondary}
+          />
+          <Text style={[styles.filterText, activeCount > 0 && styles.filterTextActive]}>Filters</Text>
+          {activeCount > 0 && (
+            <View style={styles.badge}>
+              <Text style={styles.badgeText} maxFontSizeMultiplier={1.3}>{activeCount}</Text>
+            </View>
+          )}
+        </TouchableOpacity>
+      </View>
+
+      <TrailFilterSheet
+        visible={sheetOpen}
+        onClose={() => setSheetOpen(false)}
+        difficulty={difficulty}
+        onDifficultyChange={onDifficultyChange}
+        region={region}
+        onRegionChange={onRegionChange}
+        regions={regions}
+        regionNote={regionNote}
+        activeCount={activeCount}
+        onClearAll={onClearAll}
+        resultCount={resultCount}
+        resultsLoading={resultsLoading}
+      />
     </View>
   );
 }
@@ -116,12 +124,18 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     paddingBottom: 4,
     backgroundColor: Colors.background,
   },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginHorizontal: 16,
+  },
   searchRow: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: Colors.surface,
     borderRadius: 12,
-    marginHorizontal: 16,
     paddingHorizontal: 12,
     height: 44,
   },
@@ -133,43 +147,41 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     fontSize: 16,
     color: Colors.text,
   },
-  chips: {
-    // Horizontal ScrollViews shrink by default; keep the chip rows at full height
-    flexGrow: 0,
-    flexShrink: 0,
+  filterButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    height: 44,
     paddingHorizontal: 12,
-    marginTop: 10,
-  },
-  chip: {
-    paddingHorizontal: 16,
-    paddingVertical: 7,
-    borderRadius: 20,
+    borderRadius: 12,
     backgroundColor: Colors.surface,
-    marginHorizontal: 4,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: Colors.surface,
   },
-  chipActive: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
+  filterButtonActive: {
+    backgroundColor: Colors.primary + '15',
+    borderColor: Colors.primary + '40',
   },
-  chipText: {
-    fontSize: 13,
+  filterText: {
+    fontSize: 14,
     fontWeight: '600',
     color: Colors.textSecondary,
   },
-  chipTextActive: {
-    color: Colors.textOnPrimary,
+  filterTextActive: {
+    color: Colors.primary,
   },
-  regionChip: {
-    flexDirection: 'row',
+  badge: {
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    paddingHorizontal: 5,
     alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.primary,
   },
-  regionChipActive: {
-    backgroundColor: Colors.accent,
-    borderColor: Colors.accent,
-  },
-  regionChipTextActive: {
+  badgeText: {
+    fontSize: 11,
+    fontWeight: '700',
     color: Colors.textOnPrimary,
   },
 });

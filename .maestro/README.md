@@ -37,5 +37,5 @@ Create a test account in Supabase before running:
 | Flow | Description |
 |------|-------------|
 | `login.yaml` | Sign in, verify home screen |
-| `browse-trails.yaml` | List view, map view, search |
+| `browse-trails.yaml` | List view, map view, search, filter sheet |
 | `hike-flow.yaml` | Start → Pause → Resume → End hike |

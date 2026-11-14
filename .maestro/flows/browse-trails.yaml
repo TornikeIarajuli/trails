@@ -52,3 +52,14 @@ appId: com.gzatrails.app
 - tapOn: "Clear search"
 - assertVisible:
     id: "trail-card"
+
+# Difficulty and region filters open in a bottom sheet
+- tapOn:
+    id: "filters-button"
+- assertVisible: "Difficulty"
+- tapOn: "Medium"
+- tapOn: "Any"
+- tapOn:
+    id: "filters-show-results"
+- assertVisible:
+    id: "trail-card"

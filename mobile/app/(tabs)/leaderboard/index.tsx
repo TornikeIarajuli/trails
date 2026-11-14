@@ -1,133 +1,35 @@
-import React, { useMemo } from 'react';
-import { View, FlatList, Text, StyleSheet, TouchableOpacity, RefreshControl } from 'react-native';
+import React, { useEffect } from 'react';
 import { router } from 'expo-router';
-import { useColors, ColorPalette } from '../../../constants/colors';
-import { useLeaderboard } from '../../../hooks/useLeaderboard';
-import { useWithoutBlocked } from '../../../hooks/useModeration';
-import { LeaderboardRow } from '../../../components/leaderboard/LeaderboardRow';
-import { ErrorState } from '../../../components/ui/ErrorState';
-import { LeaderboardRowSkeleton } from '../../../components/ui/Skeleton';
+import { LeaderboardView } from '../../../components/leaderboard/LeaderboardView';
+import { LEADERBOARD_HREF } from '../../../utils/feedSegment';
 
-export default function LeaderboardScreen() {
-  const Colors = useColors();
-  const styles = useMemo(() => createStyles(Colors), [Colors]);
+const MAX_REDIRECT_ATTEMPTS = 10;
 
-  const { data, isLoading, isError, error, refetch, isRefetching } = useLeaderboard(50);
-  const entries = useWithoutBlocked(data, (entry) => entry.id);
+/**
+ * The leaderboard moved into the Feed tab ("Activity | Leaderboard"). This hidden tab
+ * only keeps old links working: it sends them to the Feed with the Leaderboard segment
+ * selected. It redirects once, on mount, and otherwise shows the leaderboard itself, so
+ * stepping back onto it through tab history cannot bounce the user in a loop.
+ */
+export default function LeaderboardRedirect() {
+  useEffect(() => {
+    let frame: number | undefined;
+    let attempts = 0;
+    const redirect = () => {
+      try {
+        router.navigate(LEADERBOARD_HREF as any);
+      } catch {
+        // Opened by a link at app start, the navigator may not be ready on this frame yet.
+        // If it never is, the leaderboard below is still shown.
+        attempts += 1;
+        if (attempts < MAX_REDIRECT_ATTEMPTS) frame = requestAnimationFrame(redirect);
+      }
+    };
+    redirect();
+    return () => {
+      if (frame !== undefined) cancelAnimationFrame(frame);
+    };
+  }, []);
 
-  return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Leaderboard</Text>
-        <Text style={styles.subtitle}>Counts trails completed with hikes recorded in the app</Text>
-      </View>
-
-      {isLoading ? (
-        <View style={styles.list}>
-          {Array.from({ length: 8 }).map((_, i) => <LeaderboardRowSkeleton key={i} />)}
-        </View>
-      ) : isError && entries.length === 0 ? (
-        <ErrorState
-          error={error}
-          title="Couldn't load the leaderboard"
-          onRetry={() => refetch()}
-          retrying={isRefetching}
-        />
-      ) : (
-        <FlatList
-          data={entries}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <LeaderboardRow entry={item} isTopThree={item.rank <= 3} />
-          )}
-          contentContainerStyle={styles.list}
-          showsVerticalScrollIndicator={false}
-          removeClippedSubviews
-          maxToRenderPerBatch={10}
-          windowSize={5}
-          initialNumToRender={15}
-          refreshControl={
-            <RefreshControl
-              refreshing={isRefetching}
-              onRefresh={refetch}
-              tintColor={Colors.primary}
-              colors={[Colors.primary]}
-            />
-          }
-          ListEmptyComponent={
-            <View style={styles.empty}>
-              <Text style={styles.emptyText}>No completed hikes yet</Text>
-              <Text style={styles.emptyHint}>
-                Finish a trail with GPS tracking on and you'll be the first name here.
-              </Text>
-              <TouchableOpacity
-                style={styles.emptyAction}
-                onPress={() => router.push('/(tabs)/home' as any)}
-                accessibilityRole="button"
-              >
-                <Text style={styles.emptyActionText}>Browse trails</Text>
-              </TouchableOpacity>
-            </View>
-          }
-        />
-      )}
-    </View>
-  );
+  return <LeaderboardView showTitle />;
 }
-
-const createStyles = (Colors: ColorPalette) => StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.background,
-  },
-  header: {
-    paddingHorizontal: 16,
-    paddingTop: 8,
-    paddingBottom: 16,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: Colors.text,
-  },
-  subtitle: {
-    fontSize: 14,
-    color: Colors.textSecondary,
-    marginTop: 2,
-  },
-  list: {
-    paddingBottom: 20,
-  },
-  empty: {
-    alignItems: 'center',
-    paddingTop: 80,
-    paddingHorizontal: 32,
-  },
-  emptyText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: Colors.textSecondary,
-    marginTop: 8,
-  },
-  emptyHint: {
-    fontSize: 14,
-    lineHeight: 20,
-    color: Colors.textLight,
-    textAlign: 'center',
-    marginTop: 6,
-  },
-  emptyAction: {
-    marginTop: 16,
-    paddingHorizontal: 24,
-    paddingVertical: 10,
-    borderRadius: 20,
-    backgroundColor: Colors.primary + '15',
-    borderWidth: 1,
-    borderColor: Colors.primary + '40',
-  },
-  emptyActionText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: Colors.primary,
-  },
-});
