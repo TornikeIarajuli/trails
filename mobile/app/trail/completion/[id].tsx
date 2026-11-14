@@ -36,6 +36,11 @@ import { describeCompletionOutcome, describeReason } from '../../../utils/verifi
 import { VerificationReason } from '../../../types/completion';
 import { completionDateLabel, isPastHike, pastHikeYear } from '../../../utils/pastHikes';
 import { HowWasTheTrail } from '../../../components/completion/HowWasTheTrail';
+import { ShareHikeSheet } from '../../../components/completion/ShareHikeSheet';
+import { useTrail } from '../../../hooks/useTrails';
+import { parseGeoLineString } from '../../../utils/geo';
+import { isPlausibleHikeTime } from '../../../utils/feedPost';
+import { cardDate, cardStats } from '../../../utils/shareCard';
 
 function formatElapsedTime(seconds: number): string {
   const h = Math.floor(seconds / 3600);
@@ -116,6 +121,9 @@ export default function CompletionDetailScreen() {
   }, []);
 
   const completion = completions?.find((c) => c.id === id);
+  // The trail's own route, drawn on the share picture when this hike has no track on the phone
+  const { data: trailDetail } = useTrail(completion?.trail_id ?? '');
+  const [shareOpen, setShareOpen] = useState(false);
 
   // The cached list can predate this completion (recorded a moment ago, or on another
   // device), so it only counts as missing after a fetch made while this screen is open.
@@ -237,6 +245,24 @@ export default function CompletionDetailScreen() {
   const outcomeColor =
     past || isVerified ? Colors.success : outcome.state === 'rejected' ? Colors.error : Colors.warning;
 
+  // The share picture: the recorded track when this phone has it, else the trail's route
+  const shareRoute =
+    exportPoints.length >= 2
+      ? exportPoints.map((p) => ({ lat: p.lat, lng: p.lng }))
+      : parseGeoLineString(trailDetail?.route).map((c) => ({ lat: c.latitude, lng: c.longitude }));
+  const shareData = {
+    trailName: trail?.name_en ?? 'A trail in Georgia',
+    subtitle: [trail?.region, past ? pastHikeYear(completion) : cardDate(completion.completed_at)].filter(Boolean).join(' · '),
+    stats: cardStats({
+      distanceKm: trail?.distance_km,
+      ascentM: trail?.elevation_gain_m,
+      elapsedSeconds: completion.elapsed_seconds,
+      timeIsReal:
+        hasActualTime && isPlausibleHikeTime(completion.elapsed_seconds ?? 0, trail?.distance_km ?? null),
+    }),
+    route: shareRoute,
+  };
+
   return (
     <View style={styles.container}>
       <Confetti visible={showConfetti} />
@@ -268,8 +294,8 @@ export default function CompletionDetailScreen() {
         {/* Share button overlay */}
         <TouchableOpacity
           style={[styles.shareIcon, { top: insets.top + 8 }]}
-          onPress={handleShare}
-          accessibilityLabel="Share completion"
+          onPress={() => setShareOpen(true)}
+          accessibilityLabel="Share your hike"
           accessibilityRole="button"
         >
           <Icon name="share-outline" size={22} color={Colors.text} />
@@ -422,6 +448,19 @@ export default function CompletionDetailScreen() {
           {/* Right after a recorded hike: rate the trail and say how it was, in a tap */}
           {justFinished && !past && completion.trail_id ? <HowWasTheTrail trailId={completion.trail_id} /> : null}
 
+          {/* The picture for Instagram stories and the rest */}
+          {!past ? (
+            <TouchableOpacity
+              style={[styles.viewTrailButton, styles.shareHikeButton]}
+              onPress={() => setShareOpen(true)}
+              accessibilityRole="button"
+              testID="share-hike"
+            >
+              <Icon name="share-social-outline" size={20} color={Colors.primary} />
+              <Text style={styles.viewTrailText}>Share your hike</Text>
+            </TouchableOpacity>
+          ) : null}
+
           {/* Action Buttons */}
           <TouchableOpacity
             style={styles.profileButton}
@@ -450,11 +489,21 @@ export default function CompletionDetailScreen() {
           </View>
         </View>
       </ScrollView>
+      <ShareHikeSheet
+        visible={shareOpen}
+        onClose={() => setShareOpen(false)}
+        data={shareData}
+        onShareText={handleShare}
+      />
     </View>
   );
 }
 
 const createStyles = (Colors: ColorPalette) => StyleSheet.create({
+  shareHikeButton: {
+    flex: 0,
+    marginTop: 16,
+  },
   container: {
     flex: 1,
     backgroundColor: Colors.background,
