@@ -5,6 +5,7 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { PostHogProvider } from 'posthog-react-native';
 import { initAnalytics } from '../utils/analytics';
+import { RootErrorBoundary } from '../components/ui/RootErrorBoundary';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import { queryPersister } from '../utils/queryPersister';
 import { shouldPersistQuery } from '../utils/queryPersistence';
@@ -94,9 +95,9 @@ function RootLayout() {
         dehydrateOptions: { shouldDehydrateQuery: shouldPersistQuery },
       }}
     >
-      <ErrorBoundary onError={() => setHasError(true)}>
+      <RootErrorBoundary onError={() => setHasError(true)}>
         <RootLayoutInner />
-      </ErrorBoundary>
+      </RootErrorBoundary>
     </PersistQueryClientProvider>
   );
 
@@ -114,25 +115,5 @@ function RootLayout() {
 const styles = StyleSheet.create({
   root: { flex: 1 },
 });
-
-class ErrorBoundary extends React.Component<
-  { children: React.ReactNode; onError: () => void },
-  { hasError: boolean }
-> {
-  state = { hasError: false };
-
-  static getDerivedStateFromError() {
-    return { hasError: true };
-  }
-
-  componentDidCatch() {
-    this.props.onError();
-  }
-
-  render() {
-    if (this.state.hasError) return null;
-    return this.props.children;
-  }
-}
 
 export default RootLayout;

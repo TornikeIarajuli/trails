@@ -8,6 +8,8 @@ jest.mock('posthog-react-native', () => {
     this.capture = jest.fn();
     this.identify = jest.fn();
     this.reset = jest.fn();
+    this.register = jest.fn(() => Promise.resolve());
+    this.captureException = jest.fn();
   });
   return { __esModule: true, default: PostHog };
 });
@@ -61,6 +63,7 @@ describe.each([
       analytics.analytics.hikeCompleted('t-1', 3600, 6.1);
       analytics.analytics.hikeAbandoned('t-1', 60);
       analytics.analytics.badgeEarned('first', 'First Hike');
+      analytics.reportError(new Error('boom'), { source: 'test' });
     }).not.toThrow();
   });
 });
@@ -86,6 +89,47 @@ describe('when the PostHog key is set', () => {
 
     expect(client.capture).toHaveBeenCalledWith('hike_started', { trail_id: 't-1', trail_name: 'Kazbegi' });
     expect(client.identify).toHaveBeenCalledWith('user-1', { email: 'nino@example.com' });
+  });
+
+  it('turns on crash reports for uncaught errors and unhandled promises', () => {
+    const { analytics, PostHog } = loadWithKey('phc_test_key');
+    analytics.initAnalytics();
+
+    expect(PostHog).toHaveBeenCalledWith(
+      'phc_test_key',
+      expect.objectContaining({
+        errorTracking: { autocapture: { uncaughtExceptions: true, unhandledRejections: true, console: false } },
+      }),
+    );
+  });
+
+  it('labels every event with the update that was running', () => {
+    const { analytics } = loadWithKey('phc_test_key');
+    const client = analytics.initAnalytics() as unknown as { register: jest.Mock };
+
+    expect(client.register).toHaveBeenCalledWith(
+      expect.objectContaining({ update_id: expect.any(String), runtime_version: expect.any(String) }),
+    );
+  });
+
+  it('reports a caught error with where it happened', () => {
+    const { analytics } = loadWithKey('phc_test_key');
+    const client = analytics.initAnalytics() as unknown as { captureException: jest.Mock };
+    const error = new Error('Cannot read property x of undefined');
+
+    analytics.reportError(error, { source: 'error_boundary' });
+
+    expect(client.captureException).toHaveBeenCalledWith(error, { source: 'error_boundary' });
+  });
+
+  it('never lets a failing report break the app', () => {
+    const { analytics } = loadWithKey('phc_test_key');
+    const client = analytics.initAnalytics() as unknown as { captureException: jest.Mock };
+    client.captureException.mockImplementation(() => {
+      throw new Error('queue full');
+    });
+
+    expect(() => analytics.reportError(new Error('boom'))).not.toThrow();
   });
 
   it('does without analytics if the client cannot be created', () => {

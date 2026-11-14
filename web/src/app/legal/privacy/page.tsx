@@ -4,7 +4,7 @@ export default function PrivacyPolicy() {
   return (
     <div className="max-w-3xl mx-auto px-6 py-12">
       <h1 className="text-3xl font-bold mb-2">Privacy Policy</h1>
-      <p className="text-sm text-gray-500 mb-8">Last updated: November 13, 2026</p>
+      <p className="text-sm text-gray-500 mb-8">Last updated: November 14, 2026</p>
 
       <div className="prose prose-gray max-w-none space-y-6">
         <section>
@@ -18,6 +18,7 @@ export default function PrivacyPolicy() {
             <li><strong>Presence:</strong> the time you last had the App open (&quot;last seen&quot;).</li>
             <li><strong>Device information:</strong> device type, operating system, and push notification tokens.</li>
             <li><strong>Usage analytics:</strong> events that describe how the App is used (for example trails viewed, hikes started and finished, searches), linked to your user ID and email address.</li>
+            <li><strong>Crash reports:</strong> when the App runs into an error, the error message, the part of the App where it happened, and your device and App version, linked to your user ID.</li>
           </ul>
         </section>
 
@@ -41,7 +42,7 @@ export default function PrivacyPolicy() {
             <li><strong>Render:</strong> hosting of the App&apos;s API.</li>
             <li><strong>Vercel:</strong> hosting of this website and of our administration panel.</li>
             <li><strong>Expo:</strong> delivery of push notifications (your push token and the content of each notification).</li>
-            <li><strong>PostHog:</strong> product analytics, hosted in the United States (usage events, device information, and your user ID and email address as identifier).</li>
+            <li><strong>PostHog:</strong> product analytics and crash reports from the App, hosted in the United States (usage events, errors in the App, device information, and your user ID and email address as identifier).</li>
             <li><strong>Sentry:</strong> error logs from the API, which can include technical details of the request that failed.</li>
             <li><strong>Google Maps, OpenTopoMap and Open-Meteo:</strong> the App loads map images directly from Google Maps (the standard map) or OpenTopoMap (the topographic map), and trail weather from Open-Meteo. Like any website, these services receive your device&apos;s IP address and the map area or location being looked up. Topographic map images you view or save stay on your phone until you delete them in Settings.</li>
           </ul>

@@ -17,11 +17,44 @@ export function initAnalytics(): PostHog | null {
   if (!apiKey) return null;
 
   try {
-    _client = new PostHog(apiKey, { host: 'https://us.i.posthog.com' });
+    _client = new PostHog(apiKey, {
+      host: 'https://us.i.posthog.com',
+      // Crash reports: errors nothing caught, and promises nobody handled. A crash that
+      // closes the app is sent the next time it starts.
+      errorTracking: { autocapture: { uncaughtExceptions: true, unhandledRejections: true, console: false } },
+    });
+    // Which over-the-air update was running, on every event and crash report
+    void Promise.resolve(_client.register(releaseProperties())).catch(() => {});
   } catch (error) {
     console.warn('[analytics] PostHog could not be started', error);
   }
   return _client;
+}
+
+function releaseProperties(): Record<string, string> {
+  try {
+    // Loaded lazily: expo-updates is native, and tests run without it
+    const Updates = require('expo-updates') as typeof import('expo-updates');
+    return {
+      update_id: Updates.updateId ?? 'embedded',
+      runtime_version: Updates.runtimeVersion ?? 'unknown',
+      update_channel: Updates.channel ?? 'unknown',
+    };
+  } catch {
+    return {};
+  }
+}
+
+/**
+ * Sends an error that the app caught (so it did not crash) as a crash report, with where it
+ * happened. Does nothing without analytics.
+ */
+export function reportError(error: unknown, context?: Record<string, string | number | boolean | null>) {
+  try {
+    _client?.captureException(error, context);
+  } catch {
+    // Reporting must never make things worse
+  }
 }
 
 export function getAnalytics(): PostHog | null {
