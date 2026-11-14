@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { router } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import { Icon } from '../ui/Icon';
 import { useQueryClient } from '@tanstack/react-query';
 import { useColors, ColorPalette } from '../../constants/colors';
 import { useAuthStore } from '../../store/authStore';
@@ -100,9 +100,9 @@ export function TrailCompletionStatus({ trailId, hikeActiveHere }: Props) {
         accessibilityRole="button"
         accessibilityLabel={label}
       >
-        <Ionicons name="checkmark-circle" size={18} color={Colors.success} />
+        <Icon name="checkmark-circle" size={18} color={Colors.success} />
         <Text style={styles.statusText}>{label}</Text>
-        <Ionicons name="chevron-forward" size={16} color={Colors.textLight} />
+        <Icon name="chevron-forward" size={16} color={Colors.textLight} />
       </TouchableOpacity>
     );
   } else if (status.kind === 'past') {
@@ -110,7 +110,7 @@ export function TrailCompletionStatus({ trailId, hikeActiveHere }: Props) {
     const when = status.year ? `You hiked this in ${status.year}` : 'You hiked this before the app';
     row = (
       <View style={styles.row}>
-        <Ionicons name="checkmark-circle" size={18} color={Colors.success} />
+        <Icon name="checkmark-circle" size={18} color={Colors.success} />
         <Text style={styles.statusText}>
           {status.reviewing
             ? `${when} · your recorded hike is being reviewed`
@@ -140,9 +140,9 @@ export function TrailCompletionStatus({ trailId, hikeActiveHere }: Props) {
         activeOpacity={0.7}
         accessibilityRole="button"
       >
-        <Ionicons name="time-outline" size={18} color={Colors.warning} />
+        <Icon name="time-outline" size={18} color={Colors.warning} />
         <Text style={styles.statusText}>Your hike is waiting for review</Text>
-        <Ionicons name="chevron-forward" size={16} color={Colors.textLight} />
+        <Icon name="chevron-forward" size={16} color={Colors.textLight} />
       </TouchableOpacity>
     );
   } else if (!hikeActiveHere) {
@@ -153,9 +153,9 @@ export function TrailCompletionStatus({ trailId, hikeActiveHere }: Props) {
         activeOpacity={0.7}
         accessibilityRole="button"
       >
-        <Ionicons name="checkmark-done-outline" size={18} color={Colors.primary} />
+        <Icon name="checkmark-done-outline" size={18} color={Colors.primary} />
         <Text style={styles.actionText}>Hiked it before? Mark as done</Text>
-        <Ionicons name="chevron-forward" size={16} color={Colors.textLight} />
+        <Icon name="chevron-forward" size={16} color={Colors.textLight} />
       </TouchableOpacity>
     );
   }

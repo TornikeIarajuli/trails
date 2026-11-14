@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { router } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import { Icon } from '../ui/Icon';
 import { useColors, ColorPalette } from '../../constants/colors';
 import { ProfileStats } from '../../types/user';
 import { useRegionProgress } from '../../hooks/useRegionProgress';
@@ -39,13 +39,13 @@ function RegionsTile({ userId, styles, Colors }: {
       accessibilityLabel={`Regions explored: ${regions_started} of ${regions_total}`}
     >
       <View style={styles.regionsIcon}>
-        <Ionicons name="map" size={18} color={Colors.primary} />
+        <Icon name="map" size={18} color={Colors.primary} />
       </View>
       <Text style={styles.regionsLabel}>Regions</Text>
       <Text style={styles.regionsValue}>
         {regions_started}/{regions_total} regions
       </Text>
-      <Ionicons name="chevron-forward" size={16} color={Colors.textLight} />
+      <Icon name="chevron-forward" size={16} color={Colors.textLight} />
     </TouchableOpacity>
   );
 }

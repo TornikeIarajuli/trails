@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import { Icon } from '../../../components/ui/Icon';
 import { useColors, ColorPalette } from '../../../constants/colors';
 import { useTrailEvents, useCreateEvent, useDeleteEvent } from '../../../hooks/useEvents';
 import { useWithoutBlocked } from '../../../hooks/useModeration';
@@ -66,11 +66,11 @@ function EventCard({
         <Text style={styles.cardTitle} numberOfLines={1}>{event.title}</Text>
         <Text style={styles.cardOrganizer}>by {event.organizer?.username ?? 'Unknown'}</Text>
         <View style={styles.cardMeta}>
-          <Ionicons name="time-outline" size={12} color={Colors.textSecondary} />
+          <Icon name="time-outline" size={12} color={Colors.textSecondary} />
           <Text style={styles.cardMetaText}>
             {date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
           </Text>
-          <Ionicons name="people-outline" size={12} color={Colors.textSecondary} />
+          <Icon name="people-outline" size={12} color={Colors.textSecondary} />
           <Text style={styles.cardMetaText}>
             {participantCount}{event.max_participants ? `/${event.max_participants}` : ''} hikers
           </Text>
@@ -84,7 +84,7 @@ function EventCard({
           accessibilityLabel={`Cancel group hike ${event.title}`}
           accessibilityRole="button"
         >
-          <Ionicons name="trash-outline" size={18} color={Colors.error} />
+          <Icon name="trash-outline" size={18} color={Colors.error} />
         </TouchableOpacity>
       )}
     </TouchableOpacity>
@@ -194,7 +194,7 @@ export default function TrailEventsScreen() {
           accessibilityRole="button"
           accessibilityLabel="Choose date"
         >
-          <Ionicons name="calendar-outline" size={16} color={Colors.primary} />
+          <Icon name="calendar-outline" size={16} color={Colors.primary} />
           <Text style={styles.pickerText}>
             {scheduledAt.toLocaleDateString([], { day: '2-digit', month: 'short', year: 'numeric' })}
           </Text>
@@ -205,7 +205,7 @@ export default function TrailEventsScreen() {
           accessibilityRole="button"
           accessibilityLabel="Choose time"
         >
-          <Ionicons name="time-outline" size={16} color={Colors.primary} />
+          <Icon name="time-outline" size={16} color={Colors.primary} />
           <Text style={styles.pickerText}>
             {scheduledAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
           </Text>
@@ -289,7 +289,7 @@ export default function TrailEventsScreen() {
         ListEmptyComponent={
           showForm ? null : (
             <View style={styles.empty}>
-              <Ionicons name="calendar-outline" size={48} color={Colors.textLight} />
+              <Icon name="calendar-outline" size={48} color={Colors.textLight} />
               <Text style={styles.emptyText}>No upcoming group hikes</Text>
               {isAuthenticated && (
                 <Text style={styles.emptyHint}>Tap + to organize one</Text>
@@ -330,7 +330,7 @@ export default function TrailEventsScreen() {
                   accessibilityRole="button"
                   accessibilityLabel={showForm ? 'Close the new group hike form' : 'Organize a group hike'}
                 >
-                  <Ionicons name={showForm ? 'close' : 'add'} size={24} color={Colors.primary} />
+                  <Icon name={showForm ? 'close' : 'add'} size={24} color={Colors.primary} />
                 </TouchableOpacity>
               )
             : undefined,

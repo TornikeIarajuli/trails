@@ -14,7 +14,7 @@ import { Image } from 'expo-image';
 import { useLocalSearchParams, router } from 'expo-router';
 import * as Linking from 'expo-linking';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import { Icon } from '../../../components/ui/Icon';
 import MapView, { Marker, Polyline, Callout, PROVIDER_GOOGLE } from 'react-native-maps';
 import * as ImagePicker from 'expo-image-picker';
 import { useColors, ColorPalette } from '../../../constants/colors';
@@ -84,7 +84,7 @@ function HikeTimer({ styles }: { styles: ReturnType<typeof createStyles> }) {
 
   return (
     <View style={[styles.timerContainer, isPaused && styles.timerContainerPaused]}>
-      <Ionicons name={isPaused ? 'pause-circle-outline' : 'time-outline'} size={18} color={isPaused ? Colors.warning : Colors.primary} />
+      <Icon name={isPaused ? 'pause-circle-outline' : 'time-outline'} size={18} color={isPaused ? Colors.warning : Colors.primary} />
       <Animated.Text style={[styles.timer, isPaused && styles.timerPaused, { opacity: pulseAnim }]}>
         {formatted}
       </Animated.Text>
@@ -463,7 +463,7 @@ export default function HikeScreen() {
     const otherName = otherTrail?.name_en ?? 'another trail';
     return (
       <View style={[styles.conflict, { paddingTop: insets.top + 24, paddingBottom: insets.bottom + 24 }]}>
-        <Ionicons name="footsteps-outline" size={44} color={Colors.accent} />
+        <Icon name="footsteps-outline" size={44} color={Colors.accent} />
         <Text style={styles.conflictTitle}>You already have a hike in progress</Text>
         <Text style={styles.conflictBody}>
           Your hike on {otherName} is still being recorded. Resume it, or discard it to start{' '}
@@ -545,7 +545,7 @@ export default function HikeScreen() {
                     />
                   ) : (
                     <View style={styles.noPhotosContainer}>
-                      <Ionicons name="image-outline" size={20} color={Colors.textSecondary} />
+                      <Icon name="image-outline" size={20} color={Colors.textSecondary} />
                       <Text style={styles.noPhotosText}>No photos yet</Text>
                     </View>
                   )}
@@ -559,13 +559,13 @@ export default function HikeScreen() {
       {/* Top bar */}
       <View style={[styles.topBar, { top: insets.top + 8 }]}>
         <TouchableOpacity testID="close-button" style={styles.iconButton} onPress={handleEndHike} disabled={saving} accessibilityLabel="End hike" accessibilityRole="button">
-          <Ionicons name="close" size={24} color={Colors.text} />
+          <Icon name="close" size={24} color={Colors.text} />
         </TouchableOpacity>
 
         <HikeTimer styles={styles} />
 
         <View style={styles.checkpointCount}>
-          <Ionicons name="camera" size={16} color={Colors.textOnPrimary} style={{ marginRight: 4 }} />
+          <Icon name="camera" size={16} color={Colors.textOnPrimary} style={{ marginRight: 4 }} />
           <Text style={styles.checkpointCountText}>
             {hikePhotos.length}/{parsedCheckpoints.length}
           </Text>
@@ -575,7 +575,7 @@ export default function HikeScreen() {
       {/* Recording only continues while the app is open */}
       {locationStatus === 'ready' && backgroundTracking === 'unavailable' && (
         <View style={[styles.notice, { top: insets.top + 60 }]} pointerEvents="none">
-          <Ionicons name="warning-outline" size={16} color={Colors.textOnPrimary} />
+          <Icon name="warning-outline" size={16} color={Colors.textOnPrimary} />
           <Text style={styles.noticeText}>Keep the app open — background tracking is unavailable</Text>
         </View>
       )}
@@ -598,7 +598,7 @@ export default function HikeScreen() {
           style={[styles.offlineMapBadge, { bottom: 268 + insets.bottom }]}
           accessibilityLabel="Offline: showing the topo map saved on this phone"
         >
-          <Ionicons name="cloud-offline-outline" size={14} color="#263238" />
+          <Icon name="cloud-offline-outline" size={14} color="#263238" />
           <Text style={styles.offlineMapBadgeText}>Offline topo map</Text>
         </View>
       ) : (
@@ -617,7 +617,7 @@ export default function HikeScreen() {
         accessibilityLabel={uploading ? 'Uploading photo' : 'Take photo'}
         accessibilityRole="button"
       >
-        <Ionicons name={uploading ? 'hourglass-outline' : 'camera'} size={26} color="#fff" />
+        <Icon name={uploading ? 'hourglass-outline' : 'camera'} size={26} color="#fff" />
       </TouchableOpacity>
 
       {/* Bottom info */}
@@ -659,7 +659,7 @@ export default function HikeScreen() {
             onPress={isPaused ? resumeHike : pauseHike}
             disabled={saving}
           >
-            <Ionicons
+            <Icon
               name={isPaused ? 'play' : 'pause'}
               size={18}
               color={isPaused ? Colors.success : Colors.textSecondary}

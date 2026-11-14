@@ -11,7 +11,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { router } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import { Icon } from '../../../components/ui/Icon';
 import * as Location from 'expo-location';
 import { useColors, ColorPalette } from '../../../constants/colors';
 import { useTrails, useRegions, useNearbyTrails, usePrefetchTrail } from '../../../hooks/useTrails';
@@ -149,7 +149,7 @@ export default function HomeScreen() {
     if (nearbyMode && (nearbyQuery.data?.length ?? 0) > 0) {
       return (
         <View style={styles.empty}>
-          <Ionicons name="funnel-outline" size={48} color={Colors.textLight} />
+          <Icon name="funnel-outline" size={48} color={Colors.textLight} />
           <Text style={styles.emptyText}>No nearby trails match your filters</Text>
           <TouchableOpacity style={styles.emptyAction} onPress={clearFilters} accessibilityRole="button">
             <Text style={styles.emptyActionText}>Clear filters</Text>
@@ -160,7 +160,7 @@ export default function HomeScreen() {
     if (nearbyMode) {
       return (
         <View style={styles.empty}>
-          <Ionicons name="map-outline" size={48} color={Colors.textLight} />
+          <Icon name="map-outline" size={48} color={Colors.textLight} />
           <Text style={styles.emptyText}>No trails within {radius} km</Text>
           {radius < 25 && (
             <TouchableOpacity style={styles.emptyAction} onPress={() => setRadius(25)} accessibilityRole="button">
@@ -172,7 +172,7 @@ export default function HomeScreen() {
     }
     return (
       <View style={styles.empty}>
-        <Ionicons name="map-outline" size={48} color={Colors.textLight} />
+        <Icon name="map-outline" size={48} color={Colors.textLight} />
         <Text style={styles.emptyText}>No trails found</Text>
         {listFiltersActive && (
           <TouchableOpacity style={styles.emptyAction} onPress={clearFilters} accessibilityRole="button">
@@ -232,7 +232,7 @@ export default function HomeScreen() {
           {locating ? (
             <ActivityIndicator size="small" color={Colors.textSecondary} />
           ) : (
-            <Ionicons
+            <Icon
               name={nearbyMode ? 'navigate' : 'navigate-outline'}
               size={16}
               color={nearbyMode ? Colors.accent : Colors.textSecondary}
@@ -252,7 +252,7 @@ export default function HomeScreen() {
           accessibilityState={{ selected: viewMode === 'map' }}
           testID={viewMode === 'map' ? 'list-toggle' : 'map-toggle'}
         >
-          <Ionicons
+          <Icon
             name={viewMode === 'map' ? 'map' : 'map-outline'}
             size={16}
             color={viewMode === 'map' ? Colors.primary : Colors.textSecondary}
@@ -270,7 +270,7 @@ export default function HomeScreen() {
           accessibilityLabel="My bookmarks"
           accessibilityRole="button"
         >
-          <Ionicons name="bookmark-outline" size={16} color={Colors.textSecondary} />
+          <Icon name="bookmark-outline" size={16} color={Colors.textSecondary} />
           <Text style={styles.quickChipText}>Bookmarks</Text>
         </TouchableOpacity>
 
@@ -283,7 +283,7 @@ export default function HomeScreen() {
           accessibilityLabel="Trail recommendations for you"
           accessibilityRole="button"
         >
-          <Ionicons name="compass-outline" size={16} color={Colors.textSecondary} />
+          <Icon name="compass-outline" size={16} color={Colors.textSecondary} />
           <Text style={styles.quickChipText}>For You</Text>
         </TouchableOpacity>
       </ScrollView>

@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Icon } from '../ui/Icon';
 import { useColors, ColorPalette } from '../../constants/colors';
 import { useGearStore } from '../../store/gearStore';
 import type { GearPlan } from '../../utils/gear';
@@ -32,7 +32,7 @@ export function GearCard({ trailId, plan, gearNotes, onPress }: GearCardProps) {
       accessibilityLabel={`What to bring: ${plan.items.length} items, ${packed} packed. Open the list.`}
     >
       <View style={styles.header}>
-        <Ionicons name="bag-check-outline" size={16} color={Colors.textSecondary} />
+        <Icon name="bag-check-outline" size={16} color={Colors.textSecondary} />
         <Text style={styles.headerText}>What to bring</Text>
         <Text style={styles.progress}>
           {packed > 0 ? `${packed} of ${plan.items.length} packed` : `${plan.items.length} items`}
@@ -41,7 +41,7 @@ export function GearCard({ trailId, plan, gearNotes, onPress }: GearCardProps) {
 
       {notes ? (
         <View style={styles.note}>
-          <Ionicons name="document-text-outline" size={14} color={Colors.warning} />
+          <Icon name="document-text-outline" size={14} color={Colors.warning} />
           <Text style={styles.noteText} numberOfLines={2}>
             {notes}
           </Text>
@@ -51,7 +51,7 @@ export function GearCard({ trailId, plan, gearNotes, onPress }: GearCardProps) {
       <View style={styles.chips}>
         {essentials.slice(0, 6).map((item) => (
           <View key={item.key} style={styles.chip}>
-            <Ionicons name={item.icon as never} size={13} color={Colors.primary} />
+            <Icon name={item.icon as never} size={13} color={Colors.primary} />
             <Text style={styles.chipText}>{item.label}</Text>
           </View>
         ))}
@@ -59,7 +59,7 @@ export function GearCard({ trailId, plan, gearNotes, onPress }: GearCardProps) {
 
       <View style={styles.footer}>
         <Text style={styles.footerText}>See the full list</Text>
-        <Ionicons name="chevron-forward" size={16} color={Colors.primary} />
+        <Icon name="chevron-forward" size={16} color={Colors.primary} />
       </View>
     </TouchableOpacity>
   );

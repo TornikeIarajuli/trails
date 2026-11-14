@@ -1,10 +1,10 @@
 import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Icon } from './Icon';
 import { useColors, ColorPalette } from '../../constants/colors';
 import { Sheet, SheetButton, useSheet } from './Sheet';
 
-type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
+type IoniconsName = React.ComponentProps<typeof Icon>['name'];
 
 export interface ActionSheetOption {
   key: string;
@@ -110,9 +110,9 @@ function ActionSheetOptions({
               accessibilityLabel={option.label}
               accessibilityState={{ selected: !!option.selected }}
             >
-              {option.icon ? <Ionicons name={option.icon} size={20} color={color} /> : null}
+              {option.icon ? <Icon name={option.icon} size={20} color={color} /> : null}
               <Text style={[styles.optionLabel, { color }]}>{option.label}</Text>
-              {option.selected ? <Ionicons name="checkmark" size={20} color={Colors.primary} /> : null}
+              {option.selected ? <Icon name="checkmark" size={20} color={Colors.primary} /> : null}
             </TouchableOpacity>
           );
         })

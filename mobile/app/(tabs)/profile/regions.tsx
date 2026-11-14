@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import { Icon } from '../../../components/ui/Icon';
 import { useColors, ColorPalette } from '../../../constants/colors';
 import { useRegionProgress } from '../../../hooks/useRegionProgress';
 import { useTrails, usePrefetchTrail } from '../../../hooks/useTrails';
@@ -126,9 +126,9 @@ function RegionTrailList({
             <TrailCover uri={trail.cover_image_url} style={styles.trailThumb} iconSize={18} />
             <Text style={styles.trailName} numberOfLines={1}>{name}</Text>
             {done ? (
-              <Ionicons name="checkmark-circle" size={20} color={Colors.success} />
+              <Icon name="checkmark-circle" size={20} color={Colors.success} />
             ) : (
-              <Ionicons name="ellipse-outline" size={20} color={Colors.border} />
+              <Icon name="ellipse-outline" size={20} color={Colors.border} />
             )}
           </TouchableOpacity>
         );
@@ -178,7 +178,7 @@ function RegionRow({
             />
           </View>
         </View>
-        <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={18} color={Colors.textLight} />
+        <Icon name={expanded ? 'chevron-up' : 'chevron-down'} size={18} color={Colors.textLight} />
       </TouchableOpacity>
       {expanded && (
         <RegionTrailList region={region.region} completedIds={completedIds} styles={styles} Colors={Colors} />

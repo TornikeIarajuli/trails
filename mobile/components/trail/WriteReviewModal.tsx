@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Icon } from '../ui/Icon';
 import { useColors, ColorPalette } from '../../constants/colors';
 import { useSubmitReview } from '../../hooks/useReviews';
 import { haptics } from '../../utils/haptics';
@@ -75,7 +75,7 @@ export function WriteReviewModal({ trailId, visible, onClose }: Props) {
             accessibilityRole="button"
             accessibilityState={{ selected: star === rating }}
           >
-            <Ionicons
+            <Icon
               name={star <= rating ? 'star' : 'star-outline'}
               size={36}
               color="#FFB800"

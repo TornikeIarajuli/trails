@@ -7,7 +7,7 @@ import {
   Alert,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import { Icon } from '../../components/ui/Icon';
 import { useColors, ColorPalette } from '../../constants/colors';
 import { Button } from '../../components/ui/Button';
 import { authService } from '../../services/auth';
@@ -35,7 +35,7 @@ export default function VerifyEmailScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.iconWrapper}>
-        <Ionicons name="mail-outline" size={64} color={Colors.primary} />
+        <Icon name="mail-outline" size={64} color={Colors.primary} />
       </View>
 
       <Text style={styles.title}>Check your email</Text>
@@ -49,7 +49,7 @@ export default function VerifyEmailScreen() {
 
       {resent ? (
         <View style={styles.resentBanner}>
-          <Ionicons name="checkmark-circle" size={18} color={Colors.success} />
+          <Icon name="checkmark-circle" size={18} color={Colors.success} />
           <Text style={styles.resentText}>Email resent successfully</Text>
         </View>
       ) : (

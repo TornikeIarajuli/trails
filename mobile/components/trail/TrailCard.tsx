@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Icon } from '../ui/Icon';
 import { router } from 'expo-router';
 import Animated, {
   FadeInDown,
@@ -80,15 +80,15 @@ export const TrailCard = React.memo(function TrailCard({ trail, index = 0 }: Tra
           </Text>
           <View style={styles.stats}>
             <View style={styles.stat}>
-              <Ionicons name="map-outline" size={14} color={Colors.textSecondary} />
+              <Icon name="map-outline" size={14} color={Colors.textSecondary} />
               <Text style={styles.statText}>{formatDistance(trail.distance_km)}</Text>
             </View>
             <View style={styles.stat}>
-              <Ionicons name="time-outline" size={14} color={Colors.textSecondary} />
+              <Icon name="time-outline" size={14} color={Colors.textSecondary} />
               <Text style={styles.statText}>{formatDuration(trail.estimated_hours)}</Text>
             </View>
             <View style={styles.stat}>
-              <Ionicons name="trending-up-outline" size={14} color={Colors.textSecondary} />
+              <Icon name="trending-up-outline" size={14} color={Colors.textSecondary} />
               <Text style={styles.statText}>{formatElevation(trail.elevation_gain_m)}</Text>
             </View>
           </View>

@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Icon } from '../ui/Icon';
 import { useColors, ColorPalette } from '../../constants/colors';
 import { useReportCondition } from '../../hooks/useCommunity';
 import { ConditionType, SeverityLevel } from '../../types/community';
@@ -104,7 +104,7 @@ export function ReportConditionModal({
               accessibilityRole="button"
               accessibilityState={{ selected }}
             >
-              <Ionicons
+              <Icon
                 name={c.icon as any}
                 size={16}
                 color={selected ? Colors.textOnPrimary : Colors.textSecondary}

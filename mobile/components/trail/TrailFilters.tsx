@@ -7,7 +7,7 @@ import {
   StyleSheet,
   Keyboard,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Icon } from '../ui/Icon';
 import { useColors, ColorPalette } from '../../constants/colors';
 import { TrailDifficulty } from '../../types/trail';
 import { haptics } from '../../utils/haptics';
@@ -56,7 +56,7 @@ export function TrailFilters({
     <View style={styles.container}>
       <View style={styles.row}>
         <View style={styles.searchRow}>
-          <Ionicons name="search" size={20} color={Colors.textLight} style={styles.searchIcon} />
+          <Icon name="search" size={20} color={Colors.textLight} style={styles.searchIcon} />
           <TextInput
             style={styles.searchInput}
             placeholder="Search trails..."
@@ -68,7 +68,7 @@ export function TrailFilters({
           />
           {search.length > 0 && (
             <TouchableOpacity onPress={() => onSearchChange('')} accessibilityLabel="Clear search" accessibilityRole="button">
-              <Ionicons name="close-circle" size={20} color={Colors.textLight} />
+              <Icon name="close-circle" size={20} color={Colors.textLight} />
             </TouchableOpacity>
           )}
         </View>
@@ -86,7 +86,7 @@ export function TrailFilters({
           accessibilityHint="Opens difficulty and region filters"
           testID="filters-button"
         >
-          <Ionicons
+          <Icon
             name="options-outline"
             size={18}
             color={activeCount > 0 ? Colors.primary : Colors.textSecondary}

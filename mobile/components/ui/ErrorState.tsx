@@ -9,7 +9,7 @@ import {
   ViewStyle,
 } from 'react-native';
 import { router } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import { Icon } from './Icon';
 import { useColors, ColorPalette } from '../../constants/colors';
 import { getErrorMessage, isNetworkError } from '../../utils/showError';
 
@@ -61,7 +61,7 @@ export function ErrorState({
   if (compact) {
     return (
       <View style={[styles.compact, style]} accessibilityRole="alert">
-        <Ionicons
+        <Icon
           name={offline ? 'cloud-offline-outline' : 'alert-circle-outline'}
           size={18}
           color={Colors.error}
@@ -91,7 +91,7 @@ export function ErrorState({
   return (
     <View style={[styles.container, style]} accessibilityRole="alert">
       <View style={styles.iconCircle}>
-        <Ionicons
+        <Icon
           name={offline ? 'cloud-offline-outline' : 'alert-circle-outline'}
           size={36}
           color={Colors.error}
@@ -114,7 +114,7 @@ export function ErrorState({
             <ActivityIndicator size="small" color={Colors.textOnPrimary} />
           ) : (
             <>
-              <Ionicons name="refresh" size={16} color={Colors.textOnPrimary} />
+              <Icon name="refresh" size={16} color={Colors.textOnPrimary} />
               <Text style={styles.retryText}>Retry</Text>
             </>
           )}
@@ -129,7 +129,7 @@ export function ErrorState({
           accessibilityLabel="Go back"
           testID="back-button"
         >
-          <Ionicons name="arrow-back" size={16} color={Colors.primary} />
+          <Icon name="arrow-back" size={16} color={Colors.primary} />
           <Text style={styles.backText}>Go back</Text>
         </TouchableOpacity>
       )}

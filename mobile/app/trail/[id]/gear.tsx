@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import { Icon } from '../../../components/ui/Icon';
 import { useColors, ColorPalette } from '../../../constants/colors';
 import { useTrail } from '../../../hooks/useTrails';
 import { useProducts } from '../../../hooks/useShop';
@@ -109,7 +109,7 @@ export default function TrailGearScreen() {
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} hitSlop={8} accessibilityLabel="Go back" accessibilityRole="button" testID="back-button">
-          <Ionicons name="arrow-back" size={24} color={Colors.text} />
+          <Icon name="arrow-back" size={24} color={Colors.text} />
         </TouchableOpacity>
         <View style={styles.headerTitles}>
           <Text style={styles.title}>{startMode ? 'Before you go' : 'What to bring'}</Text>
@@ -143,7 +143,7 @@ export default function TrailGearScreen() {
 
         {plan.warnings.map((w) => (
           <View key={w} style={styles.warning}>
-            <Ionicons name="warning-outline" size={16} color={Colors.warning} />
+            <Icon name="warning-outline" size={16} color={Colors.warning} />
             <Text style={styles.warningText}>{w}</Text>
           </View>
         ))}
@@ -176,8 +176,8 @@ export default function TrailGearScreen() {
                         accessibilityState={{ checked: done }}
                         accessibilityLabel={note ? `${item.label}. ${note}` : item.label}
                       >
-                        <Ionicons name={done ? 'checkbox' : 'square-outline'} size={22} color={done ? Colors.success : Colors.textLight} />
-                        <Ionicons name={item.icon as never} size={18} color={Colors.textSecondary} />
+                        <Icon name={done ? 'checkbox' : 'square-outline'} size={22} color={done ? Colors.success : Colors.textLight} />
+                        <Icon name={item.icon as never} size={18} color={Colors.textSecondary} />
                         <View style={styles.rowText}>
                           <Text style={[styles.label, done && styles.labelDone]}>{item.label}</Text>
                           {note ? <Text style={styles.note}>{note}</Text> : null}
@@ -191,7 +191,7 @@ export default function TrailGearScreen() {
                           accessibilityRole="button"
                           accessibilityLabel={`${item.label}: ${matches} in the shop`}
                         >
-                          <Ionicons name="storefront-outline" size={13} color={Colors.primary} />
+                          <Icon name="storefront-outline" size={13} color={Colors.primary} />
                           <Text style={styles.shopText}>{matches}</Text>
                         </TouchableOpacity>
                       ) : null}

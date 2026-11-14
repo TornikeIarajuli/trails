@@ -8,7 +8,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Stack } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import { Icon } from '../../../components/ui/Icon';
 import { useColors, ColorPalette } from '../../../constants/colors';
 import {
   useNotificationPrefs,
@@ -103,7 +103,7 @@ export default function NotificationPreferencesScreen() {
                   style={[styles.row, i < PREF_ROWS.length - 1 && styles.rowBorder]}
                 >
                   <View style={[styles.iconWrap, { backgroundColor: row.bg }]}>
-                    <Ionicons name={row.icon as any} size={20} color={row.color} />
+                    <Icon name={row.icon as any} size={20} color={row.color} />
                   </View>
                   <View style={styles.rowText}>
                     <Text style={styles.rowLabel}>{row.label}</Text>

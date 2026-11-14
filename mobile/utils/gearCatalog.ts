@@ -17,10 +17,10 @@ export const GEAR_ITEMS = {
   quick_dry_clothes: { label: 'Quick-dry clothes', icon: 'shirt-outline' },
   sun_protection: { label: 'Sun protection', icon: 'sunny-outline' },
   // Packs
-  daypack: { label: 'Daypack', icon: 'bag-handle-outline' },
-  backpack: { label: 'Large backpack', icon: 'bag-outline' },
+  daypack: { label: 'Daypack', icon: 'backpack' },
+  backpack: { label: 'Large backpack', icon: 'backpack' },
   // Camping
-  tent: { label: 'Tent', icon: 'home-outline' },
+  tent: { label: 'Tent', icon: 'tent' },
   sleeping_bag: { label: 'Sleeping bag', icon: 'bed-outline' },
   sleeping_mat: { label: 'Sleeping mat', icon: 'bed-outline' },
   stove: { label: 'Stove and pot', icon: 'flame-outline' },

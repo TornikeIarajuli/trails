@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { router } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import { Icon } from '../ui/Icon';
 import { useColors, ColorPalette } from '../../constants/colors';
 
 export function EmptyFeed() {
@@ -10,7 +10,7 @@ export function EmptyFeed() {
 
   return (
     <View style={styles.container}>
-      <Ionicons name="newspaper-outline" size={56} color={Colors.textLight} />
+      <Icon name="newspaper-outline" size={56} color={Colors.textLight} />
       <Text style={styles.title}>Your feed is empty</Text>
       <Text style={styles.subtitle}>
         Your hikes, photos and trail reports show up here, along with those of the hikers you follow.
@@ -20,7 +20,7 @@ export function EmptyFeed() {
         onPress={() => router.push('/search')}
         accessibilityRole="button"
       >
-        <Ionicons name="search-outline" size={18} color="#fff" />
+        <Icon name="search-outline" size={18} color="#fff" />
         <Text style={styles.buttonText}>Find Hikers</Text>
       </TouchableOpacity>
     </View>

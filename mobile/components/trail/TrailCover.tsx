@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, StyleProp, ViewStyle } from 'react-native';
 import { Image, ImageStyle } from 'expo-image';
-import { Ionicons } from '@expo/vector-icons';
+import { Icon } from '../ui/Icon';
 import { useColors, ColorPalette } from '../../constants/colors';
 
 interface TrailCoverProps {
@@ -42,7 +42,7 @@ export function TrailCover({ uri, style, iconSize = 24, showLabel = false, trans
 
   return (
     <View style={[styles.placeholder, style]} accessibilityLabel="No photo yet" accessibilityRole="image">
-      <Ionicons name="trail-sign-outline" size={iconSize} color={Colors.primaryLight} />
+      <Icon name="trail-sign-outline" size={iconSize} color={Colors.primaryLight} />
       {showLabel && <Text style={styles.label}>No photo yet</Text>}
     </View>
   );

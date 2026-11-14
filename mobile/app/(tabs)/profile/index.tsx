@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
 import { router } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
-import { Ionicons } from '@expo/vector-icons';
+import { Icon } from '../../../components/ui/Icon';
 import { useColors, ColorPalette } from '../../../constants/colors';
 import { useAuthStore } from '../../../store/authStore';
 import { usersService } from '../../../services/users';
@@ -63,7 +63,7 @@ export default function ProfileScreen() {
                 activeOpacity={0.7}
                 onPress={() => router.push(item.route as any)}
               >
-                <Ionicons name={item.icon as any} size={22} color={Colors.primary} />
+                <Icon name={item.icon as any} size={22} color={Colors.primary} />
                 <Text style={styles.navLabel}>{item.label}</Text>
               </TouchableOpacity>
             ))}

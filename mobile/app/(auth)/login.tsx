@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import { Icon } from '../../components/ui/Icon';
 import { useColors, ColorPalette } from '../../constants/colors';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
@@ -68,7 +68,7 @@ export default function LoginScreen() {
         <View style={styles.form}>
           {apiError ? (
             <View style={styles.errorBanner}>
-              <Ionicons name="alert-circle" size={18} color={Colors.error} />
+              <Icon name="alert-circle" size={18} color={Colors.error} />
               <Text style={styles.errorBannerText}>{apiError}</Text>
             </View>
           ) : null}

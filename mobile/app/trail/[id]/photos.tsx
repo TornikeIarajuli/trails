@@ -13,7 +13,7 @@ import {
 import { Image } from 'expo-image';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import { Icon } from '../../../components/ui/Icon';
 import { useColors, ColorPalette } from '../../../constants/colors';
 import {
   useTrailPhotos,
@@ -114,7 +114,7 @@ export default function PhotoGalleryScreen() {
             accessibilityRole="button"
             accessibilityState={{ selected: liked }}
           >
-            <Ionicons
+            <Icon
               name={liked ? 'heart' : 'heart-outline'}
               size={16}
               color={liked ? '#E53935' : Colors.textSecondary}
@@ -132,7 +132,7 @@ export default function PhotoGalleryScreen() {
               accessibilityLabel="Delete photo"
               accessibilityRole="button"
             >
-              <Ionicons name="trash-outline" size={16} color={Colors.error} />
+              <Icon name="trash-outline" size={16} color={Colors.error} />
             </TouchableOpacity>
           ) : (
             <ContentMenu
@@ -165,7 +165,7 @@ export default function PhotoGalleryScreen() {
           accessibilityRole="button"
           testID="back-button"
         >
-          <Ionicons name="arrow-back" size={24} color={Colors.text} />
+          <Icon name="arrow-back" size={24} color={Colors.text} />
         </TouchableOpacity>
         <Text style={styles.title}>Community Photos</Text>
         <View style={{ width: 24 }} />
@@ -203,7 +203,7 @@ export default function PhotoGalleryScreen() {
           }
           ListEmptyComponent={
             <View style={styles.empty}>
-              <Ionicons name="images-outline" size={48} color={Colors.textLight} />
+              <Icon name="images-outline" size={48} color={Colors.textLight} />
               <Text style={styles.emptyText}>No photos yet</Text>
               <Text style={styles.emptySubtext}>
                 {isAuthenticated ? 'Be the first to share one!' : 'Log in to share the first one.'}
@@ -225,7 +225,7 @@ export default function PhotoGalleryScreen() {
           {isUploading ? (
             <ActivityIndicator color="#fff" />
           ) : (
-            <Ionicons name="camera" size={24} color="#fff" />
+            <Icon name="camera" size={24} color="#fff" />
           )}
         </TouchableOpacity>
       )}

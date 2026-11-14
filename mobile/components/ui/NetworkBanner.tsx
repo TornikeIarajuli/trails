@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { Animated, Text, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import { Icon } from './Icon';
 import { useNetworkStatus } from '../../hooks/useNetworkStatus';
 
 export function NetworkBanner() {
@@ -38,7 +38,7 @@ export function NetworkBanner() {
       ]}
       pointerEvents="none"
     >
-      <Ionicons name={icon as any} size={13} color="#fff" />
+      <Icon name={icon as any} size={13} color="#fff" />
       <Text style={styles.label}>{label}</Text>
     </Animated.View>
   );

@@ -40,7 +40,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import { Icon } from './Icon';
 import { useColors, ColorPalette } from '../../constants/colors';
 
 export const SHEET_SPRING = { damping: 28, stiffness: 280, mass: 1, overshootClamping: true } as const;
@@ -369,7 +369,7 @@ function SheetPanel({
               accessibilityLabel={closeLabel}
               accessibilityState={{ disabled: !dismissible }}
             >
-              <Ionicons name="close" size={22} color={Colors.textSecondary} />
+              <Icon name="close" size={22} color={Colors.textSecondary} />
             </TouchableOpacity>
           )}
         </View>

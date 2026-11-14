@@ -11,7 +11,7 @@ import {
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import { Icon, type IconName } from '../components/ui/Icon';
 import { useColors, ColorPalette } from '../constants/colors';
 import { useSettingsStore } from '../store/settingsStore';
 
@@ -19,7 +19,7 @@ const { width } = Dimensions.get('window');
 
 interface OnboardingPage {
   id: string;
-  icon: keyof typeof Ionicons.glyphMap;
+  icon: IconName;
   title: string;
   subtitle: string;
 }
@@ -84,7 +84,7 @@ export default function OnboardingScreen() {
   const renderPage = ({ item }: { item: OnboardingPage }) => (
     <View style={[styles.page, { width }]}>
       <View style={styles.iconContainer}>
-        <Ionicons name={item.icon} size={100} color={Colors.primary} />
+        <Icon name={item.icon} size={100} color={Colors.primary} />
       </View>
       <Text style={styles.title}>{item.title}</Text>
       <Text style={styles.subtitle}>{item.subtitle}</Text>
@@ -151,7 +151,7 @@ export default function OnboardingScreen() {
             {isLastPage ? 'Get Started' : 'Next'}
           </Text>
           {!isLastPage && (
-            <Ionicons name="arrow-forward" size={20} color="#fff" />
+            <Icon name="arrow-forward" size={20} color="#fff" />
           )}
         </TouchableOpacity>
       </View>

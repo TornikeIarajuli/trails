@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { View, Text, FlatList, StyleSheet, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { Stack, router } from 'expo-router';
 import { useQueries } from '@tanstack/react-query';
-import { Ionicons } from '@expo/vector-icons';
+import { Icon } from '../../../components/ui/Icon';
 import { useColors, ColorPalette } from '../../../constants/colors';
 import { usersService } from '../../../services/users';
 import {
@@ -95,7 +95,7 @@ export default function BlockedUsersScreen() {
         }
         ListEmptyComponent={
           <View style={styles.empty}>
-            <Ionicons name="ban-outline" size={40} color={Colors.textLight} />
+            <Icon name="ban-outline" size={40} color={Colors.textLight} />
             <Text style={styles.emptyText}>You haven't blocked anyone</Text>
           </View>
         }

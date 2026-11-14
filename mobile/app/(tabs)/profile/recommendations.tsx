@@ -9,7 +9,7 @@ import {
   RefreshControl,
 } from 'react-native';
 import { Stack, router } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import { Icon } from '../../../components/ui/Icon';
 import { useColors, ColorPalette } from '../../../constants/colors';
 import { useRecommendations } from '../../../hooks/useRecommendations';
 import { usePrefetchTrail } from '../../../hooks/useTrails';
@@ -86,19 +86,19 @@ export default function RecommendationsScreen() {
           )}
           {item.avg_rating != null && (
             <View style={styles.ratingRow}>
-              <Ionicons name="star" size={12} color={Colors.warning} />
+              <Icon name="star" size={12} color={Colors.warning} />
               <Text style={styles.metaText}>{item.avg_rating}</Text>
             </View>
           )}
         </View>
       </View>
-      <Ionicons name="chevron-forward" size={18} color={Colors.textLight} />
+      <Icon name="chevron-forward" size={18} color={Colors.textLight} />
     </TouchableOpacity>
   );
 
   const emptyComponent = allCompleted ? (
     <View style={styles.empty}>
-      <Ionicons name="trophy" size={48} color={Colors.primary} />
+      <Icon name="trophy" size={48} color={Colors.primary} />
       <Text style={styles.emptyTitle}>You've conquered them all!</Text>
       <Text style={styles.emptyHint}>
         You've completed every trail in the app. Check back when new trails are added!
@@ -106,7 +106,7 @@ export default function RecommendationsScreen() {
     </View>
   ) : (
     <View style={styles.empty}>
-      <Ionicons name="compass-outline" size={48} color={Colors.textLight} />
+      <Icon name="compass-outline" size={48} color={Colors.textLight} />
       <Text style={styles.emptyTitle}>No recommendations yet</Text>
       <Text style={styles.emptyHint}>
         Complete a few trails to get personalized suggestions

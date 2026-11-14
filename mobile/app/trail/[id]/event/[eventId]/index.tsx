@@ -13,7 +13,7 @@ import {
   RefreshControl,
 } from 'react-native';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import { Icon } from '../../../../../components/ui/Icon';
 import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useColors, ColorPalette } from '../../../../../constants/colors';
@@ -203,14 +203,14 @@ export default function EventDetailScreen() {
               />
             ) : (
               <View style={[styles.avatar, styles.avatarFallback]}>
-                <Ionicons name="person" size={14} color={Colors.textLight} />
+                <Icon name="person" size={14} color={Colors.textLight} />
               </View>
             )}
             <Text style={styles.participantName}>@{p.profiles?.username ?? 'hiker'}</Text>
             {p.user_id === event.organizer_id && (
               <Text style={styles.organizerTag}>Organizer</Text>
             )}
-            <Ionicons name="chevron-forward" size={14} color={Colors.textLight} />
+            <Icon name="chevron-forward" size={14} color={Colors.textLight} />
           </TouchableOpacity>
         ))}
       </View>
@@ -245,7 +245,7 @@ export default function EventDetailScreen() {
 
       {/* Comments section header */}
       <View style={styles.commentsHeader}>
-        <Ionicons name="chatbubble-outline" size={16} color={Colors.textSecondary} />
+        <Icon name="chatbubble-outline" size={16} color={Colors.textSecondary} />
         <Text style={styles.commentsTitle}>
           Comments {comments.length > 0 ? `(${comments.length})` : ''}
         </Text>
@@ -292,7 +292,7 @@ export default function EventDetailScreen() {
             accessibilityLabel="Delete comment"
             accessibilityRole="button"
           >
-            <Ionicons name="trash-outline" size={16} color={Colors.error} />
+            <Icon name="trash-outline" size={16} color={Colors.error} />
           </TouchableOpacity>
         ) : (
           <ContentMenu
@@ -371,7 +371,7 @@ export default function EventDetailScreen() {
               {addComment.isPending ? (
                 <ActivityIndicator size="small" color="#fff" />
               ) : (
-                <Ionicons name="send" size={18} color="#fff" />
+                <Icon name="send" size={18} color="#fff" />
               )}
             </TouchableOpacity>
           </View>

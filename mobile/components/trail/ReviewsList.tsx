@@ -7,7 +7,7 @@ import {
   Alert,
 } from 'react-native';
 import { Image } from 'expo-image';
-import { Ionicons } from '@expo/vector-icons';
+import { Icon } from '../ui/Icon';
 import { useColors, ColorPalette } from '../../constants/colors';
 import { Review } from '../../types/review';
 import { useAuthStore } from '../../store/authStore';
@@ -32,7 +32,7 @@ function StarRating({ rating }: { rating: number }) {
   return (
     <View style={styles.stars}>
       {[1, 2, 3, 4, 5].map((star) => (
-        <Ionicons
+        <Icon
           key={star}
           name={star <= rating ? 'star' : 'star-outline'}
           size={14}
@@ -80,7 +80,7 @@ const ReviewItem = React.memo(function ReviewItem({ review, trailId }: { review:
             />
           ) : (
             <View style={styles.avatarPlaceholder}>
-              <Ionicons name="person" size={14} color={Colors.textLight} />
+              <Icon name="person" size={14} color={Colors.textLight} />
             </View>
           )}
           <View>
@@ -94,7 +94,7 @@ const ReviewItem = React.memo(function ReviewItem({ review, trailId }: { review:
           <StarRating rating={review.rating} />
           {isOwn ? (
             <TouchableOpacity onPress={handleDelete} hitSlop={8} accessibilityLabel="Delete review" accessibilityRole="button">
-              <Ionicons name="trash-outline" size={16} color={Colors.error} />
+              <Icon name="trash-outline" size={16} color={Colors.error} />
             </TouchableOpacity>
           ) : (
             <ContentMenu
@@ -138,7 +138,7 @@ export function ReviewsList({ reviews, trailId, onWriteReview, isError = false, 
         <ErrorState compact error={error} message="Couldn't load the reviews." onRetry={onRetry} />
       ) : reviews.length === 0 ? (
         <View style={styles.empty}>
-          <Ionicons name="chatbox-ellipses-outline" size={28} color={Colors.textLight} />
+          <Icon name="chatbox-ellipses-outline" size={28} color={Colors.textLight} />
           <Text style={styles.emptyText}>No reviews yet</Text>
           <Text style={styles.emptyHint}>
             {isAuthenticated

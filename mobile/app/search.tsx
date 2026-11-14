@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { router } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
-import { Ionicons } from '@expo/vector-icons';
+import { Icon } from '../components/ui/Icon';
 import { useColors, ColorPalette } from '../constants/colors';
 import { usersService } from '../services/users';
 import { useDebounce } from '../hooks/useDebounce';
@@ -34,7 +34,7 @@ export default function SearchScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.searchBar}>
-        <Ionicons name="search" size={20} color={Colors.textLight} />
+        <Icon name="search" size={20} color={Colors.textLight} />
         <TextInput
           style={styles.searchInput}
           placeholder="Search by username or name..."
@@ -54,14 +54,14 @@ export default function SearchScreen() {
             accessibilityRole="button"
             accessibilityLabel="Clear search"
           >
-            <Ionicons name="close-circle" size={20} color={Colors.textLight} />
+            <Icon name="close-circle" size={20} color={Colors.textLight} />
           </TouchableOpacity>
         )}
       </View>
 
       {debouncedQuery.length < 2 ? (
         <View style={styles.hintContainer}>
-          <Ionicons name="people-outline" size={48} color={Colors.textLight} />
+          <Icon name="people-outline" size={48} color={Colors.textLight} />
           <Text style={styles.hintText}>Type at least 2 characters to search</Text>
         </View>
       ) : isLoading ? (
@@ -96,7 +96,7 @@ export default function SearchScreen() {
                   <Text style={styles.userFullName}>{item.full_name}</Text>
                 )}
               </View>
-              <Ionicons name="chevron-forward" size={20} color={Colors.textLight} />
+              <Icon name="chevron-forward" size={20} color={Colors.textLight} />
             </TouchableOpacity>
           )}
           ListEmptyComponent={

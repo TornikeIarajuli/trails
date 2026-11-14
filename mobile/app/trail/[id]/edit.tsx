@@ -11,7 +11,7 @@ import {
 import { Image } from 'expo-image';
 import { useLocalSearchParams, Stack, router } from 'expo-router';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Ionicons } from '@expo/vector-icons';
+import { Icon } from '../../../components/ui/Icon';
 import * as ImagePicker from 'expo-image-picker';
 import { useColors, ColorPalette } from '../../../constants/colors';
 import { useTrail } from '../../../hooks/useTrails';
@@ -115,7 +115,7 @@ function MediaGrid({
               accessibilityLabel="Delete photo"
               accessibilityRole="button"
             >
-              <Ionicons name="close-circle" size={22} color={Colors.error} />
+              <Icon name="close-circle" size={22} color={Colors.error} />
             </TouchableOpacity>
           </View>
         ))}
@@ -131,7 +131,7 @@ function MediaGrid({
             <ActivityIndicator size="small" color={Colors.primary} />
           ) : (
             <>
-              <Ionicons name="add-circle-outline" size={28} color={Colors.primary} />
+              <Icon name="add-circle-outline" size={28} color={Colors.primary} />
               <Text style={styles.addPhotoText}>Add Photo</Text>
             </>
           )}
@@ -396,7 +396,7 @@ export default function TrailEditScreen() {
         />
 
         <View style={styles.infoBox}>
-          <Ionicons name="lock-closed-outline" size={16} color={Colors.textLight} />
+          <Icon name="lock-closed-outline" size={16} color={Colors.textLight} />
           <Text style={styles.infoText}>
             Route coordinates and GPS data cannot be edited from here.
           </Text>

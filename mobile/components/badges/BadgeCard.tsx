@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Icon } from '../ui/Icon';
 import { useColors, ColorPalette } from '../../constants/colors';
 import { Badge } from '../../types/badge';
 import { BADGE_ICON_MAP, BADGE_CATEGORY_COLOR } from './badgeConstants';
@@ -29,7 +29,7 @@ export function BadgeCard({ badge, earned, compact, progress }: BadgeCardProps) 
               : { backgroundColor: Colors.borderLight },
           ]}
         >
-          <Ionicons
+          <Icon
             name={iconName as any}
             size={20}
             color={earned ? '#fff' : Colors.textLight}
@@ -58,14 +58,14 @@ export function BadgeCard({ badge, earned, compact, progress }: BadgeCardProps) 
             : { backgroundColor: Colors.borderLight },
         ]}
       >
-        <Ionicons
+        <Icon
           name={iconName as any}
           size={28}
           color={earned ? '#fff' : Colors.textLight}
         />
         {!earned && (
           <View style={styles.lockOverlay}>
-            <Ionicons name="lock-closed" size={12} color={Colors.textLight} />
+            <Icon name="lock-closed" size={12} color={Colors.textLight} />
           </View>
         )}
       </View>

@@ -13,7 +13,7 @@ import Animated, {
   interpolate,
   Extrapolation,
 } from 'react-native-reanimated';
-import { Ionicons } from '@expo/vector-icons';
+import { Icon } from '../ui/Icon';
 import { useColors, ColorPalette } from '../../constants/colors';
 import { Badge } from '../../types/badge';
 import { Dialog } from '../ui/Dialog';
@@ -67,12 +67,12 @@ function FlipCard({ badge, onNext, isLast, styles, Colors }: {
     <View style={styles.cardWrapper}>
       {/* Front face — question mark */}
       <Animated.View style={[styles.flipCard, styles.flipFront, frontStyle]}>
-        <Ionicons name="help" size={52} color="#fff" />
+        <Icon name="help" size={52} color="#fff" />
       </Animated.View>
 
       {/* Back face — badge reveal */}
       <Animated.View style={[styles.flipCard, styles.flipBack, backStyle]}>
-        <Ionicons name={iconName as any} size={52} color="#fff" />
+        <Icon name={iconName as any} size={52} color="#fff" />
       </Animated.View>
 
       <Text style={styles.celebration}>Badge Unlocked!</Text>

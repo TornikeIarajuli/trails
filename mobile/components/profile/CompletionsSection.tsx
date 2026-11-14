@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { router } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import { Icon } from '../ui/Icon';
 import { useColors, ColorPalette } from '../../constants/colors';
 import { useMyCompletions, useDeleteCompletion } from '../../hooks/useCompletions';
 import { DifficultyBadge } from '../trail/DifficultyBadge';
@@ -54,7 +54,7 @@ export function CompletionsSection() {
             accessibilityRole="button"
             accessibilityLabel={`Delete completion of ${c.trails?.name_en ?? 'this trail'}`}
           >
-            <Ionicons name="trash-outline" size={18} color={Colors.error} />
+            <Icon name="trash-outline" size={18} color={Colors.error} />
           </TouchableOpacity>
         </View>
       ))}

@@ -16,6 +16,14 @@ export const BADGE_ICON_MAP: Record<string, string> = {
   bookmark: 'bookmark',
   star: 'star',
   ribbon: 'ribbon',
+  // Hand-drawn badge art (components/ui/Icon draws these names directly)
+  mountain: 'mountain',
+  'mountain-snow': 'mountain-snow',
+  campfire: 'flame-kindling',
+  medal: 'medal',
+  calendar: 'calendar-check',
+  map: 'map',
+  'svaneti-tower': 'svaneti-tower',
 };
 
 export const BADGE_CATEGORY_COLOR: Record<BadgeCategory, string> = {

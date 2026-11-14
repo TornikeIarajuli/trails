@@ -11,7 +11,7 @@ import {
 import { Image } from 'expo-image';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import { Icon } from '../../../components/ui/Icon';
 import { File as FSFile, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import { useColors, ColorPalette } from '../../../constants/colors';
@@ -250,7 +250,7 @@ export default function CompletionDetailScreen() {
           <Image source={{ uri: trail.cover_image_url }} style={styles.coverImage} cachePolicy="memory-disk" />
         ) : (
           <View style={[styles.coverImage, styles.coverPlaceholder]}>
-            <Ionicons name="trail-sign-outline" size={48} color={Colors.textLight} />
+            <Icon name="trail-sign-outline" size={48} color={Colors.textLight} />
           </View>
         )}
 
@@ -261,7 +261,7 @@ export default function CompletionDetailScreen() {
           accessibilityLabel="Go back"
           accessibilityRole="button"
         >
-          <Ionicons name="arrow-back" size={24} color={Colors.text} />
+          <Icon name="arrow-back" size={24} color={Colors.text} />
         </TouchableOpacity>
 
         {/* Share button overlay */}
@@ -271,7 +271,7 @@ export default function CompletionDetailScreen() {
           accessibilityLabel="Share completion"
           accessibilityRole="button"
         >
-          <Ionicons name="share-outline" size={22} color={Colors.text} />
+          <Icon name="share-outline" size={22} color={Colors.text} />
         </TouchableOpacity>
 
         <View style={styles.content}>
@@ -284,7 +284,7 @@ export default function CompletionDetailScreen() {
             )}
             {trail?.region && (
               <View style={styles.regionBadge}>
-                <Ionicons name="location-outline" size={14} color={Colors.textSecondary} />
+                <Icon name="location-outline" size={14} color={Colors.textSecondary} />
                 <Text style={styles.regionText}>{trail.region}</Text>
               </View>
             )}
@@ -293,7 +293,7 @@ export default function CompletionDetailScreen() {
           {/* Completion date and whether it counts */}
           {past ? (
             <View style={[styles.dateRow, { backgroundColor: outcomeColor + '15' }]}>
-              <Ionicons name="checkmark-circle" size={20} color={outcomeColor} />
+              <Icon name="checkmark-circle" size={20} color={outcomeColor} />
               <View style={styles.dateTextWrap}>
                 <Text style={styles.dateText}>{completionDateLabel(completion)}</Text>
                 <Text style={[styles.outcomeTitle, { color: outcomeColor }]}>Marked as done by you</Text>
@@ -301,7 +301,7 @@ export default function CompletionDetailScreen() {
             </View>
           ) : (
             <View style={[styles.dateRow, { backgroundColor: outcomeColor + '15' }]}>
-              <Ionicons
+              <Icon
                 name={isVerified ? 'checkmark-circle' : outcome.state === 'rejected' ? 'close-circle' : 'alert-circle'}
                 size={20}
                 color={outcomeColor}
@@ -346,7 +346,7 @@ export default function CompletionDetailScreen() {
           <View style={styles.statsGrid}>
             {hasActualTime && (
               <View style={styles.statCard}>
-                <Ionicons name="timer-outline" size={24} color={Colors.primary} />
+                <Icon name="timer-outline" size={24} color={Colors.primary} />
                 <Text style={styles.statValue}>
                   {formatElapsedTime(completion.elapsed_seconds!)}
                 </Text>
@@ -356,7 +356,7 @@ export default function CompletionDetailScreen() {
 
             {trail?.distance_km != null && (
               <View style={styles.statCard}>
-                <Ionicons name="map-outline" size={24} color={Colors.primary} />
+                <Icon name="map-outline" size={24} color={Colors.primary} />
                 <Text style={styles.statValue}>{formatDistance(trail.distance_km)}</Text>
                 <Text style={styles.statLabel}>Distance</Text>
               </View>
@@ -364,7 +364,7 @@ export default function CompletionDetailScreen() {
 
             {trail?.elevation_gain_m != null && (
               <View style={styles.statCard}>
-                <Ionicons name="trending-up-outline" size={24} color={Colors.primary} />
+                <Icon name="trending-up-outline" size={24} color={Colors.primary} />
                 <Text style={styles.statValue}>{formatElevation(trail.elevation_gain_m)}</Text>
                 <Text style={styles.statLabel}>Elevation</Text>
               </View>
@@ -372,7 +372,7 @@ export default function CompletionDetailScreen() {
 
             {hasEstimate && (
               <View style={styles.statCard}>
-                <Ionicons name="hourglass-outline" size={24} color={Colors.primary} />
+                <Icon name="hourglass-outline" size={24} color={Colors.primary} />
                 <Text style={styles.statValue}>{formatDuration(estimatedHours)}</Text>
                 <Text style={styles.statLabel}>Estimated</Text>
               </View>
@@ -390,7 +390,7 @@ export default function CompletionDetailScreen() {
                   </Text>
                   <Text style={styles.comparisonLabel}>Actual</Text>
                 </View>
-                <Ionicons name="swap-horizontal" size={24} color={Colors.textLight} />
+                <Icon name="swap-horizontal" size={24} color={Colors.textLight} />
                 <View style={styles.comparisonItem}>
                   <Text style={styles.comparisonValue}>
                     {formatDuration(estimatedHours)}
@@ -424,7 +424,7 @@ export default function CompletionDetailScreen() {
             // Pops back to the tabs already underneath instead of stacking a second set
             onPress={() => router.dismissTo('/(tabs)/profile')}
           >
-            <Ionicons name="person-outline" size={20} color={Colors.textOnPrimary} />
+            <Icon name="person-outline" size={20} color={Colors.textOnPrimary} />
             <Text style={styles.profileButtonText}>Go to Profile</Text>
           </TouchableOpacity>
 
@@ -433,13 +433,13 @@ export default function CompletionDetailScreen() {
               style={styles.viewTrailButton}
               onPress={() => router.push(`/trail/${completion.trail_id}`)}
             >
-              <Ionicons name="trail-sign-outline" size={20} color={Colors.primary} />
+              <Icon name="trail-sign-outline" size={20} color={Colors.primary} />
               <Text style={styles.viewTrailText}>View Trail</Text>
             </TouchableOpacity>
 
             {exportPoints.length > 0 && (
               <TouchableOpacity style={styles.gpxButton} onPress={handleExportGpx}>
-                <Ionicons name="download-outline" size={20} color={Colors.accent} />
+                <Icon name="download-outline" size={20} color={Colors.accent} />
                 <Text style={styles.gpxButtonText}>Export GPX</Text>
               </TouchableOpacity>
             )}

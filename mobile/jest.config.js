@@ -11,6 +11,8 @@ module.exports = {
     'node_modules/(?!((jest-)?react-native|@react-native(-community)?)|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|@tanstack/.*|zustand)',
   ],
   moduleNameMapper: {
+    // The real module loads its font through expo-font, which Jest cannot run
+    '^@expo/vector-icons/Ionicons$': '<rootDir>/__tests__/support/ioniconsStub.tsx',
     '^@react-native-async-storage/async-storage$':
       '@react-native-async-storage/async-storage/jest/async-storage-mock',
   },

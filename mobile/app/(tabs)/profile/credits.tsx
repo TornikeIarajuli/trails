@@ -65,6 +65,21 @@ export default function CreditsScreen() {
       </View>
 
       <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Icons</Text>
+        <Text style={styles.body}>
+          Hand-drawn icons from Sketchy Icons, © 2026 Julien Montagne (MIT License). Their shapes come
+          from Lucide, © Lucide Icons and Contributors (ISC License), some originally from Feather, ©
+          2013-present Cole Bemis (MIT License). The Svaneti tower badge was drawn for this app.
+        </Text>
+        <Link url="https://github.com/Fantomiald/sketchyicons" style={styles.link}>
+          github.com/Fantomiald/sketchyicons
+        </Link>
+        <Link url="https://lucide.dev/license" style={styles.link}>
+          lucide.dev/license
+        </Link>
+      </View>
+
+      <View style={styles.section}>
         <Text style={styles.sectionTitle}>Elevation</Text>
         <Text style={styles.body}>
           Elevation data: NASA Shuttle Radar Topography Mission (SRTM).

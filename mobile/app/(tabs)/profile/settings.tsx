@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Switch, Alert, ScrollView, ActivityIndicator, Share } from 'react-native';
 import { Stack, router } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import { Icon } from '../../../components/ui/Icon';
 import Constants from 'expo-constants';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useColors, ColorPalette } from '../../../constants/colors';
@@ -88,7 +88,7 @@ function EmergencyContactRow({ styles, Colors }: { styles: ReturnType<typeof cre
       accessibilityLabel={`Emergency contact: ${subtitle}`}
     >
       <View style={styles.rowLeft}>
-        <Ionicons name="alert-circle-outline" size={20} color={Colors.error} />
+        <Icon name="alert-circle-outline" size={20} color={Colors.error} />
         <View style={styles.rowTextBlock}>
           <Text style={styles.rowLabel}>Emergency Contact</Text>
           <Text style={styles.rowSubtitle}>{subtitle}</Text>
@@ -97,7 +97,7 @@ function EmergencyContactRow({ styles, Colors }: { styles: ReturnType<typeof cre
       {removeContact.isPending ? (
         <ActivityIndicator size="small" color={Colors.primary} />
       ) : (
-        <Ionicons name="chevron-forward" size={18} color={Colors.textLight} />
+        <Icon name="chevron-forward" size={18} color={Colors.textLight} />
       )}
     </TouchableOpacity>
   );
@@ -149,7 +149,7 @@ function OfflineMapsRow({ styles, Colors }: { styles: ReturnType<typeof createSt
   return (
     <View style={styles.row}>
       <View style={styles.rowLeft}>
-        <Ionicons name="map-outline" size={20} color={Colors.text} />
+        <Icon name="map-outline" size={20} color={Colors.text} />
         <View style={styles.rowTextBlock}>
           <Text style={styles.rowLabel}>Offline maps</Text>
           <Text style={styles.rowSubtitle}>{subtitle}</Text>
@@ -254,7 +254,7 @@ export default function SettingsScreen() {
           <Text style={styles.sectionTitle}>Appearance</Text>
           <View style={styles.row}>
             <View style={styles.rowLeft}>
-              <Ionicons name="moon-outline" size={20} color={Colors.text} />
+              <Icon name="moon-outline" size={20} color={Colors.text} />
               <Text style={styles.rowLabel}>Dark Mode</Text>
             </View>
             <Switch
@@ -270,7 +270,7 @@ export default function SettingsScreen() {
           <Text style={styles.sectionTitle}>Language</Text>
           <View style={styles.row}>
             <View style={styles.rowLeft}>
-              <Ionicons name="language-outline" size={20} color={Colors.text} />
+              <Icon name="language-outline" size={20} color={Colors.text} />
               <Text style={styles.rowLabel}>Show Georgian names</Text>
             </View>
             <Switch
@@ -323,10 +323,10 @@ export default function SettingsScreen() {
             accessibilityRole="button"
           >
             <View style={styles.rowLeft}>
-              <Ionicons name="notifications-outline" size={20} color={Colors.text} />
+              <Icon name="notifications-outline" size={20} color={Colors.text} />
               <Text style={styles.rowLabel}>Notification Center</Text>
             </View>
-            <Ionicons name="chevron-forward" size={18} color={Colors.textLight} />
+            <Icon name="chevron-forward" size={18} color={Colors.textLight} />
           </TouchableOpacity>
           <View style={styles.divider} />
           <TouchableOpacity
@@ -335,10 +335,10 @@ export default function SettingsScreen() {
             activeOpacity={0.7}
           >
             <View style={styles.rowLeft}>
-              <Ionicons name="options-outline" size={20} color={Colors.text} />
+              <Icon name="options-outline" size={20} color={Colors.text} />
               <Text style={styles.rowLabel}>Notification Preferences</Text>
             </View>
-            <Ionicons name="chevron-forward" size={18} color={Colors.textLight} />
+            <Icon name="chevron-forward" size={18} color={Colors.textLight} />
           </TouchableOpacity>
         </View>
 
@@ -356,13 +356,13 @@ export default function SettingsScreen() {
             disabled={isExporting}
           >
             <View style={styles.rowLeft}>
-              <Ionicons name="download-outline" size={20} color={Colors.text} />
+              <Icon name="download-outline" size={20} color={Colors.text} />
               <Text style={styles.rowLabel}>Export My Data</Text>
             </View>
             {isExporting ? (
               <ActivityIndicator size="small" color={Colors.primary} />
             ) : (
-              <Ionicons name="chevron-forward" size={18} color={Colors.textLight} />
+              <Icon name="chevron-forward" size={18} color={Colors.textLight} />
             )}
           </TouchableOpacity>
           <View style={styles.divider} />
@@ -373,22 +373,22 @@ export default function SettingsScreen() {
             accessibilityRole="button"
           >
             <View style={styles.rowLeft}>
-              <Ionicons name="ban-outline" size={20} color={Colors.text} />
+              <Icon name="ban-outline" size={20} color={Colors.text} />
               <Text style={styles.rowLabel}>Blocked users</Text>
             </View>
-            <Ionicons name="chevron-forward" size={18} color={Colors.textLight} />
+            <Icon name="chevron-forward" size={18} color={Colors.textLight} />
           </TouchableOpacity>
         </View>
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Account</Text>
           <TouchableOpacity style={styles.actionRow} onPress={logout} activeOpacity={0.7}>
-            <Ionicons name="log-out-outline" size={22} color={Colors.error} />
+            <Icon name="log-out-outline" size={22} color={Colors.error} />
             <Text style={styles.actionText}>Log Out</Text>
           </TouchableOpacity>
           <View style={styles.divider} />
           <TouchableOpacity style={styles.actionRow} onPress={handleDeleteAccount} activeOpacity={0.7}>
-            <Ionicons name="trash-outline" size={22} color={Colors.error} />
+            <Icon name="trash-outline" size={22} color={Colors.error} />
             <Text style={styles.actionText}>Delete Account</Text>
           </TouchableOpacity>
         </View>
@@ -401,10 +401,10 @@ export default function SettingsScreen() {
             onPress={() => router.push('/(tabs)/profile/privacy')}
           >
             <View style={styles.rowLeft}>
-              <Ionicons name="shield-checkmark-outline" size={20} color={Colors.text} />
+              <Icon name="shield-checkmark-outline" size={20} color={Colors.text} />
               <Text style={styles.rowLabel}>Privacy Policy</Text>
             </View>
-            <Ionicons name="chevron-forward" size={18} color={Colors.textLight} />
+            <Icon name="chevron-forward" size={18} color={Colors.textLight} />
           </TouchableOpacity>
           <View style={styles.divider} />
           <TouchableOpacity
@@ -413,10 +413,10 @@ export default function SettingsScreen() {
             onPress={() => router.push('/(tabs)/profile/terms')}
           >
             <View style={styles.rowLeft}>
-              <Ionicons name="document-text-outline" size={20} color={Colors.text} />
+              <Icon name="document-text-outline" size={20} color={Colors.text} />
               <Text style={styles.rowLabel}>Terms of Service</Text>
             </View>
-            <Ionicons name="chevron-forward" size={18} color={Colors.textLight} />
+            <Icon name="chevron-forward" size={18} color={Colors.textLight} />
           </TouchableOpacity>
           <View style={styles.divider} />
           <TouchableOpacity
@@ -426,10 +426,10 @@ export default function SettingsScreen() {
             accessibilityRole="button"
           >
             <View style={styles.rowLeft}>
-              <Ionicons name="images-outline" size={20} color={Colors.text} />
+              <Icon name="images-outline" size={20} color={Colors.text} />
               <Text style={styles.rowLabel}>Data sources & photo credits</Text>
             </View>
-            <Ionicons name="chevron-forward" size={18} color={Colors.textLight} />
+            <Icon name="chevron-forward" size={18} color={Colors.textLight} />
           </TouchableOpacity>
         </View>
 

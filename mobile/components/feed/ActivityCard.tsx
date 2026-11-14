@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import { Icon } from '../ui/Icon';
 import { useColors, ColorPalette } from '../../constants/colors';
 import { Avatar } from '../ui/Avatar';
 import { FeedItem } from '../../types/feed';
@@ -192,7 +192,7 @@ export const ActivityCard = React.memo(function ActivityCard({ item }: { item: F
         {/* Extra context based on type */}
         {item.activity_type === 'condition' && item.extra_text && (
           <View style={[styles.conditionBadge, { backgroundColor: config.color + '20' }]}>
-            <Ionicons name={config.icon as any} size={14} color={config.color} />
+            <Icon name={config.icon as any} size={14} color={config.color} />
             <Text style={[styles.conditionText, { color: config.color }]}>
               {getConditionLabel(item.extra_text)}
             </Text>
@@ -202,7 +202,7 @@ export const ActivityCard = React.memo(function ActivityCard({ item }: { item: F
         {item.activity_type === 'review' && stars > 0 && (
           <View style={styles.ratingRow} accessibilityLabel={`${stars} out of 5 stars`}>
             {Array.from({ length: stars }).map((_, i) => (
-              <Ionicons key={i} name="star" size={14} color="#FFC107" />
+              <Icon key={i} name="star" size={14} color="#FFC107" />
             ))}
           </View>
         )}
@@ -232,7 +232,7 @@ export const ActivityCard = React.memo(function ActivityCard({ item }: { item: F
             accessibilityRole="button"
             accessibilityState={{ selected: liked }}
           >
-            <Ionicons
+            <Icon
               name={liked ? 'heart' : 'heart-outline'}
               size={16}
               color={liked ? '#E53935' : Colors.textSecondary}
@@ -249,7 +249,7 @@ export const ActivityCard = React.memo(function ActivityCard({ item }: { item: F
             accessibilityLabel={commentCount > 0 ? `Comments, ${commentCount}` : 'Comments'}
             accessibilityRole="button"
           >
-            <Ionicons name="chatbubble-outline" size={15} color={Colors.textSecondary} />
+            <Icon name="chatbubble-outline" size={15} color={Colors.textSecondary} />
             {commentCount > 0 && (
               <Text style={styles.actionCount}>{commentCount}</Text>
             )}

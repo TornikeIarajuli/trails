@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { View, Text, TextInput, StyleSheet, TextInputProps, TouchableOpacity } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Icon } from './Icon';
 import { useColors, ColorPalette } from '../../constants/colors';
 
 interface InputProps extends TextInputProps {
@@ -32,7 +32,7 @@ export function Input({ label, error, style, secureTextEntry, ...props }: InputP
             accessibilityRole="button"
             accessibilityLabel={hidden ? 'Show password' : 'Hide password'}
           >
-            <Ionicons name={hidden ? 'eye-off-outline' : 'eye-outline'} size={22} color={Colors.textSecondary} />
+            <Icon name={hidden ? 'eye-off-outline' : 'eye-outline'} size={22} color={Colors.textSecondary} />
           </TouchableOpacity>
         )}
       </View>

@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { TouchableOpacity, Share, StyleSheet, ViewStyle } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Icon } from '../ui/Icon';
 import { useColors, ColorPalette } from '../../constants/colors';
 import { Trail } from '../../types/trail';
 
@@ -29,7 +29,7 @@ export function ShareButton({ trail, style }: ShareButtonProps) {
 
   return (
     <TouchableOpacity style={[styles.button, style]} onPress={handleShare} accessibilityLabel="Share trail" accessibilityRole="button">
-      <Ionicons name="share-social-outline" size={20} color={Colors.text} />
+      <Icon name="share-social-outline" size={20} color={Colors.text} />
     </TouchableOpacity>
   );
 }

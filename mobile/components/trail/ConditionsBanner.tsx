@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Icon } from '../ui/Icon';
 import { useColors, ColorPalette } from '../../constants/colors';
 import { pickMostSevereCondition } from '../../utils/conditions';
 
@@ -65,7 +65,7 @@ export function ConditionsBanner({ conditions, totalCount, onPress }: Conditions
       }. View all reports`}
     >
       <View style={styles.row}>
-        <Ionicons name={icon as any} size={20} color={color} />
+        <Icon name={icon as any} size={20} color={color} />
         <View style={styles.textContainer}>
           <Text style={[styles.label, { color }]}>{label}</Text>
           {top.description && (
@@ -77,7 +77,7 @@ export function ConditionsBanner({ conditions, totalCount, onPress }: Conditions
         {others > 0 && (
           <Text style={styles.more}>+{others} more</Text>
         )}
-        <Ionicons name="chevron-forward" size={16} color={Colors.textLight} />
+        <Icon name="chevron-forward" size={16} color={Colors.textLight} />
       </View>
     </TouchableOpacity>
   );

@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { router } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import { Icon } from '../ui/Icon';
 import { useColors, ColorPalette } from '../../constants/colors';
 import { useMyBookmarks } from '../../hooks/useBookmarks';
 import { DifficultyBadge } from '../trail/DifficultyBadge';
@@ -49,7 +49,7 @@ export function BookmarksSection() {
               style={[styles.filterChip, isActive && { backgroundColor: Colors.primary + '20' }]}
               onPress={() => setActiveCategory(cat)}
             >
-              <Ionicons
+              <Icon
                 name={icon as any}
                 size={14}
                 color={isActive ? Colors.primary : Colors.textSecondary}

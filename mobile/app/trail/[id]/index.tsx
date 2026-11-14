@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import { Icon } from '../../../components/ui/Icon';
 import { useColors, ColorPalette } from '../../../constants/colors';
 import { useTrail } from '../../../hooks/useTrails';
 import { useAuthStore } from '../../../store/authStore';
@@ -287,13 +287,13 @@ export default function TrailDetailScreen() {
           accessibilityRole="button"
           testID="back-button"
         >
-          <Ionicons name="arrow-back" size={24} color={Colors.text} />
+          <Icon name="arrow-back" size={24} color={Colors.text} />
         </TouchableOpacity>
 
         {/* Top-right overlay buttons */}
         <View style={[styles.topRightButtons, { top: insets.top + 8 }]}>
           <TouchableOpacity style={styles.overlayButton} onPress={toggleOfflineSave} accessibilityLabel={isSavedOffline ? 'Remove offline save' : 'Save for offline'} accessibilityRole="button">
-            <Ionicons
+            <Icon
               name={isSavedOffline ? 'download' : 'download-outline'}
               size={20}
               color={isSavedOffline ? Colors.primary : Colors.text}
@@ -308,7 +308,7 @@ export default function TrailDetailScreen() {
               accessibilityLabel="Edit trail"
               accessibilityRole="button"
             >
-              <Ionicons name="pencil" size={20} color={Colors.text} />
+              <Icon name="pencil" size={20} color={Colors.text} />
             </TouchableOpacity>
           )}
         </View>
@@ -327,7 +327,7 @@ export default function TrailDetailScreen() {
 
         {trail.status && trail.status !== 'open' && (
           <View style={[styles.statusBanner, STATUS_BANNER_BG[trail.status]]}>
-            <Ionicons
+            <Icon
               name={trail.status === 'closed' ? 'close-circle' : 'warning'}
               size={18}
               color={STATUS_BANNER_ICON[trail.status]}
@@ -355,7 +355,7 @@ export default function TrailDetailScreen() {
                   accessibilityRole="button"
                   accessibilityLabel="Unverified route. What does this mean?"
                 >
-                  <Ionicons name="information-circle-outline" size={14} color={Colors.textSecondary} />
+                  <Icon name="information-circle-outline" size={14} color={Colors.textSecondary} />
                   <Text style={styles.unverifiedText}>Unverified route</Text>
                 </TouchableOpacity>
               )}
@@ -373,7 +373,7 @@ export default function TrailDetailScreen() {
 
           {trail.avg_rating != null && (
             <View style={styles.ratingRow}>
-              <Ionicons name="star" size={18} color="#FFB800" />
+              <Icon name="star" size={18} color="#FFB800" />
               <Text style={styles.rating}>{trail.avg_rating}</Text>
               <Text style={styles.reviewCount}>
                 ({trail.review_count} review{trail.review_count === 1 ? '' : 's'})
@@ -429,9 +429,9 @@ export default function TrailDetailScreen() {
               activeOpacity={0.7}
               accessibilityRole="button"
             >
-              <Ionicons name="flag-outline" size={18} color={Colors.primary} />
+              <Icon name="flag-outline" size={18} color={Colors.primary} />
               <Text style={styles.reportLinkText}>Report Trail Condition</Text>
-              <Ionicons name="chevron-forward" size={16} color={Colors.textLight} style={{ marginLeft: 'auto' }} />
+              <Icon name="chevron-forward" size={16} color={Colors.textLight} style={{ marginLeft: 'auto' }} />
             </TouchableOpacity>
           )}
 
@@ -442,9 +442,9 @@ export default function TrailDetailScreen() {
             activeOpacity={0.7}
             accessibilityRole="button"
           >
-            <Ionicons name="alert-circle-outline" size={18} color={Colors.primary} />
+            <Icon name="alert-circle-outline" size={18} color={Colors.primary} />
             <Text style={styles.reportLinkText}>Report a problem with this trail</Text>
-            <Ionicons name="chevron-forward" size={16} color={Colors.textLight} style={{ marginLeft: 'auto' }} />
+            <Icon name="chevron-forward" size={16} color={Colors.textLight} style={{ marginLeft: 'auto' }} />
           </TouchableOpacity>
 
           {description && (
@@ -475,9 +475,9 @@ export default function TrailDetailScreen() {
             onPress={() => router.push(`/trail/${id}/events` as any)}
             accessibilityRole="button"
           >
-            <Ionicons name="people-outline" size={18} color={Colors.primary} />
+            <Icon name="people-outline" size={18} color={Colors.primary} />
             <Text style={styles.sectionLinkText}>Upcoming Group Hikes</Text>
-            <Ionicons name="chevron-forward" size={16} color={Colors.textLight} />
+            <Icon name="chevron-forward" size={16} color={Colors.textLight} />
           </TouchableOpacity>
 
           {/* Community Photos */}

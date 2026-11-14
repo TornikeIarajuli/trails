@@ -6,7 +6,7 @@ import {
   StyleSheet,
   Share,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Icon } from '../ui/Icon';
 import { useColors, ColorPalette } from '../../constants/colors';
 import { Badge } from '../../types/badge';
 import { formatDate } from '../../utils/formatters';
@@ -64,10 +64,10 @@ function BadgeDetail({ badge, earned, earnedAt, progress }: Omit<Props, 'badge' 
     <View style={styles.content}>
       {/* Icon */}
       <View style={[styles.iconCircle, { backgroundColor: earned ? color : Colors.borderLight }]}>
-        <Ionicons name={iconName as any} size={40} color={earned ? '#fff' : Colors.textLight} />
+        <Icon name={iconName as any} size={40} color={earned ? '#fff' : Colors.textLight} />
         {!earned && (
           <View style={styles.lockBadge}>
-            <Ionicons name="lock-closed" size={14} color={Colors.textLight} />
+            <Icon name="lock-closed" size={14} color={Colors.textLight} />
           </View>
         )}
       </View>
@@ -86,7 +86,7 @@ function BadgeDetail({ badge, earned, earnedAt, progress }: Omit<Props, 'badge' 
       {/* Earned date or progress */}
       {earned && earnedAt ? (
         <View style={[styles.statusRow, { backgroundColor: Colors.success + '15' }]}>
-          <Ionicons name="checkmark-circle" size={18} color={Colors.success} />
+          <Icon name="checkmark-circle" size={18} color={Colors.success} />
           <Text style={[styles.statusText, { color: Colors.success }]}>
             Earned {formatDate(earnedAt)}
           </Text>
@@ -113,7 +113,7 @@ function BadgeDetail({ badge, earned, earnedAt, progress }: Omit<Props, 'badge' 
           onPress={handleShare}
           accessibilityRole="button"
         >
-          <Ionicons name="share-outline" size={18} color={color} />
+          <Icon name="share-outline" size={18} color={color} />
           <Text style={[styles.shareBtnText, { color }]}>Share Badge</Text>
         </TouchableOpacity>
       )}

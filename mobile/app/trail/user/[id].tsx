@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, Stack, router } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Ionicons } from '@expo/vector-icons';
+import { Icon } from '../../../components/ui/Icon';
 import { useColors, ColorPalette } from '../../../constants/colors';
 import { usersService } from '../../../services/users';
 import { Avatar } from '../../../components/ui/Avatar';
@@ -110,7 +110,7 @@ function FollowButton({ userId, Colors, styles }: { userId: string; Colors: Colo
         <ActivityIndicator size="small" color={isFollowing ? Colors.primary : '#fff'} />
       ) : (
         <>
-          <Ionicons
+          <Icon
             name={isFollowing ? 'checkmark' : 'person-add-outline'}
             size={16}
             color={isFollowing ? Colors.primary : '#fff'}
@@ -138,12 +138,12 @@ function RegionsRow({ userId, Colors, styles }: { userId: string; Colors: ColorP
       accessibilityRole="button"
       accessibilityLabel={`Regions explored: ${regions_started} of ${regions_total}`}
     >
-      <Ionicons name="map-outline" size={18} color={Colors.primary} />
+      <Icon name="map-outline" size={18} color={Colors.primary} />
       <Text style={styles.regionsRowLabel}>Regions explored</Text>
       <Text style={styles.regionsRowValue}>
         {regions_started}/{regions_total}
       </Text>
-      <Ionicons name="chevron-forward" size={16} color={Colors.textLight} />
+      <Icon name="chevron-forward" size={16} color={Colors.textLight} />
     </TouchableOpacity>
   );
 }
@@ -230,7 +230,7 @@ function EmergencyContactButton({ userId, Colors, styles }: { userId: string; Co
         <ActivityIndicator size="small" color={isMyContact ? Colors.error : '#fff'} />
       ) : (
         <>
-          <Ionicons
+          <Icon
             name={isMyContact ? 'shield-checkmark' : 'shield-outline'}
             size={16}
             color={isMyContact ? Colors.error : '#fff'}
@@ -324,7 +324,7 @@ export default function PublicProfileScreen() {
       >
         {isBlocked && (
           <View style={styles.blockedNotice}>
-            <Ionicons name="ban-outline" size={16} color={Colors.textSecondary} />
+            <Icon name="ban-outline" size={16} color={Colors.textSecondary} />
             <Text style={styles.blockedText}>
               You blocked this user, so their activity is hidden from you. Use the menu at the top to unblock them.
             </Text>
@@ -384,7 +384,7 @@ export default function PublicProfileScreen() {
 
         {completions.length === 0 && (
           <View style={styles.emptyState}>
-            <Ionicons name="footsteps-outline" size={48} color={Colors.borderLight} />
+            <Icon name="footsteps-outline" size={48} color={Colors.borderLight} />
             <Text style={styles.emptyText}>No completed trails yet</Text>
           </View>
         )}

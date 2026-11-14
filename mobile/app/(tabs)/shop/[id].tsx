@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, router } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import { Icon } from '../../../components/ui/Icon';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useColors, ColorPalette } from '../../../constants/colors';
 import { useProduct } from '../../../hooks/useShop';
@@ -60,7 +60,7 @@ export default function ProductDetailScreen() {
           <Image source={{ uri: product.image_url }} style={styles.heroImage} cachePolicy="memory-disk" transition={180} />
         ) : (
           <View style={[styles.heroImage, styles.placeholder]}>
-            <Ionicons name="image-outline" size={48} color={Colors.textLight} />
+            <Icon name="image-outline" size={48} color={Colors.textLight} />
           </View>
         )}
 
@@ -71,7 +71,7 @@ export default function ProductDetailScreen() {
           accessibilityRole="button"
           testID="back-button"
         >
-          <Ionicons name="arrow-back" size={22} color={Colors.text} />
+          <Icon name="arrow-back" size={22} color={Colors.text} />
         </TouchableOpacity>
 
         <View style={styles.content}>
@@ -81,7 +81,7 @@ export default function ProductDetailScreen() {
 
           {product.shop_name && (
             <View style={styles.shopBadge}>
-              <Ionicons name="storefront-outline" size={14} color={Colors.textSecondary} />
+              <Icon name="storefront-outline" size={14} color={Colors.textSecondary} />
               <Text style={styles.shopName}>{product.shop_name}</Text>
             </View>
           )}
@@ -100,7 +100,7 @@ export default function ProductDetailScreen() {
             activeOpacity={0.8}
             accessibilityRole="link"
           >
-            <Ionicons name="open-outline" size={18} color="#FFFFFF" />
+            <Icon name="open-outline" size={18} color="#FFFFFF" />
             <Text style={styles.visitButtonText}>Visit Shop</Text>
           </TouchableOpacity>
         </View>

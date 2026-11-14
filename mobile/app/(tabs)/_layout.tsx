@@ -2,14 +2,14 @@ import React, { useMemo } from 'react';
 import { Tabs, usePathname, useSegments, router } from 'expo-router';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import { Icon } from '../../components/ui/Icon';
 import Animated, { useSharedValue, useAnimatedStyle, useReducedMotion, withSpring } from 'react-native-reanimated';
 import { useColors, ColorPalette } from '../../constants/colors';
 import { useNetworkStatus } from '../../hooks/useNetworkStatus';
 import { useUnreadNotificationCount } from '../../hooks/useNotificationCenter';
 import { haptics } from '../../utils/haptics';
 
-type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
+type IoniconsName = React.ComponentProps<typeof Icon>['name'];
 
 const TAB_CONFIG: {
   name: string;
@@ -60,7 +60,7 @@ function AnimatedTabButton({
     >
       <Animated.View style={[{ alignItems: 'center', gap: 2 }, animStyle]}>
         <View>
-          <Ionicons
+          <Icon
             name={isActive ? activeIcon : icon}
             size={22}
             color={isActive ? Colors.primary : Colors.textSecondary}
@@ -125,13 +125,13 @@ function Header() {
             accessibilityRole="button"
             style={styles.searchButton}
           >
-            <Ionicons name="search-outline" size={20} color={Colors.textSecondary} />
+            <Icon name="search-outline" size={20} color={Colors.textSecondary} />
           </Pressable>
         </View>
       </View>
       {bannerConfig && (
         <View style={[styles.offlineBanner, { backgroundColor: bannerConfig.color }]}>
-          <Ionicons name={bannerConfig.icon} size={13} color="#fff" />
+          <Icon name={bannerConfig.icon} size={13} color="#fff" />
           <Text style={styles.offlineText}>{bannerConfig.text}</Text>
         </View>
       )}

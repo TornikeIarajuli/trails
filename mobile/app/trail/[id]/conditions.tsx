@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import { Icon } from '../../../components/ui/Icon';
 import { useColors, ColorPalette } from '../../../constants/colors';
 import { useTrailConditions } from '../../../hooks/useCommunity';
 import { useWithoutBlocked } from '../../../hooks/useModeration';
@@ -72,7 +72,7 @@ export default function ConditionsScreen() {
       <View style={[styles.card, { borderLeftColor: color }]}>
         <View style={styles.cardHeader}>
           <View style={styles.typeRow}>
-            <Ionicons name={icon as any} size={20} color={color} />
+            <Icon name={icon as any} size={20} color={color} />
             <Text style={[styles.typeLabel, { color }]}>{label}</Text>
           </View>
           <View style={styles.cardHeaderRight}>
@@ -148,7 +148,7 @@ export default function ConditionsScreen() {
         }
         ListEmptyComponent={
           <View style={styles.empty}>
-            <Ionicons name="chatbox-ellipses-outline" size={48} color={Colors.textLight} />
+            <Icon name="chatbox-ellipses-outline" size={48} color={Colors.textLight} />
             <Text style={styles.emptyText}>No recent reports</Text>
             <Text style={styles.emptySubtext}>
               Nobody has reported conditions on this trail in the last 14 days. Check the weather
@@ -179,7 +179,7 @@ export default function ConditionsScreen() {
           accessibilityRole="button"
           testID="back-button"
         >
-          <Ionicons name="arrow-back" size={24} color={Colors.text} />
+          <Icon name="arrow-back" size={24} color={Colors.text} />
         </TouchableOpacity>
         <Text style={styles.title}>Trail Conditions</Text>
         <View style={{ width: 24 }} />
@@ -194,7 +194,7 @@ export default function ConditionsScreen() {
           accessibilityLabel="Report a trail condition"
           accessibilityRole="button"
         >
-          <Ionicons name="flag" size={24} color="#fff" />
+          <Icon name="flag" size={24} color="#fff" />
         </TouchableOpacity>
       )}
 

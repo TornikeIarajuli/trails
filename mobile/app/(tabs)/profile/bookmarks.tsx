@@ -10,7 +10,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Stack, router } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import { Icon } from '../../../components/ui/Icon';
 import { useColors, ColorPalette } from '../../../constants/colors';
 import { useBookmarkList, useToggleBookmark, useUpdateBookmark } from '../../../hooks/useBookmarks';
 import { usePrefetchTrail } from '../../../hooks/useTrails';
@@ -109,7 +109,7 @@ export default function BookmarksScreen() {
           )}
           {item.category && item.category !== 'saved' && CATEGORY_LABELS[item.category] && (
             <View style={styles.categoryTag}>
-              <Ionicons
+              <Icon
                 name={CATEGORY_ICONS[item.category] as any}
                 size={10}
                 color={Colors.primary}
@@ -130,7 +130,7 @@ export default function BookmarksScreen() {
         accessibilityRole="button"
         accessibilityLabel={`Options for ${item.trails.name_en}`}
       >
-        <Ionicons name="ellipsis-vertical" size={18} color={Colors.textLight} />
+        <Icon name="ellipsis-vertical" size={18} color={Colors.textLight} />
       </TouchableOpacity>
     </TouchableOpacity>
   );
@@ -171,7 +171,7 @@ export default function BookmarksScreen() {
         }
         ListEmptyComponent={
           <View style={styles.empty}>
-            <Ionicons name="bookmark-outline" size={48} color={Colors.textLight} />
+            <Icon name="bookmark-outline" size={48} color={Colors.textLight} />
             <Text style={styles.emptyText}>
               {activeCategory
                 ? `No trails in "${CATEGORY_LABELS[activeCategory]}"`
@@ -223,7 +223,7 @@ export default function BookmarksScreen() {
                 accessibilityRole="button"
                 accessibilityState={{ selected: isActive }}
               >
-                <Ionicons
+                <Icon
                   name={icon as any}
                   size={14}
                   color={isActive ? Colors.primary : Colors.textSecondary}
@@ -248,7 +248,7 @@ export default function BookmarksScreen() {
             ...CATEGORY_ORDER.map((category) => ({
               key: category,
               label: CATEGORY_LABELS[category],
-              icon: CATEGORY_ICONS[category] as React.ComponentProps<typeof Ionicons>['name'],
+              icon: CATEGORY_ICONS[category] as React.ComponentProps<typeof Icon>['name'],
               selected: editing.category === category,
             })),
             { key: 'remove', label: 'Remove bookmark', icon: 'trash-outline', destructive: true },

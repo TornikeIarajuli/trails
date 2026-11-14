@@ -12,7 +12,7 @@ import {
   Platform,
 } from 'react-native';
 import { router } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import { Icon } from '../../../components/ui/Icon';
 import { useColors, ColorPalette } from '../../../constants/colors';
 import { useMarkRead, useMarkAllRead } from '../../../hooks/useNotifications';
 import { useNotificationFeed } from '../../../hooks/useNotificationCenter';
@@ -117,7 +117,7 @@ function NotificationRow({
     >
       {isUnread && <View style={styles.unreadBar} />}
       <View style={[styles.iconWrap, { backgroundColor: cfg.bg }]}>
-        <Ionicons name={cfg.icon as any} size={20} color={cfg.color} />
+        <Icon name={cfg.icon as any} size={20} color={cfg.color} />
       </View>
       <View style={styles.rowContent}>
         <View style={styles.rowTop}>
@@ -128,7 +128,7 @@ function NotificationRow({
         </View>
         <Text style={styles.body} numberOfLines={2}>{item.body}</Text>
       </View>
-      {actionable && <Ionicons name="chevron-forward" size={16} color={Colors.textLight} />}
+      {actionable && <Icon name="chevron-forward" size={16} color={Colors.textLight} />}
     </TouchableOpacity>
   );
 }
@@ -137,7 +137,7 @@ function SignedOut({ styles, Colors }: { styles: ReturnType<typeof createStyles>
   return (
     <View style={styles.empty}>
       <View style={styles.emptyIcon}>
-        <Ionicons name="notifications-outline" size={40} color={Colors.textLight} />
+        <Icon name="notifications-outline" size={40} color={Colors.textLight} />
       </View>
       <Text style={styles.emptyTitle}>Log in to see your alerts</Text>
       <TouchableOpacity
@@ -243,7 +243,7 @@ export default function AlertsScreen() {
         ListEmptyComponent={
           <View style={styles.empty}>
             <View style={styles.emptyIcon}>
-              <Ionicons name="notifications-off-outline" size={40} color={Colors.textLight} />
+              <Icon name="notifications-off-outline" size={40} color={Colors.textLight} />
             </View>
             <Text style={styles.emptyTitle}>All caught up</Text>
             <Text style={styles.emptySubtitle}>No notifications yet</Text>
@@ -280,9 +280,9 @@ export default function AlertsScreen() {
           activeOpacity={0.7}
           accessibilityRole="button"
         >
-          <Ionicons name="options-outline" size={18} color={Colors.primary} />
+          <Icon name="options-outline" size={18} color={Colors.primary} />
           <Text style={styles.prefsLinkText}>Manage Preferences</Text>
-          <Ionicons name="chevron-forward" size={16} color={Colors.textLight} />
+          <Icon name="chevron-forward" size={16} color={Colors.textLight} />
         </TouchableOpacity>
       )}
     </View>

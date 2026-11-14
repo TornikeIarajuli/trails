@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { TouchableOpacity, StyleSheet, ViewStyle } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Icon } from '../ui/Icon';
 import { useColors, ColorPalette } from '../../constants/colors';
 import { useIsBookmarked, useToggleBookmark, useUpdateBookmark } from '../../hooks/useBookmarks';
 import { useAuthStore } from '../../store/authStore';
@@ -48,7 +48,7 @@ export function BookmarkButton({ trailId, style }: BookmarkButtonProps) {
   const options: ActionSheetOption[] = CATEGORY_ORDER.map((category) => ({
     key: category,
     label: CATEGORY_LABELS[category],
-    icon: CATEGORY_ICONS[category] as React.ComponentProps<typeof Ionicons>['name'],
+    icon: CATEGORY_ICONS[category] as React.ComponentProps<typeof Icon>['name'],
     selected: isBookmarked && currentCategory === category,
   }));
   if (isBookmarked) {
@@ -75,7 +75,7 @@ export function BookmarkButton({ trailId, style }: BookmarkButtonProps) {
           if (e.nativeEvent.actionName === 'longpress') setShowCategories(true);
         }}
       >
-        <Ionicons
+        <Icon
           name={isBookmarked ? 'heart' : 'heart-outline'}
           size={22}
           color={isBookmarked ? Colors.error : Colors.text}

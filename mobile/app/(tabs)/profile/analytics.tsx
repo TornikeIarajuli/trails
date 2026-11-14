@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
 import { Stack, router } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import { Icon } from '../../../components/ui/Icon';
 import { useColors, ColorPalette } from '../../../constants/colors';
 import { useMyCompletions } from '../../../hooks/useCompletions';
 import { useMyBadges } from '../../../hooks/useBadges';
@@ -144,9 +144,9 @@ export default function AnalyticsScreen() {
               activeOpacity={0.7}
               accessibilityRole="button"
             >
-              <Ionicons name="map-outline" size={18} color={Colors.primary} />
+              <Icon name="map-outline" size={18} color={Colors.primary} />
               <Text style={styles.regionLinkText}>By region</Text>
-              <Ionicons name="chevron-forward" size={16} color={Colors.textLight} />
+              <Icon name="chevron-forward" size={16} color={Colors.textLight} />
             </TouchableOpacity>
 
             {/* Monthly activity chart */}
@@ -225,7 +225,7 @@ export default function AnalyticsScreen() {
                     return (
                       <View key={ub.id} style={styles.badgeItem}>
                         <View style={[styles.badgeIcon, { backgroundColor: color }]}>
-                          <Ionicons name={iconName as any} size={22} color="#fff" />
+                          <Icon name={iconName as any} size={22} color="#fff" />
                         </View>
                         <Text style={styles.badgeName} numberOfLines={2}>{badge.name_en}</Text>
                         <Text style={styles.badgeDate}>

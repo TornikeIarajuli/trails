@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Linking, Alert } from 'react-native';
 import { Image } from 'expo-image';
-import { Ionicons } from '@expo/vector-icons';
+import { Icon } from '../ui/Icon';
 import { useColors, ColorPalette } from '../../constants/colors';
 import { formatPrice } from '../../utils/formatters';
 import { Sheet, useLastVisibleValue } from '../ui/Sheet';
@@ -56,7 +56,7 @@ export function GearProductsSheet({ title, products, onClose }: GearProductsShee
                 <Image source={{ uri: p.image_url }} style={styles.image} cachePolicy="memory-disk" transition={150} />
               ) : (
                 <View style={[styles.image, styles.placeholder]}>
-                  <Ionicons name="image-outline" size={20} color={Colors.textLight} />
+                  <Icon name="image-outline" size={20} color={Colors.textLight} />
                 </View>
               )}
               <View style={styles.info}>
@@ -67,7 +67,7 @@ export function GearProductsSheet({ title, products, onClose }: GearProductsShee
                   {[price, p.shop_name].filter(Boolean).join(' · ')}
                 </Text>
               </View>
-              {url ? <Ionicons name="open-outline" size={18} color={Colors.primary} /> : null}
+              {url ? <Icon name="open-outline" size={18} color={Colors.primary} /> : null}
             </TouchableOpacity>
           );
         })}

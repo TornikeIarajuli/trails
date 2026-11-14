@@ -9,7 +9,7 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { router } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import { Icon } from '../../components/ui/Icon';
 import { useColors, ColorPalette } from '../../constants/colors';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
@@ -50,13 +50,13 @@ export default function ForgotPasswordScreen() {
         keyboardShouldPersistTaps="handled"
       >
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={22} color={Colors.text} />
+          <Icon name="arrow-back" size={22} color={Colors.text} />
         </TouchableOpacity>
 
         {sent ? (
           <View style={styles.successContainer}>
             <View style={styles.successIcon}>
-              <Ionicons name="mail" size={40} color={Colors.primary} />
+              <Icon name="mail" size={40} color={Colors.primary} />
             </View>
             <Text style={styles.successTitle}>Check your email</Text>
             <Text style={styles.successBody}>
@@ -89,7 +89,7 @@ export default function ForgotPasswordScreen() {
             <View style={styles.form}>
               {errorMsg ? (
                 <View style={styles.errorBanner}>
-                  <Ionicons name="alert-circle" size={18} color={Colors.error} />
+                  <Icon name="alert-circle" size={18} color={Colors.error} />
                   <Text style={styles.errorBannerText}>{errorMsg}</Text>
                 </View>
               ) : null}

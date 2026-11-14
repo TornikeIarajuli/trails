@@ -10,7 +10,7 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Icon } from '../ui/Icon';
 import { useColors, ColorPalette } from '../../constants/colors';
 import { useComments, useAddComment, useDeleteComment } from '../../hooks/useComments';
 import { useWithoutBlocked } from '../../hooks/useModeration';
@@ -94,7 +94,7 @@ export function CommentsSheet({ activityId, activityType, visible, onClose }: Co
             accessibilityLabel="Delete comment"
             accessibilityRole="button"
           >
-            <Ionicons name="trash-outline" size={16} color={Colors.error} />
+            <Icon name="trash-outline" size={16} color={Colors.error} />
           </TouchableOpacity>
         ) : (
           <ContentMenu
@@ -134,7 +134,7 @@ export function CommentsSheet({ activityId, activityType, visible, onClose }: Co
         {addComment.isPending ? (
           <ActivityIndicator size="small" color={Colors.textOnPrimary} />
         ) : (
-          <Ionicons name="send" size={18} color={Colors.textOnPrimary} />
+          <Icon name="send" size={18} color={Colors.textOnPrimary} />
         )}
       </TouchableOpacity>
     </View>

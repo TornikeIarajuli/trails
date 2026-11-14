@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Icon } from '../ui/Icon';
 import { useColors, ColorPalette } from '../../constants/colors';
 import { formatDistance, formatElevation, formatDuration } from '../../utils/formatters';
 
@@ -17,17 +17,17 @@ export function TrailStats({ distanceKm, elevationGainM, estimatedHours }: Trail
   return (
     <View style={styles.container}>
       <View style={styles.stat}>
-        <Ionicons name="map-outline" size={18} color={Colors.textSecondary} />
+        <Icon name="map-outline" size={18} color={Colors.textSecondary} />
         <Text style={styles.value}>{formatDistance(distanceKm)}</Text>
       </View>
       <View style={styles.divider} />
       <View style={styles.stat}>
-        <Ionicons name="trending-up-outline" size={18} color={Colors.textSecondary} />
+        <Icon name="trending-up-outline" size={18} color={Colors.textSecondary} />
         <Text style={styles.value}>{formatElevation(elevationGainM)}</Text>
       </View>
       <View style={styles.divider} />
       <View style={styles.stat}>
-        <Ionicons name="time-outline" size={18} color={Colors.textSecondary} />
+        <Icon name="time-outline" size={18} color={Colors.textSecondary} />
         <Text style={styles.value}>{formatDuration(estimatedHours)}</Text>
       </View>
     </View>

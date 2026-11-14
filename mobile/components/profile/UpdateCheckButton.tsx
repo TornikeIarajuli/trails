@@ -3,7 +3,7 @@
 // to arrive on their own (hooks/useOtaUpdates.ts already checks on launch and foreground).
 import React, { useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, StyleSheet, TouchableOpacity } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Icon } from '../ui/Icon';
 import * as Updates from 'expo-updates';
 import { useColors, ColorPalette } from '../../constants/colors';
 import { useHikeStore } from '../../store/hikeStore';
@@ -63,7 +63,7 @@ export function UpdateCheckButton() {
       {checking ? (
         <ActivityIndicator size="small" color={Colors.text} />
       ) : (
-        <Ionicons name="cloud-download-outline" size={19} color={Colors.text} />
+        <Icon name="cloud-download-outline" size={19} color={Colors.text} />
       )}
     </TouchableOpacity>
   );

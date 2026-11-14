@@ -8,7 +8,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Image } from 'expo-image';
-import { Ionicons } from '@expo/vector-icons';
+import { Icon } from '../ui/Icon';
 import { useColors, ColorPalette } from '../../constants/colors';
 import { useTrailPhotos } from '../../hooks/useCommunity';
 import { useAuthStore } from '../../store/authStore';
@@ -68,7 +68,7 @@ export function CommunityPhotos({
             {isUploading ? (
               <ActivityIndicator color={Colors.primary} />
             ) : (
-              <Ionicons name="camera-outline" size={28} color={Colors.primary} />
+              <Icon name="camera-outline" size={28} color={Colors.primary} />
             )}
             <Text style={styles.addText}>{isUploading ? 'Uploading…' : 'Add Photo'}</Text>
           </TouchableOpacity>
@@ -79,7 +79,7 @@ export function CommunityPhotos({
             <Image source={{ uri: photo.url }} style={styles.photo} cachePolicy="memory-disk" transition={180} />
             {photo.likes_count > 0 && (
               <View style={styles.likeBadge}>
-                <Ionicons name="heart" size={10} color="#fff" />
+                <Icon name="heart" size={10} color="#fff" />
                 <Text style={styles.likeCount}>{photo.likes_count}</Text>
               </View>
             )}

@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Icon } from '../ui/Icon';
 import { useColors, ColorPalette } from '../../constants/colors';
 import { useNetworkStatus } from '../../hooks/useNetworkStatus';
 import { useOfflineMapsStore } from '../../store/offlineMapsStore';
@@ -62,7 +62,7 @@ export function TopoDownloadRow({ trailId, trailName, plan }: TopoDownloadRowPro
     };
     return (
       <View style={styles.row} testID="topo-download-row">
-        <Ionicons name="checkmark-circle" size={20} color={Colors.success} />
+        <Icon name="checkmark-circle" size={20} color={Colors.success} />
         <Text style={styles.title}>Topo map saved on this phone</Text>
         <TouchableOpacity
           onPress={confirmRemove}
@@ -125,7 +125,7 @@ export function TopoDownloadRow({ trailId, trailName, plan }: TopoDownloadRowPro
       accessibilityState={{ disabled }}
       testID="topo-download-row"
     >
-      <Ionicons
+      <Icon
         name={offline ? 'cloud-offline-outline' : 'cloud-download-outline'}
         size={20}
         color={Colors.primary}
@@ -134,7 +134,7 @@ export function TopoDownloadRow({ trailId, trailName, plan }: TopoDownloadRowPro
         <Text style={styles.blockTitle}>{label}</Text>
         {hint && <Text style={[styles.hint, failed && !disabled && styles.hintError]}>{hint}</Text>}
       </View>
-      {!disabled && <Ionicons name="chevron-forward" size={16} color={Colors.textLight} />}
+      {!disabled && <Icon name="chevron-forward" size={16} color={Colors.textLight} />}
     </TouchableOpacity>
   );
 }

@@ -8,7 +8,7 @@ import {
   TextInput,
 } from 'react-native';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Ionicons } from '@expo/vector-icons';
+import { Icon } from '../ui/Icon';
 import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
 import { useColors, ColorPalette } from '../../constants/colors';
@@ -131,7 +131,7 @@ export function ProfileCard({ profile }: ProfileCardProps) {
             size={84}
           />
           <View style={styles.editBadge}>
-            <Ionicons
+            <Icon
               name={avatarMutation.isPending ? 'hourglass-outline' : 'camera'}
               size={13}
               color="#fff"
@@ -166,7 +166,7 @@ export function ProfileCard({ profile }: ProfileCardProps) {
         )}
         {!editing && profile.contact_info ? (
           <View style={styles.contactRow}>
-            <Ionicons name="call-outline" size={14} color={Colors.primary} />
+            <Icon name="call-outline" size={14} color={Colors.primary} />
             <Text style={styles.contactText}>{profile.contact_info}</Text>
           </View>
         ) : null}
@@ -229,7 +229,7 @@ export function ProfileCard({ profile }: ProfileCardProps) {
             activeOpacity={0.7}
             accessibilityRole="button"
           >
-            <Ionicons name="create-outline" size={17} color={Colors.text} />
+            <Icon name="create-outline" size={17} color={Colors.text} />
             <Text style={styles.editProfileText}>Edit profile</Text>
           </TouchableOpacity>
           {/* TEMPORARY: manual over-the-air update check for testing */}

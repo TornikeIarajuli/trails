@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Icon } from '../ui/Icon';
 import { useColors, ColorPalette } from '../../constants/colors';
 import { useWeather } from '../../hooks/useWeather';
 import { getWeatherInfo } from '../../services/weather';
@@ -22,18 +22,18 @@ export function WeatherCard({ latitude, longitude }: WeatherCardProps) {
   return (
     <View style={styles.card}>
       <View style={styles.header}>
-        <Ionicons name="cloud-outline" size={16} color={Colors.textSecondary} />
+        <Icon name="cloud-outline" size={16} color={Colors.textSecondary} />
         <Text style={styles.headerText}>Trail Weather</Text>
       </View>
       <View style={styles.row}>
         <View style={styles.mainWeather}>
-          <Ionicons name={info.icon as any} size={32} color={Colors.primary} />
+          <Icon name={info.icon as any} size={32} color={Colors.primary} />
           <Text style={styles.temperature}>{Math.round(weather.temperature)}°C</Text>
         </View>
         <View style={styles.details}>
           <Text style={styles.condition}>{info.label}</Text>
           <View style={styles.windRow}>
-            <Ionicons name="speedometer-outline" size={14} color={Colors.textLight} />
+            <Icon name="speedometer-outline" size={14} color={Colors.textLight} />
             <Text style={styles.windText}>{Math.round(weather.windspeed)} km/h wind</Text>
           </View>
         </View>

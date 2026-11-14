@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { TouchableOpacity, StyleProp, ViewStyle } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Icon } from '../ui/Icon';
 import { useColors } from '../../constants/colors';
 import { useAuthStore } from '../../store/authStore';
 import { ActionSheet, ActionSheetOption } from '../ui/ActionSheet';
@@ -158,7 +158,7 @@ export function ContentMenu({
         accessibilityRole="button"
         accessibilityLabel={`More options for this ${targetLabel}`}
       >
-        <Ionicons name="ellipsis-horizontal" size={iconSize} color={iconColor ?? Colors.textSecondary} />
+        <Icon name="ellipsis-horizontal" size={iconSize} color={iconColor ?? Colors.textSecondary} />
       </TouchableOpacity>
 
       {step.name !== 'closed' && (

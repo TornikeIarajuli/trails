@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { router } from 'expo-router';
 import * as Linking from 'expo-linking';
-import { Ionicons } from '@expo/vector-icons';
+import { Icon } from '../../components/ui/Icon';
 import { useColors, ColorPalette } from '../../constants/colors';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
@@ -104,7 +104,7 @@ export default function ResetPasswordScreen() {
     content = (
       <View style={styles.centered}>
         <View style={styles.stateIcon}>
-          <Ionicons name="checkmark-circle" size={44} color={Colors.success} />
+          <Icon name="checkmark-circle" size={44} color={Colors.success} />
         </View>
         <Text style={styles.stateTitle}>Password updated</Text>
         <Text style={styles.stateBody}>You can now log in with your new password.</Text>
@@ -124,7 +124,7 @@ export default function ResetPasswordScreen() {
         <View style={styles.form}>
           {errorMsg ? (
             <View style={styles.errorBanner}>
-              <Ionicons name="alert-circle" size={18} color={Colors.error} />
+              <Icon name="alert-circle" size={18} color={Colors.error} />
               <Text style={styles.errorBannerText}>{errorMsg}</Text>
             </View>
           ) : null}
@@ -160,7 +160,7 @@ export default function ResetPasswordScreen() {
     content = (
       <View style={styles.centered}>
         <View style={styles.stateIcon}>
-          <Ionicons name="time-outline" size={44} color={Colors.warning} />
+          <Icon name="time-outline" size={44} color={Colors.warning} />
         </View>
         <Text style={styles.stateTitle}>This link has expired</Text>
         <Text style={styles.stateBody}>

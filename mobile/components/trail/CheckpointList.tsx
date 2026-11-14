@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Icon } from '../ui/Icon';
 import { useColors, ColorPalette } from '../../constants/colors';
 import { Checkpoint, CheckpointType } from '../../types/checkpoint';
 import { useSettingsStore } from '../../store/settingsStore';
@@ -52,7 +52,7 @@ export function CheckpointList({ checkpoints, visitedIds = [] }: CheckpointListP
                   cp.is_checkable && styles.dotCheckable,
                 ]}
               >
-                <Ionicons
+                <Icon
                   name={iconName as any}
                   size={14}
                   color={visited ? Colors.textOnPrimary : cp.is_checkable ? Colors.primary : Colors.textSecondary}

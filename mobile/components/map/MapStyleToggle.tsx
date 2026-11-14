@@ -1,6 +1,6 @@
 import React from 'react';
 import { TouchableOpacity, Text, StyleSheet, StyleProp, ViewStyle } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Icon } from '../ui/Icon';
 
 interface MapStyleToggleProps {
   topo: boolean;
@@ -19,7 +19,7 @@ export function MapStyleToggle({ topo, onToggle, style }: MapStyleToggleProps) {
       accessibilityLabel={topo ? 'Show the standard map' : 'Show the topographic map'}
       testID="map-style-toggle"
     >
-      <Ionicons name={topo ? 'map-outline' : 'layers-outline'} size={15} color="#263238" />
+      <Icon name={topo ? 'map-outline' : 'layers-outline'} size={15} color="#263238" />
       <Text style={styles.label} maxFontSizeMultiplier={1.3}>{topo ? 'Map' : 'Topo'}</Text>
     </TouchableOpacity>
   );

@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Icon } from '../ui/Icon';
 import { useColors, ColorPalette } from '../../constants/colors';
 import { useLogPastHike } from '../../hooks/useCompletions';
 import { pastHikeErrorMessage, pastHikeYearOptions } from '../../utils/pastHikes';
@@ -85,7 +85,7 @@ export function PastHikeModal({ trailId, visible, onClose, onLogged }: Props) {
         <>
           {errorMsg ? (
             <View style={styles.errorBanner}>
-              <Ionicons name="alert-circle" size={18} color={Colors.error} />
+              <Icon name="alert-circle" size={18} color={Colors.error} />
               <Text style={styles.errorText}>{errorMsg}</Text>
             </View>
           ) : null}

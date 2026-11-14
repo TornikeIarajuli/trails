@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import { Icon } from '../../../components/ui/Icon';
 import { useColors, ColorPalette } from '../../../constants/colors';
 import { useAllBadges, useMyBadges, useBadgeProgress } from '../../../hooks/useBadges';
 import { BadgeCard } from '../../../components/badges/BadgeCard';
@@ -85,7 +85,7 @@ export default function BadgesScreen() {
           accessibilityRole="button"
           testID="back-button"
         >
-          <Ionicons name="arrow-back" size={24} color={Colors.text} />
+          <Icon name="arrow-back" size={24} color={Colors.text} />
         </TouchableOpacity>
         <Text style={styles.title}>Badges</Text>
         <View style={{ width: 24 }} />
@@ -129,7 +129,7 @@ export default function BadgesScreen() {
                       {prog!.current} / {prog!.target} — {pct}%
                     </Text>
                   </View>
-                  <Ionicons name="chevron-forward" size={18} color={Colors.textLight} />
+                  <Icon name="chevron-forward" size={18} color={Colors.textLight} />
                 </TouchableOpacity>
               );
             })}

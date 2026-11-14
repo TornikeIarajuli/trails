@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { router } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import { Icon } from '../ui/Icon';
 import Animated, { SlideInDown } from 'react-native-reanimated';
 import { useColors, ColorPalette } from '../../constants/colors';
 import { useHikeStore } from '../../store/hikeStore';
@@ -35,7 +35,7 @@ export function ActiveHikeBanner() {
   return (
     <Animated.View entering={SlideInDown.duration(300)}>
       <View style={styles.banner}>
-        <Ionicons name="footsteps-outline" size={18} color={Colors.textOnPrimary} />
+        <Icon name="footsteps-outline" size={18} color={Colors.textOnPrimary} />
         <Text style={styles.text} numberOfLines={1}>
           Active hike: <Text style={styles.trailName}>{trailName}</Text>
         </Text>
@@ -47,7 +47,7 @@ export function ActiveHikeBanner() {
             <Text style={styles.resumeText}>Resume</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.discardButton} onPress={confirmDiscard} accessibilityLabel="Discard hike" accessibilityRole="button">
-            <Ionicons name="close" size={18} color={Colors.textOnPrimary} />
+            <Icon name="close" size={18} color={Colors.textOnPrimary} />
           </TouchableOpacity>
         </View>
       </View>
