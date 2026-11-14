@@ -7,6 +7,8 @@ export interface Profile {
   avatar_url: string | null;
   bio: string | null;
   contact_info: string | null;
+  /** Plain Instagram username (no @); absent from older servers. */
+  instagram_handle?: string | null;
   total_trails_completed: number;
   /** Trails completed with a recorded hike: what the leaderboard counts. Newer servers only. */
   ranked_trails_completed?: number;

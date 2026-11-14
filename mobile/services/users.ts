@@ -12,6 +12,7 @@ export const usersService = {
     bio?: string;
     avatar_url?: string;
     contact_info?: string | null;
+    instagram_handle?: string | null;
   }): Promise<UserProfile> {
     const response = await api.patch('/users/me', data);
     return response.data;

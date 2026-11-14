@@ -30,6 +30,7 @@ import { useRegionProgress } from '../../../hooks/useRegionProgress';
 import { completionDateLabel, isPastHike } from '../../../utils/pastHikes';
 import { withBottomInset } from '../../../utils/insets';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { InstagramLink } from '../../../components/profile/InstagramLink';
 
 function formatDate(dateStr: string) {
   const d = new Date(dateStr);
@@ -358,6 +359,9 @@ export default function PublicProfileScreen() {
           ) : (
             <Text style={styles.bioEmpty}>No bio yet</Text>
           )}
+          {profile.instagram_handle ? (
+            <InstagramLink handle={profile.instagram_handle} style={{ alignSelf: 'center', marginTop: 6 }} />
+          ) : null}
 
           <FollowCounts userId={id} Colors={Colors} styles={styles} />
           <FollowButton userId={id} Colors={Colors} styles={styles} />

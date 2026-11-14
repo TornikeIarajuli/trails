@@ -22,6 +22,8 @@ import { getErrorMessage } from '../../utils/showError';
 import { haptics } from '../../utils/haptics';
 import { useFollowCounts } from '../../hooks/useFollows';
 import { UpdateCheckButton } from './UpdateCheckButton';
+import { InstagramLink } from './InstagramLink';
+import { parseInstagramHandle } from '../../utils/instagram';
 
 // Same limits as the API
 const NAME_MAX = 100;
@@ -42,6 +44,7 @@ export function ProfileCard({ profile }: ProfileCardProps) {
   const [editName, setEditName] = useState('');
   const [editBio, setEditBio] = useState('');
   const [editContact, setEditContact] = useState('');
+  const [editInstagram, setEditInstagram] = useState('');
 
   const avatarMutation = useMutation({
     mutationFn: async (asset: ImagePicker.ImagePickerAsset) => {
@@ -57,7 +60,12 @@ export function ProfileCard({ profile }: ProfileCardProps) {
   });
 
   const profileMutation = useMutation({
-    mutationFn: (data: { full_name?: string; bio?: string; contact_info?: string | null }) =>
+    mutationFn: (data: {
+      full_name?: string;
+      bio?: string;
+      contact_info?: string | null;
+      instagram_handle?: string | null;
+    }) =>
       usersService.updateProfile(data),
     onSuccess: () => {
       haptics.success();
@@ -90,15 +98,22 @@ export function ProfileCard({ profile }: ProfileCardProps) {
     setEditName(profile.full_name || '');
     setEditBio(profile.bio || '');
     setEditContact(profile.contact_info || '');
+    setEditInstagram(profile.instagram_handle ? `@${profile.instagram_handle}` : '');
     setEditing(true);
   };
 
   const saveProfile = () => {
+    const instagram = parseInstagramHandle(editInstagram);
+    if (instagram === undefined) {
+      Alert.alert('Check your Instagram', 'Enter your Instagram username (letters, numbers, dots and underscores) or paste your profile link.');
+      return;
+    }
     // Empty strings (not undefined, which the API ignores) so a name or bio can be removed
     profileMutation.mutate({
       full_name: editName.trim(),
       bio: editBio.trim(),
       contact_info: editContact.trim() || null,
+      instagram_handle: instagram,
     });
   };
 
@@ -170,6 +185,7 @@ export function ProfileCard({ profile }: ProfileCardProps) {
             <Text style={styles.contactText}>{profile.contact_info}</Text>
           </View>
         ) : null}
+        {!editing && profile.instagram_handle ? <InstagramLink handle={profile.instagram_handle} /> : null}
       </View>
 
       {editing ? (
@@ -202,6 +218,17 @@ export function ProfileCard({ profile }: ProfileCardProps) {
             onChangeText={setEditContact}
             maxLength={CONTACT_MAX}
             accessibilityLabel="Contact info"
+          />
+          <TextInput
+            style={styles.editInput}
+            placeholder="Instagram (@username or profile link)"
+            placeholderTextColor={Colors.textLight}
+            value={editInstagram}
+            onChangeText={setEditInstagram}
+            autoCapitalize="none"
+            autoCorrect={false}
+            maxLength={100}
+            accessibilityLabel="Instagram username"
           />
           <View style={styles.editActions}>
             <TouchableOpacity
