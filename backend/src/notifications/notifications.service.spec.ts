@@ -190,6 +190,27 @@ describe('NotificationsService', () => {
       expect(mockAdmin.from).toHaveBeenCalledTimes(1);
     });
 
+    it.each(['new_like', 'new_comment'])(
+      'skips %s notifications for someone who turned them off',
+      async (type) => {
+        onTable('notification_preferences', {
+          data: { user_id: 'u1', [type]: false },
+          error: null,
+        });
+
+        const result = await service.sendToUser(
+          'u1',
+          'New',
+          'nino liked your hike',
+          {},
+          type,
+        );
+
+        expect(result.skipped).toBe('user_preference');
+        expect(mockFetch).not.toHaveBeenCalled();
+      },
+    );
+
     it('sends push notification via Expo when preferences allow', async () => {
       onTable('notification_preferences', {
         data: { user_id: 'u1', badge_earned: true },

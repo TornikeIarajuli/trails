@@ -20,4 +20,12 @@ export class UpdateNotificationPreferencesDto {
   @IsOptional()
   @IsBoolean()
   trail_condition?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  new_like?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  new_comment?: boolean;
 }

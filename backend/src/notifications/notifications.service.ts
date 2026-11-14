@@ -381,6 +381,8 @@ export class NotificationsService {
         completion_approved: true,
         event_invite: true,
         trail_condition: true,
+        new_like: true,
+        new_comment: true,
       }
     );
   }
@@ -393,6 +395,8 @@ export class NotificationsService {
       completion_approved: boolean;
       event_invite: boolean;
       trail_condition: boolean;
+      new_like: boolean;
+      new_comment: boolean;
     }>,
   ) {
     const admin = this.supabaseService.getAdminClient();
