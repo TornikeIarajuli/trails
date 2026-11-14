@@ -391,6 +391,25 @@ export class UsersService {
     };
   }
 
+  /**
+   * Hikers to follow, for Discover: people followed by those the caller follows first (with
+   * one of them as followed_by), then the most active hikers. Never someone the caller
+   * already follows, or has a block with either way.
+   */
+  async getSuggestedHikers(userId: string, limit = 10) {
+    const { data, error } = await this.supabaseService
+      .getAdminClient()
+      .rpc('get_suggested_hikers', {
+        p_user_id: userId,
+        p_limit: Math.min(Math.max(limit, 1), 20),
+      });
+    throwIfError(error);
+    return ((data ?? []) as Array<Record<string, unknown>>).map((row) => ({
+      ...row,
+      mutual_count: Number(row.mutual_count ?? 0),
+    }));
+  }
+
   async searchUsers(query: string) {
     const admin = this.supabaseService.getAdminClient();
 

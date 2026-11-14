@@ -70,6 +70,48 @@ export class FeedService {
   }
 
   /**
+   * Discover: everyone's posts, best first (likes, comments, photos and finished hikes lift a
+   * post; older ones slowly sink), so the feed is never empty for someone who follows nobody
+   * yet. Leaves out the caller's own posts and anyone they blocked or who blocked them. Items
+   * have the feed's shape, likes and comments included.
+   */
+  async getDiscover(userId: string, page = 1, limit = 20) {
+    const admin = this.supabaseService.getAdminClient();
+    const offset = (page - 1) * limit;
+
+    const [result, blocked] = await Promise.all([
+      admin.rpc('get_discover_feed', {
+        p_user_id: userId,
+        p_limit: limit,
+        p_offset: offset,
+      }),
+      this.moderationService.getBlockedUserIds(userId),
+    ]);
+
+    throwIfError(result.error);
+    const rows = (result.data ?? []) as Array<
+      FeedItem & { total_count?: number | string }
+    >;
+    // Every row carries the number of posts in all; past the last page there is no row left
+    const total = rows.length > 0 ? Number(rows[0].total_count ?? 0) : offset;
+    const items = rows.map((row) => {
+      const item: FeedItem & { total_count?: number | string } = { ...row };
+      delete item.total_count;
+      return item as FeedItem;
+    });
+
+    return {
+      data: await this.withEngagement(userId, items, blocked),
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  /**
    * One post, shaped like a feed item, for notification taps: anyone signed in may open it,
    * unless they blocked its author. Not found when it was deleted, or when it is no longer a
    * post of its own (a photo now shown under its hike).

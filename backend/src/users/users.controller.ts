@@ -66,6 +66,16 @@ export class UsersController {
     return this.usersService.searchUsers(query.q ?? '');
   }
 
+  /** Hikers to follow, for Discover. Declared before ':id' so "suggested" is not taken for an id. */
+  @Get('suggested')
+  @UseGuards(AuthGuard)
+  getSuggestedHikers(
+    @CurrentUser('id') userId: string,
+    @Query() query: PaginationDto,
+  ) {
+    return this.usersService.getSuggestedHikers(userId, query.limit);
+  }
+
   @Get('leaderboard')
   getLeaderboard(@Query() query: PaginationDto) {
     return this.usersService.getLeaderboard(query.limit ?? 20);

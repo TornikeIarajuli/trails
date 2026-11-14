@@ -548,6 +548,48 @@ describe('UsersService', () => {
   // -------------------------------------------------------------------------
   // searchUsers
   // -------------------------------------------------------------------------
+  describe('getSuggestedHikers', () => {
+    it('asks for hikers the caller does not follow yet, and counts mutual follows as numbers', async () => {
+      mockAdmin.rpc.mockResolvedValueOnce({
+        data: [
+          {
+            id: 'u2',
+            username: 'gio',
+            followed_by: 'nino',
+            mutual_count: '2',
+            total_trails_completed: 9,
+          },
+        ],
+        error: null,
+      });
+
+      const result = await service.getSuggestedHikers('me', 5);
+
+      expect(mockAdmin.rpc).toHaveBeenCalledWith('get_suggested_hikers', {
+        p_user_id: 'me',
+        p_limit: 5,
+      });
+      expect(result).toEqual([
+        expect.objectContaining({
+          id: 'u2',
+          followed_by: 'nino',
+          mutual_count: 2,
+        }),
+      ]);
+    });
+
+    it('keeps the list short', async () => {
+      mockAdmin.rpc.mockResolvedValueOnce({ data: [], error: null });
+
+      await service.getSuggestedHikers('me', 500);
+
+      expect(mockAdmin.rpc).toHaveBeenCalledWith('get_suggested_hikers', {
+        p_user_id: 'me',
+        p_limit: 20,
+      });
+    });
+  });
+
   describe('searchUsers', () => {
     const searchChain = (rows: object[] = []) => {
       const c = chain({ data: rows, error: null });

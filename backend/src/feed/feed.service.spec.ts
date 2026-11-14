@@ -250,6 +250,70 @@ describe('FeedService', () => {
     expect(mockModeration.getBlockedUserIds).toHaveBeenCalledWith('me');
   });
 
+  describe('getDiscover (posts from everyone, best first)', () => {
+    it('pages through the ranked posts and adds likes and comments', async () => {
+      rpcResults.set('get_discover_feed', {
+        data: [
+          { ...item('d1', 'stranger'), total_count: 41 },
+          { ...item('d2', 'other'), total_count: 41 },
+        ],
+        error: null,
+      });
+      onTable('activity_likes', {
+        data: [{ activity_id: 'd2', user_id: 'me' }],
+        error: null,
+      });
+      onTable('activity_comments', { data: [], error: null });
+
+      const result = await service.getDiscover('me', 2, 20);
+
+      expect(mockAdmin.rpc).toHaveBeenCalledWith('get_discover_feed', {
+        p_user_id: 'me',
+        p_limit: 20,
+        p_offset: 20,
+      });
+      expect(result.pagination).toEqual({
+        page: 2,
+        limit: 20,
+        total: 41,
+        totalPages: 3,
+      });
+      expect(result.data).toEqual([
+        expect.objectContaining({ activity_id: 'd1', like_count: 0 }),
+        expect.objectContaining({
+          activity_id: 'd2',
+          like_count: 1,
+          liked_by_me: true,
+        }),
+      ]);
+      // The paging count is not part of a post
+      expect(result.data[0]).not.toHaveProperty('total_count');
+    });
+
+    it('ends after the last page', async () => {
+      rpcResults.set('get_discover_feed', { data: [], error: null });
+
+      const result = await service.getDiscover('me', 3, 20);
+
+      expect(result.data).toEqual([]);
+      expect(result.pagination.totalPages).toBe(2);
+    });
+
+    it('is empty, not an error, when nobody has posted yet', async () => {
+      rpcResults.set('get_discover_feed', { data: [], error: null });
+
+      const result = await service.getDiscover('me');
+
+      expect(result.data).toEqual([]);
+      expect(result.pagination).toEqual({
+        page: 1,
+        limit: 20,
+        total: 0,
+        totalPages: 0,
+      });
+    });
+  });
+
   describe('getActivity (one post, for notification taps)', () => {
     it('returns the post with its likes and comments', async () => {
       rpcResults.set('get_activity_item', {

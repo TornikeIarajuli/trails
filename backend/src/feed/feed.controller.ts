@@ -21,6 +21,15 @@ export class FeedController {
     return this.feedService.getFeed(userId, query.page, query.limit);
   }
 
+  /** Everyone's posts, best first: the Discover segment of the Feed tab. */
+  @Get('discover')
+  getDiscover(
+    @CurrentUser('id') userId: string,
+    @Query() query: PaginationDto,
+  ) {
+    return this.feedService.getDiscover(userId, query.page, query.limit);
+  }
+
   /** One post, for notification taps ("nino liked your hike"). */
   @Get('activity/:id')
   getActivity(
