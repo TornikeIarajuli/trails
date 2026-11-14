@@ -25,6 +25,42 @@ export interface PushResult {
   error?: string;
 }
 
+export interface NotificationRow {
+  id?: string;
+  type?: string | null;
+  data?: Record<string, unknown> | null;
+  [key: string]: unknown;
+}
+
+function idText(value: unknown): string | null {
+  return typeof value === 'string' && value.length > 0 ? value : null;
+}
+
+/** The person a notification is about, from its payload (who followed, commented, needs help…). */
+export function notificationActorId(row: NotificationRow): string | null {
+  const d = row.data ?? {};
+  return (
+    idText(d.followerId) ??
+    idText(d.commenterId) ??
+    idText(d.setterId) ??
+    idText(d.actorId) ??
+    (row.type === 'sos' ? idText(d.userId) : null)
+  );
+}
+
+function notificationTrailId(row: NotificationRow): string | null {
+  return idText((row.data ?? {}).trailId);
+}
+
+function notificationBadgeId(row: NotificationRow): string | null {
+  const ids = (row.data ?? {}).badgeIds;
+  return Array.isArray(ids) ? idText(ids[0]) : null;
+}
+
+const unique = (ids: (string | null)[]) => [
+  ...new Set(ids.filter((id): id is string => !!id)),
+];
+
 @Injectable()
 export class NotificationsService {
   private readonly logger = new Logger(NotificationsService.name);
@@ -236,10 +272,74 @@ export class NotificationsService {
     throwIfError(unread.error);
 
     return {
-      data: list.data ?? [],
+      data: await this.withContext((list.data ?? []) as NotificationRow[]),
       unreadCount: unread.count ?? 0,
       total: list.count ?? 0,
     };
+  }
+
+  /**
+   * Adds who and what each notification is about, so the app can show the person's photo and
+   * name, the trail's picture or the badge: `actor`, `trail` and `badge` (null when not
+   * applicable). A failed lookup only loses the pictures; the list itself still loads.
+   */
+  private async withContext(rows: NotificationRow[]) {
+    if (rows.length === 0) return rows;
+    const admin = this.supabaseService.getAdminClient();
+    const actorIds = unique(rows.map(notificationActorId));
+    const trailIds = unique(rows.map(notificationTrailId));
+    const badgeIds = unique(rows.map(notificationBadgeId));
+    const none = { data: [] as Record<string, unknown>[], error: null };
+
+    const [actors, trails, badges] = await Promise.all([
+      actorIds.length
+        ? admin
+            .from('profiles')
+            .select('id, username, avatar_url')
+            .in('id', actorIds)
+        : none,
+      trailIds.length
+        ? admin
+            .from('trails')
+            .select('id, name_en, cover_image_url')
+            .in('id', trailIds)
+        : none,
+      badgeIds.length
+        ? admin
+            .from('badges')
+            .select('id, name_en, icon, category')
+            .in('id', badgeIds)
+        : none,
+    ]);
+    for (const [what, result] of [
+      ['profiles', actors],
+      ['trails', trails],
+      ['badges', badges],
+    ] as const) {
+      if (result.error) {
+        this.logger.warn(
+          `Notification ${what} lookup failed: ${result.error.message}`,
+        );
+      }
+    }
+
+    const byId = (items: unknown) =>
+      new Map(
+        ((items as Record<string, unknown>[] | null) ?? []).map((item) => [
+          item.id as string,
+          item,
+        ]),
+      );
+    const actorMap = byId(actors.data);
+    const trailMap = byId(trails.data);
+    const badgeMap = byId(badges.data);
+
+    return rows.map((row) => ({
+      ...row,
+      actor: actorMap.get(notificationActorId(row) ?? '') ?? null,
+      trail: trailMap.get(notificationTrailId(row) ?? '') ?? null,
+      badge: badgeMap.get(notificationBadgeId(row) ?? '') ?? null,
+    }));
   }
 
   async markRead(userId: string, notificationId: string) {

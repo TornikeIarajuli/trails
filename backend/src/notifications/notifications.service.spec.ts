@@ -472,6 +472,111 @@ describe('NotificationsService', () => {
       expect(list.range).toHaveBeenCalledWith(20, 29);
     });
 
+    it('adds the person, trail and badge each notification is about', async () => {
+      onTable('notifications', {
+        data: [
+          { id: 'n1', type: 'new_follower', data: { followerId: 'u-nino' } },
+          {
+            id: 'n2',
+            type: 'new_comment',
+            data: { commenterId: 'u-gio', trailId: 't-juta', activityId: 'a1' },
+          },
+          {
+            id: 'n3',
+            type: 'badge_earned',
+            data: { badgeIds: ['b-first', 'b-other'] },
+          },
+          {
+            id: 'n4',
+            type: 'sos',
+            data: { userId: 'u-nino', lat: 42, lng: 44 },
+          },
+          {
+            id: 'n5',
+            type: 'completion_approved',
+            data: { userId: 'u-should-not-be-actor', trailId: 't-juta' },
+          },
+        ],
+        error: null,
+        count: 5,
+      });
+      onTable('notifications', { count: 2, error: null });
+      const profiles = onTable('profiles', {
+        data: [
+          { id: 'u-nino', username: 'nino', avatar_url: 'https://x/nino.jpg' },
+          { id: 'u-gio', username: 'gio', avatar_url: null },
+        ],
+        error: null,
+      });
+      const trails = onTable('trails', {
+        data: [
+          {
+            id: 't-juta',
+            name_en: 'Juta to Roshka',
+            cover_image_url: 'https://x/juta.webp',
+          },
+        ],
+        error: null,
+      });
+      const badges = onTable('badges', {
+        data: [
+          {
+            id: 'b-first',
+            name_en: 'First Steps',
+            icon: 'footsteps',
+            category: 'completions',
+          },
+        ],
+        error: null,
+      });
+
+      const result = await service.getNotifications('user-1');
+      const byId = Object.fromEntries(result.data.map((n) => [n.id, n]));
+
+      expect(profiles.in).toHaveBeenCalledWith('id', ['u-nino', 'u-gio']);
+      expect(trails.in).toHaveBeenCalledWith('id', ['t-juta']);
+      expect(badges.in).toHaveBeenCalledWith('id', ['b-first']);
+      expect(byId.n1).toMatchObject({
+        actor: { username: 'nino' },
+        trail: null,
+        badge: null,
+      });
+      expect(byId.n2).toMatchObject({
+        actor: { username: 'gio' },
+        trail: { name_en: 'Juta to Roshka' },
+      });
+      expect(byId.n3).toMatchObject({
+        actor: null,
+        badge: { name_en: 'First Steps' },
+      });
+      expect(byId.n4).toMatchObject({ actor: { username: 'nino' } });
+      // userId names the person only on SOS alerts
+      expect(byId.n5).toMatchObject({ actor: null, trail: { id: 't-juta' } });
+    });
+
+    it('still returns the list when a lookup fails', async () => {
+      onTable('notifications', {
+        data: [
+          { id: 'n1', type: 'new_follower', data: { followerId: 'u-nino' } },
+        ],
+        error: null,
+        count: 1,
+      });
+      onTable('notifications', { count: 1, error: null });
+      onTable('profiles', { data: null, error: { message: 'timeout' } });
+
+      const result = await service.getNotifications('user-1');
+
+      expect(result.data).toEqual([
+        expect.objectContaining({
+          id: 'n1',
+          actor: null,
+          trail: null,
+          badge: null,
+        }),
+      ]);
+    });
+
     it('defaults to the first page of 20', async () => {
       const list = onTable('notifications', {
         data: [],

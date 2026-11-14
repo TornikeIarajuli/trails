@@ -9,6 +9,12 @@ export interface AppNotification {
   data: Record<string, unknown> | null;
   read_at: string | null;
   created_at: string;
+  /** Who the notification is about (follower, commenter, person asking for help); absent from older servers. */
+  actor?: { id: string; username: string; avatar_url: string | null } | null;
+  /** The trail it concerns. */
+  trail?: { id: string; name_en: string; cover_image_url: string | null } | null;
+  /** The (first) badge earned. */
+  badge?: { id: string; name_en: string; icon: string; category: string } | null;
 }
 
 export interface NotificationPreferences {

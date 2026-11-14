@@ -1,8 +1,8 @@
-import React, { useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
-  FlatList,
+  SectionList,
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
@@ -11,41 +11,38 @@ import {
   Linking,
   Platform,
 } from 'react-native';
-import { router } from 'expo-router';
-import { Icon } from '../../../components/ui/Icon';
+import { Image } from 'expo-image';
+import { router, useFocusEffect } from 'expo-router';
+import { Icon, type IconName } from '../../../components/ui/Icon';
+import { Avatar } from '../../../components/ui/Avatar';
 import { useColors, ColorPalette } from '../../../constants/colors';
-import { useMarkRead, useMarkAllRead } from '../../../hooks/useNotifications';
+import { useMarkAllRead } from '../../../hooks/useNotifications';
 import { useNotificationFeed } from '../../../hooks/useNotificationCenter';
+import { useIsFollowing, useToggleFollow } from '../../../hooks/useFollows';
 import { useAuthStore } from '../../../store/authStore';
 import { AppNotification } from '../../../services/notifications';
 import { ErrorState } from '../../../components/ui/ErrorState';
 import { NotificationRowSkeleton } from '../../../components/ui/Skeleton';
+import { BADGE_CATEGORY_COLOR, BADGE_ICON_MAP } from '../../../components/badges/badgeConstants';
 import { haptics } from '../../../utils/haptics';
 import { getNotificationTarget, mapLinks } from '../../../utils/notificationTarget';
+import { groupNotifications, shortTimeAgo, splitActorName } from '../../../utils/notificationGroups';
 
-const TYPE_CONFIG: Record<string, { icon: string; color: string; bg: string }> = {
-  badge_earned:        { icon: 'medal',              color: '#F59E0B', bg: '#FEF3C7' },
-  completion_approved: { icon: 'checkmark-circle',   color: '#16A34A', bg: '#DCFCE7' },
-  new_follower:        { icon: 'person-add',          color: '#3B82F6', bg: '#DBEAFE' },
-  new_comment:         { icon: 'chatbubble',          color: '#0EA5E9', bg: '#E0F2FE' },
-  event_invite:        { icon: 'calendar',            color: '#8B5CF6', bg: '#EDE9FE' },
-  event_update:        { icon: 'calendar',            color: '#8B5CF6', bg: '#EDE9FE' },
-  emergency_contact:   { icon: 'shield-checkmark',    color: '#DC2626', bg: '#FEE2E2' },
-  sos:                 { icon: 'alert-circle',        color: '#DC2626', bg: '#FEE2E2' },
-  general:             { icon: 'notifications',       color: '#6B7280', bg: '#F3F4F6' },
+/** The small badge on the person's photo, saying what happened. */
+const TYPE_MARK: Record<string, { icon: IconName; color: string }> = {
+  badge_earned: { icon: 'medal', color: '#D97706' },
+  completion_approved: { icon: 'checkmark-circle', color: '#16A34A' },
+  new_follower: { icon: 'person-add', color: '#2563EB' },
+  new_comment: { icon: 'chatbubble', color: '#0284C7' },
+  event_invite: { icon: 'calendar', color: '#7C3AED' },
+  event_update: { icon: 'calendar', color: '#7C3AED' },
+  emergency_contact: { icon: 'shield-checkmark', color: '#DC2626' },
+  sos: { icon: 'alert-circle', color: '#DC2626' },
+  general: { icon: 'notifications', color: '#64748B' },
 };
 
-function timeAgo(dateStr: string): string {
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const m = Math.floor(diff / 60000);
-  if (m < 1) return 'just now';
-  if (m < 60) return `${m}m ago`;
-  const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h ago`;
-  const d = Math.floor(h / 24);
-  if (d < 7) return `${d}d ago`;
-  return new Date(dateStr).toLocaleDateString();
-}
+/** Types whose title is a generic label ("Hike approved"); their body says it all. */
+const BODY_ONLY_TYPES = new Set(['badge_earned', 'completion_approved']);
 
 async function openInMaps(lat: number, lng: number) {
   for (const url of mapLinks(lat, lng, Platform.OS)) {
@@ -68,7 +65,7 @@ function openNotification(item: AppNotification) {
   const target = getNotificationTarget(item.type, item.data);
 
   if (target.kind === 'route') {
-    router.push(target.href as any);
+    router.push(target.href as never);
     return;
   }
 
@@ -79,7 +76,7 @@ function openNotification(item: AppNotification) {
       buttons.push({ text: 'Open location in Maps', onPress: () => openInMaps(lat, lng) });
     }
     if (userId) {
-      buttons.push({ text: 'View profile', onPress: () => router.push(`/trail/user/${userId}` as any) });
+      buttons.push({ text: 'View profile', onPress: () => router.push(`/trail/user/${userId}` as never) });
     }
     buttons.push({ text: 'Close', style: 'cancel' });
     Alert.alert(
@@ -92,43 +89,112 @@ function openNotification(item: AppNotification) {
   }
 }
 
-function NotificationRow({
+function FollowBackButton({ userId, styles }: { userId: string; styles: ReturnType<typeof createStyles> }) {
+  const { data: following } = useIsFollowing(userId);
+  const toggle = useToggleFollow();
+  if (!following) return null;
+  const isFollowing = following.following === true;
+  return (
+    <TouchableOpacity
+      style={[styles.followButton, isFollowing && styles.followingButton]}
+      onPress={() => {
+        haptics.tap();
+        toggle.mutate(userId);
+      }}
+      disabled={toggle.isPending}
+      accessibilityRole="button"
+      accessibilityLabel={isFollowing ? 'Following. Tap to unfollow' : 'Follow back'}
+    >
+      <Text style={[styles.followText, isFollowing && styles.followingText]}>{isFollowing ? 'Following' : 'Follow back'}</Text>
+    </TouchableOpacity>
+  );
+}
+
+function NotificationItem({
   item,
+  fresh,
   onPress,
   styles,
   Colors,
 }: {
   item: AppNotification;
+  fresh: boolean;
   onPress: () => void;
   styles: ReturnType<typeof createStyles>;
   Colors: ColorPalette;
 }) {
-  const cfg = TYPE_CONFIG[item.type] ?? TYPE_CONFIG.general;
-  const isUnread = !item.read_at;
-  const actionable = getNotificationTarget(item.type, item.data).kind !== 'none';
+  const mark = TYPE_MARK[item.type] ?? TYPE_MARK.general;
+  const actorSplit = item.actor ? splitActorName(item.body ?? '', item.actor.username) : null;
+  const time = shortTimeAgo(item.created_at);
+
+  // Left: the badge itself, the person's photo with what happened, or the type's icon
+  let leading: React.ReactNode;
+  if (item.type === 'badge_earned' && item.badge) {
+    const color = BADGE_CATEGORY_COLOR[item.badge.category as keyof typeof BADGE_CATEGORY_COLOR] ?? mark.color;
+    leading = (
+      <View style={[styles.leadingCircle, { backgroundColor: color }]}>
+        <Icon name={(BADGE_ICON_MAP[item.badge.icon] ?? 'ribbon') as IconName} size={22} color="#FFFFFF" />
+      </View>
+    );
+  } else if (item.actor) {
+    leading = (
+      <View>
+        <Avatar uri={item.actor.avatar_url} name={item.actor.username} size={48} />
+        <View style={[styles.typeMark, { backgroundColor: mark.color }]}>
+          <Icon name={mark.icon} size={11} color="#FFFFFF" />
+        </View>
+      </View>
+    );
+  } else {
+    leading = (
+      <View style={[styles.leadingCircle, { backgroundColor: mark.color + '1F' }]}>
+        <Icon name={mark.icon} size={22} color={mark.color} />
+      </View>
+    );
+  }
+
+  // Middle: one sentence with the person in bold, or the title and what it says
+  let message: React.ReactNode;
+  if (actorSplit) {
+    message = (
+      <>
+        <Text style={styles.bold}>{actorSplit.name}</Text>
+        {actorSplit.rest}
+      </>
+    );
+  } else if (BODY_ONLY_TYPES.has(item.type) && item.body) {
+    message = item.body;
+  } else {
+    message = (
+      <>
+        <Text style={styles.bold}>{item.title}</Text>
+        {item.body ? ` ${item.body}` : ''}
+      </>
+    );
+  }
+
+  // Right: follow back for new followers, otherwise the trail's photo
+  let trailing: React.ReactNode = null;
+  if (item.type === 'new_follower' && item.actor) {
+    trailing = <FollowBackButton userId={item.actor.id} styles={styles} />;
+  } else if (item.trail?.cover_image_url) {
+    trailing = <Image source={{ uri: item.trail.cover_image_url }} style={styles.thumb} cachePolicy="memory-disk" transition={150} />;
+  }
 
   return (
     <TouchableOpacity
-      style={[styles.row, isUnread && { backgroundColor: Colors.primary + '08' }]}
+      style={[styles.row, fresh && styles.rowFresh]}
       onPress={onPress}
       activeOpacity={0.7}
       accessibilityRole="button"
-      accessibilityLabel={`${isUnread ? 'Unread. ' : ''}${item.title}. ${item.body}`}
+      accessibilityLabel={`${fresh ? 'New. ' : ''}${item.title}. ${item.body}. ${time}`}
     >
-      {isUnread && <View style={styles.unreadBar} />}
-      <View style={[styles.iconWrap, { backgroundColor: cfg.bg }]}>
-        <Icon name={cfg.icon as any} size={20} color={cfg.color} />
-      </View>
-      <View style={styles.rowContent}>
-        <View style={styles.rowTop}>
-          <Text style={[styles.title, isUnread && styles.titleUnread]} numberOfLines={1}>
-            {item.title}
-          </Text>
-          <Text style={styles.time}>{timeAgo(item.created_at)}</Text>
-        </View>
-        <Text style={styles.body} numberOfLines={2}>{item.body}</Text>
-      </View>
-      {actionable && <Icon name="chevron-forward" size={16} color={Colors.textLight} />}
+      {leading}
+      <Text style={styles.message} numberOfLines={3}>
+        {message}
+        <Text style={styles.time}>{time ? `  ${time}` : ''}</Text>
+      </Text>
+      {trailing}
     </TouchableOpacity>
   );
 }
@@ -140,11 +206,7 @@ function SignedOut({ styles, Colors }: { styles: ReturnType<typeof createStyles>
         <Icon name="notifications-outline" size={40} color={Colors.textLight} />
       </View>
       <Text style={styles.emptyTitle}>Log in to see your alerts</Text>
-      <TouchableOpacity
-        style={styles.loginButton}
-        onPress={() => router.push('/(auth)/login')}
-        accessibilityRole="button"
-      >
+      <TouchableOpacity style={styles.loginButton} onPress={() => router.push('/(auth)/login')} accessibilityRole="button">
         <Text style={styles.loginButtonText}>Log In</Text>
       </TouchableOpacity>
     </View>
@@ -156,18 +218,8 @@ export default function AlertsScreen() {
   const styles = useMemo(() => createStyles(Colors), [Colors]);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
 
-  const {
-    data,
-    isLoading,
-    isError,
-    error,
-    refetch,
-    isRefetching,
-    fetchNextPage,
-    hasNextPage,
-    isFetchingNextPage,
-  } = useNotificationFeed(isAuthenticated);
-  const markRead = useMarkRead();
+  const { data, isLoading, isError, error, refetch, isRefetching, fetchNextPage, hasNextPage, isFetchingNextPage } =
+    useNotificationFeed(isAuthenticated);
   const markAllRead = useMarkAllRead();
 
   const notifications = useMemo(() => {
@@ -178,11 +230,37 @@ export default function AlertsScreen() {
       return true;
     });
   }, [data]);
-  // The first page carries the user's total unread count
   const unreadCount = data?.pages[0]?.unreadCount ?? 0;
 
+  // Opening the screen marks everything read, like Instagram: what was new stays highlighted
+  // under "New" for this visit, and the tab's badge clears.
+  const [visit, setVisit] = useState(0);
+  const [freshIds, setFreshIds] = useState<ReadonlySet<string>>(() => new Set());
+  const handledVisit = useRef(0);
+  useFocusEffect(
+    useCallback(() => {
+      if (!isAuthenticated) return;
+      let active = true;
+      refetch().finally(() => {
+        if (active) setVisit((v) => v + 1);
+      });
+      return () => {
+        active = false;
+      };
+    }, [isAuthenticated, refetch]),
+  );
+  const markAll = markAllRead.mutate;
+  useEffect(() => {
+    if (visit === 0 || handledVisit.current === visit || !data) return;
+    handledVisit.current = visit;
+    const unread = notifications.filter((n) => !n.read_at).map((n) => n.id);
+    setFreshIds(new Set(unread));
+    if (unread.length > 0 || unreadCount > 0) markAll();
+  }, [visit, data, notifications, unreadCount, markAll]);
+
+  const sections = useMemo(() => groupNotifications(notifications, freshIds), [notifications, freshIds]);
+
   const handlePress = (item: AppNotification) => {
-    if (!item.read_at) markRead.mutate(item.id);
     haptics.tap();
     openNotification(item);
   };
@@ -193,36 +271,31 @@ export default function AlertsScreen() {
   } else if (isLoading) {
     content = (
       <View>
-        {Array.from({ length: 6 }).map((_, i) => (
+        {Array.from({ length: 7 }).map((_, i) => (
           <NotificationRowSkeleton key={i} />
         ))}
       </View>
     );
   } else if (isError && notifications.length === 0) {
-    content = (
-      <ErrorState
-        error={error}
-        title="Couldn't load notifications"
-        onRetry={() => refetch()}
-        retrying={isRefetching}
-      />
-    );
+    content = <ErrorState error={error} title="Couldn't load notifications" onRetry={() => refetch()} retrying={isRefetching} />;
   } else {
     content = (
-      <FlatList
-        data={notifications}
+      <SectionList
+        sections={sections}
         keyExtractor={(n) => n.id}
+        stickySectionHeadersEnabled={false}
+        renderSectionHeader={({ section }) => <Text style={styles.sectionTitle}>{section.title}</Text>}
         renderItem={({ item }) => (
-          <NotificationRow
+          <NotificationItem
             item={item}
+            fresh={freshIds.has(item.id) || !item.read_at}
             styles={styles}
             Colors={Colors}
             onPress={() => handlePress(item)}
           />
         )}
-        ItemSeparatorComponent={() => <View style={styles.separator} />}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={notifications.length === 0 ? styles.emptyContainer : undefined}
+        contentContainerStyle={sections.length === 0 ? styles.emptyContainer : styles.listContent}
         onEndReached={() => {
           if (hasNextPage && !isFetchingNextPage) fetchNextPage();
         }}
@@ -235,18 +308,14 @@ export default function AlertsScreen() {
             colors={[Colors.primary]}
           />
         }
-        ListFooterComponent={
-          isFetchingNextPage ? (
-            <ActivityIndicator style={styles.footerSpinner} color={Colors.primary} />
-          ) : null
-        }
+        ListFooterComponent={isFetchingNextPage ? <ActivityIndicator style={styles.footerSpinner} color={Colors.primary} /> : null}
         ListEmptyComponent={
           <View style={styles.empty}>
             <View style={styles.emptyIcon}>
-              <Icon name="notifications-off-outline" size={40} color={Colors.textLight} />
+              <Icon name="notifications-outline" size={40} color={Colors.textLight} />
             </View>
-            <Text style={styles.emptyTitle}>All caught up</Text>
-            <Text style={styles.emptySubtitle}>No notifications yet</Text>
+            <Text style={styles.emptyTitle}>You're all caught up</Text>
+            <Text style={styles.emptySubtitle}>New followers, comments, badges and group hikes show up here.</Text>
           </View>
         }
       />
@@ -257,34 +326,18 @@ export default function AlertsScreen() {
     <View style={styles.container}>
       <View style={styles.titleRow}>
         <Text style={styles.screenTitle}>Notifications</Text>
-        {isAuthenticated && unreadCount > 0 && (
+        {isAuthenticated && (
           <TouchableOpacity
-            onPress={() => markAllRead.mutate()}
-            disabled={markAllRead.isPending}
-            activeOpacity={0.7}
-            hitSlop={8}
+            onPress={() => router.push('/(tabs)/alerts/preferences')}
+            hitSlop={10}
             accessibilityRole="button"
-            accessibilityLabel={`Mark all ${unreadCount} as read`}
+            accessibilityLabel="Notification settings"
           >
-            <Text style={styles.markAll}>Mark all read</Text>
+            <Icon name="settings-outline" size={22} color={Colors.text} />
           </TouchableOpacity>
         )}
       </View>
-
       <View style={styles.list}>{content}</View>
-
-      {isAuthenticated && (
-        <TouchableOpacity
-          style={styles.prefsLink}
-          onPress={() => router.push('/(tabs)/alerts/preferences')}
-          activeOpacity={0.7}
-          accessibilityRole="button"
-        >
-          <Icon name="options-outline" size={18} color={Colors.primary} />
-          <Text style={styles.prefsLinkText}>Manage Preferences</Text>
-          <Icon name="chevron-forward" size={16} color={Colors.textLight} />
-        </TouchableOpacity>
-      )}
     </View>
   );
 }
@@ -301,79 +354,92 @@ const createStyles = (Colors: ColorPalette) =>
       justifyContent: 'space-between',
       paddingHorizontal: 16,
       paddingTop: 12,
-      paddingBottom: 8,
+      paddingBottom: 4,
     },
     screenTitle: {
-      fontSize: 20,
-      fontWeight: '700',
+      fontSize: 22,
+      fontWeight: '800',
       color: Colors.text,
-    },
-    markAll: {
-      fontSize: 14,
-      fontWeight: '600',
-      color: Colors.accent,
     },
     list: {
       flex: 1,
+    },
+    listContent: {
+      paddingBottom: 16,
+    },
+    sectionTitle: {
+      fontSize: 16,
+      fontWeight: '800',
+      color: Colors.text,
+      paddingHorizontal: 16,
+      paddingTop: 18,
+      paddingBottom: 6,
+      backgroundColor: Colors.background,
     },
     row: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 12,
       paddingHorizontal: 16,
-      paddingVertical: 14,
-      backgroundColor: Colors.surface,
+      paddingVertical: 10,
     },
-    unreadBar: {
-      position: 'absolute',
-      left: 0,
-      top: 0,
-      bottom: 0,
-      width: 3,
-      backgroundColor: Colors.primary,
-      borderRadius: 2,
+    rowFresh: {
+      backgroundColor: Colors.primary + '14',
     },
-    iconWrap: {
-      width: 44,
-      height: 44,
-      borderRadius: 22,
+    leadingCircle: {
+      width: 48,
+      height: 48,
+      borderRadius: 24,
       alignItems: 'center',
       justifyContent: 'center',
-      flexShrink: 0,
     },
-    rowContent: {
-      flex: 1,
-      gap: 4,
-    },
-    rowTop: {
-      flexDirection: 'row',
+    typeMark: {
+      position: 'absolute',
+      right: -3,
+      bottom: -3,
+      width: 22,
+      height: 22,
+      borderRadius: 11,
       alignItems: 'center',
-      justifyContent: 'space-between',
-      gap: 8,
+      justifyContent: 'center',
+      borderWidth: 2,
+      borderColor: Colors.background,
     },
-    title: {
-      fontSize: 14,
-      color: Colors.text,
-      fontWeight: '500',
+    message: {
       flex: 1,
+      fontSize: 14,
+      lineHeight: 19,
+      color: Colors.text,
     },
-    titleUnread: {
+    bold: {
       fontWeight: '700',
     },
-    body: {
-      fontSize: 13,
-      color: Colors.textSecondary,
-      lineHeight: 18,
-    },
     time: {
-      fontSize: 11,
+      fontSize: 13,
       color: Colors.textLight,
-      flexShrink: 0,
     },
-    separator: {
-      height: StyleSheet.hairlineWidth,
-      backgroundColor: Colors.border,
-      marginLeft: 72,
+    thumb: {
+      width: 46,
+      height: 46,
+      borderRadius: 8,
+      backgroundColor: Colors.borderLight,
+    },
+    followButton: {
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+      borderRadius: 8,
+      backgroundColor: Colors.primary,
+    },
+    followingButton: {
+      backgroundColor: Colors.borderLight,
+    },
+    followText: {
+      fontSize: 13,
+      fontWeight: '700',
+      color: Colors.textOnPrimary,
+    },
+    followingText: {
+      color: Colors.text,
     },
     footerSpinner: {
       paddingVertical: 16,
@@ -387,6 +453,7 @@ const createStyles = (Colors: ColorPalette) =>
       justifyContent: 'center',
       gap: 8,
       paddingVertical: 60,
+      paddingHorizontal: 32,
     },
     emptyIcon: {
       width: 80,
@@ -404,7 +471,9 @@ const createStyles = (Colors: ColorPalette) =>
     },
     emptySubtitle: {
       fontSize: 14,
+      lineHeight: 20,
       color: Colors.textSecondary,
+      textAlign: 'center',
     },
     loginButton: {
       marginTop: 8,
@@ -417,20 +486,5 @@ const createStyles = (Colors: ColorPalette) =>
       color: Colors.textOnPrimary,
       fontWeight: '600',
       fontSize: 16,
-    },
-    prefsLink: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 10,
-      padding: 16,
-      borderTopWidth: StyleSheet.hairlineWidth,
-      borderTopColor: Colors.border,
-      backgroundColor: Colors.surface,
-    },
-    prefsLinkText: {
-      flex: 1,
-      fontSize: 15,
-      color: Colors.primary,
-      fontWeight: '500',
     },
   });
