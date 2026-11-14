@@ -126,6 +126,24 @@ describe('FeedService', () => {
     });
   });
 
+  it('keeps the trail’s distance and ascent and the hike’s time from the feed function', async () => {
+    const completion = {
+      ...item('a1'),
+      trail_distance_km: 12.4,
+      trail_elevation_gain_m: 860,
+      elapsed_seconds: 15600,
+    };
+    rpcResults.set('get_activity_feed', { data: [completion], error: null });
+    onTable('activity_likes', { data: [], error: null });
+    onTable('activity_comments', { data: [], error: null });
+
+    const result = await service.getFeed('me');
+
+    expect(result.data).toEqual([
+      { ...completion, like_count: 0, comment_count: 0, liked_by_me: false },
+    ]);
+  });
+
   it('passes page and limit to the feed function', async () => {
     rpcResults.set('get_activity_feed', { data: [], error: null });
 
