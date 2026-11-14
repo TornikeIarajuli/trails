@@ -21,7 +21,7 @@ import { getUserTitle } from '../../utils/userTitle';
 import { getErrorMessage } from '../../utils/showError';
 import { haptics } from '../../utils/haptics';
 import { useFollowCounts } from '../../hooks/useFollows';
-import { UpdateCheckButton, UpdateVersionText } from './UpdateCheckButton';
+import { UpdateCheckButton } from './UpdateCheckButton';
 
 // Same limits as the API
 const NAME_MAX = 100;
@@ -150,13 +150,15 @@ export function ProfileCard({ profile }: ProfileCardProps) {
       </View>
 
       <View style={styles.identity}>
-        <View style={styles.nameRow}>
-          <Text style={styles.username} numberOfLines={1}>{profile.username}</Text>
+        <Text style={styles.displayName} numberOfLines={1}>
+          {profile.full_name || profile.username}
+        </Text>
+        <View style={styles.metaRow}>
+          {profile.full_name ? <Text style={styles.handle}>@{profile.username}</Text> : null}
           <View style={styles.titlePill}>
             <Text style={styles.titleText}>{title.emoji} {title.label}</Text>
           </View>
         </View>
-        {!editing && profile.full_name ? <Text style={styles.fullName}>{profile.full_name}</Text> : null}
         {!editing && (
           <Text style={[styles.bio, !profile.bio && styles.bioEmpty]}>
             {profile.bio || 'No bio yet. Tap Edit profile to add one.'}
@@ -220,17 +222,19 @@ export function ProfileCard({ profile }: ProfileCardProps) {
           </View>
         </View>
       ) : (
-        <>
-          <View style={styles.actions}>
-            <TouchableOpacity style={styles.editProfileButton} onPress={startEditing} accessibilityRole="button">
-              <Ionicons name="create-outline" size={16} color={Colors.primary} />
-              <Text style={styles.editProfileText}>Edit profile</Text>
-            </TouchableOpacity>
-            {/* TEMPORARY: manual over-the-air update check for testing */}
-            <UpdateCheckButton />
-          </View>
-          <UpdateVersionText />
-        </>
+        <View style={styles.actions}>
+          <TouchableOpacity
+            style={styles.editProfileButton}
+            onPress={startEditing}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+          >
+            <Ionicons name="create-outline" size={17} color={Colors.text} />
+            <Text style={styles.editProfileText}>Edit profile</Text>
+          </TouchableOpacity>
+          {/* TEMPORARY: manual over-the-air update check for testing */}
+          <UpdateCheckButton />
+        </View>
       )}
     </View>
   );
@@ -284,17 +288,20 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   identity: {
     gap: 4,
   },
-  nameRow: {
+  displayName: {
+    fontSize: 21,
+    fontWeight: '800',
+    color: Colors.text,
+  },
+  metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
     flexWrap: 'wrap',
     gap: 8,
   },
-  username: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: Colors.text,
-    flexShrink: 1,
+  handle: {
+    fontSize: 14,
+    color: Colors.textSecondary,
   },
   titlePill: {
     backgroundColor: Colors.accent + '20',
@@ -306,10 +313,6 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     color: Colors.accent,
-  },
-  fullName: {
-    fontSize: 14,
-    color: Colors.textSecondary,
   },
   bio: {
     fontSize: 14,
@@ -338,18 +341,20 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   },
   editProfileButton: {
     flex: 1,
+    height: 40,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    paddingVertical: 9,
     borderRadius: 10,
-    backgroundColor: Colors.primary + '15',
+    borderWidth: 1,
+    borderColor: Colors.border,
+    backgroundColor: Colors.surface,
   },
   editProfileText: {
     fontSize: 14,
-    fontWeight: '600',
-    color: Colors.primary,
+    fontWeight: '700',
+    color: Colors.text,
   },
   editForm: {
     width: '100%',
