@@ -2,20 +2,17 @@
 // "Check for updates" control on the own-profile card. Remove once updates are trusted
 // to arrive on their own (hooks/useOtaUpdates.ts already checks on launch and foreground).
 import React, { useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, StyleProp, StyleSheet, Text, TextStyle, TouchableOpacity, ViewStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Updates from 'expo-updates';
 import { useColors, ColorPalette } from '../../constants/colors';
 import { useHikeStore } from '../../store/hikeStore';
 import { describeRunningUpdate } from '../../utils/otaInfo';
 
-export function UpdateCheckButton() {
+export function UpdateCheckButton({ style }: { style?: StyleProp<ViewStyle> }) {
   const Colors = useColors();
   const styles = useMemo(() => createStyles(Colors), [Colors]);
   const [checking, setChecking] = useState(false);
-
-  const running = describeRunningUpdate(Updates.updateId, Updates.isEmbeddedLaunch);
-  const channel = Updates.channel || 'none';
 
   const restart = () => {
     if (useHikeStore.getState().isActive) {
@@ -52,38 +49,46 @@ export function UpdateCheckButton() {
   };
 
   return (
-    <View style={styles.row}>
-      <TouchableOpacity
-        style={styles.button}
-        onPress={check}
-        disabled={checking}
-        accessibilityRole="button"
-        accessibilityLabel="Check for app updates"
-      >
-        {checking ? (
-          <ActivityIndicator size="small" color={Colors.primary} />
-        ) : (
-          <Ionicons name="refresh" size={16} color={Colors.primary} />
-        )}
-        <Text style={styles.buttonText}>{checking ? 'Checking…' : 'Check for updates'}</Text>
-      </TouchableOpacity>
-      <Text style={styles.meta}>
-        Version {running} · channel {channel}
-      </Text>
-    </View>
+    <TouchableOpacity
+      style={[styles.button, style]}
+      onPress={check}
+      disabled={checking}
+      accessibilityRole="button"
+      accessibilityLabel="Check for app updates"
+    >
+      {checking ? (
+        <ActivityIndicator size="small" color={Colors.primary} />
+      ) : (
+        <Ionicons name="refresh" size={16} color={Colors.primary} />
+      )}
+      <Text style={styles.buttonText}>{checking ? 'Checking…' : 'Updates'}</Text>
+    </TouchableOpacity>
+  );
+}
+
+/** Which update is running, for reports from testers. */
+export function UpdateVersionText({ style }: { style?: StyleProp<TextStyle> }) {
+  const Colors = useColors();
+  const styles = useMemo(() => createStyles(Colors), [Colors]);
+  const running = describeRunningUpdate(Updates.updateId, Updates.isEmbeddedLaunch);
+  const channel = Updates.channel || 'none';
+  return (
+    <Text style={[styles.meta, style]}>
+      Version {running} · channel {channel}
+    </Text>
   );
 }
 
 const createStyles = (Colors: ColorPalette) =>
   StyleSheet.create({
-    row: { alignItems: 'center', marginTop: 10, gap: 4 },
     button: {
       flexDirection: 'row',
       alignItems: 'center',
+      justifyContent: 'center',
       gap: 6,
       paddingHorizontal: 14,
-      paddingVertical: 8,
-      borderRadius: 20,
+      paddingVertical: 9,
+      borderRadius: 10,
       borderWidth: 1,
       borderColor: Colors.border,
     },

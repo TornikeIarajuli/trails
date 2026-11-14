@@ -10,7 +10,6 @@ import { queryKeys } from '../../../utils/queryKeys';
 import { LoadingSpinner } from '../../../components/ui/LoadingSpinner';
 import { StatsGrid } from '../../../components/profile/StatsGrid';
 import { ProfileCard } from '../../../components/profile/ProfileCard';
-import { FollowCountsRow } from '../../../components/profile/FollowCountsRow';
 import { BadgesSection } from '../../../components/profile/BadgesSection';
 import { CompletionsSection } from '../../../components/profile/CompletionsSection';
 
@@ -53,7 +52,6 @@ export default function ProfileScreen() {
       {profile && (
         <>
           <ProfileCard profile={profile} />
-          <FollowCountsRow userId={profile.id} />
           <StatsGrid stats={profile.stats} />
 
           {/* Navigation cards */}

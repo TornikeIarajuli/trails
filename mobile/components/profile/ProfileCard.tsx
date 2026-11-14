@@ -10,6 +10,7 @@ import {
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import { router } from 'expo-router';
 import { useColors, ColorPalette } from '../../constants/colors';
 import { Avatar } from '../ui/Avatar';
 import { usersService } from '../../services/users';
@@ -19,7 +20,8 @@ import { queryKeys } from '../../utils/queryKeys';
 import { getUserTitle } from '../../utils/userTitle';
 import { getErrorMessage } from '../../utils/showError';
 import { haptics } from '../../utils/haptics';
-import { UpdateCheckButton } from './UpdateCheckButton';
+import { useFollowCounts } from '../../hooks/useFollows';
+import { UpdateCheckButton, UpdateVersionText } from './UpdateCheckButton';
 
 // Same limits as the API
 const NAME_MAX = 100;
@@ -34,6 +36,7 @@ export function ProfileCard({ profile }: ProfileCardProps) {
   const Colors = useColors();
   const styles = useMemo(() => createStyles(Colors), [Colors]);
   const queryClient = useQueryClient();
+  const { data: followCounts } = useFollowCounts(profile.id);
 
   const [editing, setEditing] = useState(false);
   const [editName, setEditName] = useState('');
@@ -99,44 +102,73 @@ export function ProfileCard({ profile }: ProfileCardProps) {
     });
   };
 
-  const title = getUserTitle(profile.stats?.total ?? 0);
+  const total = profile.stats?.total ?? 0;
+  const title = getUserTitle(total);
+
+  const stat = (value: number | undefined, label: string, onPress?: () => void) => (
+    <TouchableOpacity
+      style={styles.stat}
+      onPress={onPress}
+      disabled={!onPress}
+      activeOpacity={0.6}
+      accessibilityRole={onPress ? 'button' : 'text'}
+      accessibilityLabel={`${value ?? 0} ${label}`}
+    >
+      <Text style={styles.statValue}>{value ?? '–'}</Text>
+      <Text style={styles.statLabel}>{label}</Text>
+    </TouchableOpacity>
+  );
 
   return (
     <View style={styles.profileCard}>
-      <TouchableOpacity onPress={pickAvatar} disabled={avatarMutation.isPending} accessibilityLabel="Change profile photo" accessibilityRole="button">
-        {/* The API versions the avatar URL (?v=n), so it can be cached like any image */}
-        <Avatar
-          uri={profile.avatar_url}
-          name={profile.full_name || profile.username}
-          size={80}
-        />
-        <View style={styles.editBadge}>
-          <Ionicons
-            name={avatarMutation.isPending ? 'hourglass-outline' : 'camera'}
-            size={14}
-            color="#fff"
+      {/* Photo on the left, counts beside it */}
+      <View style={styles.headerRow}>
+        <TouchableOpacity onPress={pickAvatar} disabled={avatarMutation.isPending} accessibilityLabel="Change profile photo" accessibilityRole="button">
+          {/* The API versions the avatar URL (?v=n), so it can be cached like any image */}
+          <Avatar
+            uri={profile.avatar_url}
+            name={profile.full_name || profile.username}
+            size={84}
           />
+          <View style={styles.editBadge}>
+            <Ionicons
+              name={avatarMutation.isPending ? 'hourglass-outline' : 'camera'}
+              size={13}
+              color="#fff"
+            />
+          </View>
+        </TouchableOpacity>
+        <View style={styles.stats}>
+          {stat(total, total === 1 ? 'Trail' : 'Trails')}
+          {stat(followCounts?.followers_count, 'Followers', () =>
+            router.push(`/trail/user/followers?userId=${profile.id}&tab=followers`),
+          )}
+          {stat(followCounts?.following_count, 'Following', () =>
+            router.push(`/trail/user/followers?userId=${profile.id}&tab=following`),
+          )}
         </View>
-      </TouchableOpacity>
-
-      <Text style={styles.username}>{profile.username}</Text>
-      <View style={styles.titlePill}>
-        <Text style={styles.titleText}>{title.emoji} {title.label}</Text>
       </View>
-      {!editing && profile.full_name && (
-        <Text style={styles.fullName}>{profile.full_name}</Text>
-      )}
-      {!editing && (
-        <Text style={styles.bio}>
-          {profile.bio || 'No bio yet. Tap edit to add one.'}
-        </Text>
-      )}
-      {!editing && profile.contact_info && (
-        <View style={styles.contactRow}>
-          <Ionicons name="call-outline" size={14} color={Colors.primary} />
-          <Text style={styles.contactText}>{profile.contact_info}</Text>
+
+      <View style={styles.identity}>
+        <View style={styles.nameRow}>
+          <Text style={styles.username} numberOfLines={1}>{profile.username}</Text>
+          <View style={styles.titlePill}>
+            <Text style={styles.titleText}>{title.emoji} {title.label}</Text>
+          </View>
         </View>
-      )}
+        {!editing && profile.full_name ? <Text style={styles.fullName}>{profile.full_name}</Text> : null}
+        {!editing && (
+          <Text style={[styles.bio, !profile.bio && styles.bioEmpty]}>
+            {profile.bio || 'No bio yet. Tap Edit profile to add one.'}
+          </Text>
+        )}
+        {!editing && profile.contact_info ? (
+          <View style={styles.contactRow}>
+            <Ionicons name="call-outline" size={14} color={Colors.primary} />
+            <Text style={styles.contactText}>{profile.contact_info}</Text>
+          </View>
+        ) : null}
+      </View>
 
       {editing ? (
         <View style={styles.editForm}>
@@ -188,85 +220,130 @@ export function ProfileCard({ profile }: ProfileCardProps) {
           </View>
         </View>
       ) : (
-        <TouchableOpacity style={styles.editProfileButton} onPress={startEditing}>
-          <Ionicons name="create-outline" size={16} color={Colors.primary} />
-          <Text style={styles.editProfileText}>Edit Profile</Text>
-        </TouchableOpacity>
+        <>
+          <View style={styles.actions}>
+            <TouchableOpacity style={styles.editProfileButton} onPress={startEditing} accessibilityRole="button">
+              <Ionicons name="create-outline" size={16} color={Colors.primary} />
+              <Text style={styles.editProfileText}>Edit profile</Text>
+            </TouchableOpacity>
+            {/* TEMPORARY: manual over-the-air update check for testing */}
+            <UpdateCheckButton />
+          </View>
+          <UpdateVersionText />
+        </>
       )}
-      {/* TEMPORARY: manual over-the-air update check for testing */}
-      {!editing && <UpdateCheckButton />}
     </View>
   );
 }
 
 const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   profileCard: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 8,
+    gap: 12,
+  },
+  headerRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
+    gap: 16,
   },
   editBadge: {
     position: 'absolute',
     bottom: 0,
     right: 0,
     backgroundColor: Colors.primary,
-    width: 26,
-    height: 26,
-    borderRadius: 13,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
     borderColor: Colors.background,
   },
+  stats: {
+    flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+  },
+  stat: {
+    alignItems: 'center',
+    paddingHorizontal: 4,
+    paddingVertical: 6,
+  },
+  statValue: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: Colors.text,
+  },
+  statLabel: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    marginTop: 2,
+  },
+  identity: {
+    gap: 4,
+  },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
   username: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '700',
     color: Colors.text,
-    marginTop: 12,
+    flexShrink: 1,
   },
   titlePill: {
     backgroundColor: Colors.accent + '20',
-    borderRadius: 20,
-    paddingHorizontal: 14,
-    paddingVertical: 5,
-    marginTop: 6,
+    borderRadius: 14,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
   },
   titleText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '600',
     color: Colors.accent,
   },
   fullName: {
-    fontSize: 15,
+    fontSize: 14,
     color: Colors.textSecondary,
-    marginTop: 4,
   },
   bio: {
     fontSize: 14,
-    color: Colors.textSecondary,
-    textAlign: 'center',
-    marginTop: 8,
-    paddingHorizontal: 32,
+    lineHeight: 20,
+    color: Colors.text,
+    marginTop: 2,
+  },
+  bioEmpty: {
+    color: Colors.textLight,
     fontStyle: 'italic',
   },
   contactRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    marginTop: 6,
+    marginTop: 2,
   },
   contactText: {
     fontSize: 13,
     color: Colors.primary,
     fontWeight: '500',
   },
+  actions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
   editProfileButton: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 6,
-    marginTop: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
+    paddingVertical: 9,
+    borderRadius: 10,
     backgroundColor: Colors.primary + '15',
   },
   editProfileText: {
@@ -276,8 +353,6 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   },
   editForm: {
     width: '100%',
-    paddingHorizontal: 24,
-    marginTop: 12,
     gap: 10,
   },
   editInput: {
