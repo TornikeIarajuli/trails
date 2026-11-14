@@ -1,115 +1,22 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import {
-  View,
-  Text,
-  FlatList,
-  RefreshControl,
-  StyleSheet,
-  TouchableOpacity,
-} from 'react-native';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useColors, ColorPalette } from '../../../constants/colors';
 import { useFeed } from '../../../hooks/useFeed';
-import { useWithoutBlocked } from '../../../hooks/useModeration';
-import { ActivityCard } from '../../../components/feed/ActivityCard';
 import { EmptyFeed } from '../../../components/feed/EmptyFeed';
+import { PostList } from '../../../components/feed/PostList';
+import { DiscoverList } from '../../../components/feed/DiscoverList';
 import { LeaderboardView } from '../../../components/leaderboard/LeaderboardView';
-import { FeedPostSkeleton } from '../../../components/feed/FeedPostSkeleton';
-import { ErrorState } from '../../../components/ui/ErrorState';
-import { LoadingSpinner } from '../../../components/ui/LoadingSpinner';
-import { FeedItem } from '../../../types/feed';
 import { haptics } from '../../../utils/haptics';
 import { FEED_SEGMENTS, FeedSegment, feedSegmentFromParam } from '../../../utils/feedSegment';
 
-const SKELETON_COUNT = 3;
-
 type Styles = ReturnType<typeof createStyles>;
 
-/** Friends' activity: the Feed tab's first segment. */
-const ActivityList = React.memo(function ActivityList({ styles, Colors }: { styles: Styles; Colors: ColorPalette }) {
-  const {
-    data,
-    isLoading,
-    isError,
-    error,
-    isRefetching,
-    refetch,
-    fetchNextPage,
-    hasNextPage,
-    isFetchingNextPage,
-  } = useFeed();
-
-  const loadedItems = useMemo(() => {
-    const seen = new Set<string>();
-    return (data?.pages.flatMap((page) => page.data) ?? []).filter((item: FeedItem) => {
-      const key = `${item.activity_type}-${item.activity_id}`;
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
-  }, [data]);
-  // The API already leaves out blocked users; this also covers the moment right after blocking
-  const items = useWithoutBlocked(loadedItems, (item) => item.user_id);
-
-  if (isLoading) {
-    return (
-      <View style={styles.skeletons}>
-        {Array.from({ length: SKELETON_COUNT }).map((_, i) => (
-          <FeedPostSkeleton key={i} />
-        ))}
-      </View>
-    );
-  }
-
-  if (isError && items.length === 0) {
-    return (
-      <ErrorState
-        error={error}
-        title="Couldn't load your feed"
-        onRetry={() => refetch()}
-        retrying={isRefetching}
-      />
-    );
-  }
-
-  return (
-    <FlatList
-      data={items}
-      keyExtractor={(item) => `${item.activity_type}-${item.activity_id}`}
-      renderItem={({ item }) => <ActivityCard item={item} />}
-      // Posts run edge to edge, Instagram-style; an empty feed centres its message
-      contentContainerStyle={[styles.list, items.length === 0 && styles.listEmpty]}
-      showsVerticalScrollIndicator={false}
-      removeClippedSubviews={true}
-      // Posts are about a screen tall, so a few at a time is plenty
-      maxToRenderPerBatch={4}
-      windowSize={7}
-      initialNumToRender={3}
-      refreshControl={
-        <RefreshControl
-          refreshing={isRefetching}
-          onRefresh={refetch}
-          colors={[Colors.primary]}
-          tintColor={Colors.primary}
-        />
-      }
-      onEndReached={() => {
-        if (hasNextPage && !isFetchingNextPage) {
-          fetchNextPage();
-        }
-      }}
-      onEndReachedThreshold={0.5}
-      ListEmptyComponent={<EmptyFeed />}
-      ListFooterComponent={
-        isFetchingNextPage ? (
-          <View style={styles.footer}>
-            <LoadingSpinner />
-          </View>
-        ) : null
-      }
-    />
-  );
-});
+/** Posts by the people you follow (and yours): the Feed tab's first segment. */
+function FollowingList() {
+  const query = useFeed();
+  return <PostList query={query} empty={<EmptyFeed />} errorTitle="Couldn't load your feed" testID="following-list" />;
+}
 
 /**
  * One segment's content. Segments stay mounted once opened, so switching back keeps the
@@ -129,29 +36,37 @@ function SegmentPane({ visible, styles, children }: { visible: boolean; styles: 
   );
 }
 
-/** The Feed tab: friends' activity, and the leaderboard (formerly its own "Ranks" tab). */
+/**
+ * The Feed tab: the people you follow, Discover (everyone's posts and hikers to follow), and
+ * the leaderboard (formerly its own "Ranks" tab).
+ */
 export default function FeedScreen() {
   const Colors = useColors();
   const styles = useMemo(() => createStyles(Colors), [Colors]);
   const params = useLocalSearchParams<{ segment?: string }>();
   const [segment, setSegment] = useState<FeedSegment>(() => feedSegmentFromParam(params.segment) ?? 'activity');
-  // The leaderboard is only loaded once someone opens it
-  const [leaderboardOpened, setLeaderboardOpened] = useState(segment === 'leaderboard');
+  // Discover and the leaderboard are only loaded once someone opens them
+  const [opened, setOpened] = useState<ReadonlySet<FeedSegment>>(() => new Set([segment]));
+  const open = useCallback(
+    (next: FeedSegment) => setOpened((prev) => (prev.has(next) ? prev : new Set(prev).add(next))),
+    [],
+  );
 
-  // A link can ask for a segment (`/feed?segment=leaderboard`, e.g. from the old Ranks tab).
-  // Without one, for instance when the Feed tab button is pressed, the current segment stays.
+  // A link can ask for a segment (`/feed?segment=leaderboard`, e.g. from the old Ranks tab, or
+  // Discover from the empty feed). Without one, for instance when the Feed tab button is
+  // pressed, the current segment stays.
   const requested = feedSegmentFromParam(params.segment);
   useEffect(() => {
     if (!requested) return;
     setSegment(requested);
-    if (requested === 'leaderboard') setLeaderboardOpened(true);
-  }, [requested]);
+    open(requested);
+  }, [requested, open]);
 
   const select = (next: FeedSegment) => {
     if (next === segment) return;
     haptics.select();
     setSegment(next);
-    if (next === 'leaderboard') setLeaderboardOpened(true);
+    open(next);
     // Keep the screen's params in step, so a later link to the other segment is a change
     router.setParams({ segment: next });
   };
@@ -180,9 +95,14 @@ export default function FeedScreen() {
 
       <View style={styles.panes}>
         <SegmentPane visible={segment === 'activity'} styles={styles}>
-          <ActivityList styles={styles} Colors={Colors} />
+          <FollowingList />
         </SegmentPane>
-        {leaderboardOpened && (
+        {opened.has('discover') && (
+          <SegmentPane visible={segment === 'discover'} styles={styles}>
+            <DiscoverList />
+          </SegmentPane>
+        )}
+        {opened.has('leaderboard') && (
           <SegmentPane visible={segment === 'leaderboard'} styles={styles}>
             <LeaderboardView />
           </SegmentPane>
@@ -234,18 +154,5 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   },
   paneHidden: {
     opacity: 0,
-  },
-  skeletons: {
-    paddingTop: 4,
-  },
-  list: {
-    paddingTop: 4,
-    paddingBottom: 16,
-  },
-  listEmpty: {
-    flexGrow: 1,
-  },
-  footer: {
-    paddingVertical: 20,
   },
 });

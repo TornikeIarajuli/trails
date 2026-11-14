@@ -5,7 +5,10 @@ import { Icon } from '../ui/Icon';
 import { useColors, ColorPalette } from '../../constants/colors';
 import { haptics } from '../../utils/haptics';
 
-/** The feed with nothing in it yet: what will appear here, and the two ways to fill it. */
+/**
+ * The Following feed with nothing in it yet: what will appear here, and the ways to fill it.
+ * Discover (everyone's hikes, and hikers to follow) is one tap away.
+ */
 export function EmptyFeed() {
   const Colors = useColors();
   const styles = useMemo(() => createStyles(Colors), [Colors]);
@@ -25,13 +28,14 @@ export function EmptyFeed() {
         style={({ pressed }) => [styles.button, styles.primary, pressed && styles.pressed]}
         onPress={() => {
           haptics.tap();
-          router.push('/search');
+          // The Feed screen switches to the segment its params ask for
+          router.setParams({ segment: 'discover' });
         }}
         accessibilityRole="button"
-        testID="empty-feed-find-hikers"
+        testID="empty-feed-discover"
       >
         <Icon name="person-add-outline" size={18} color={Colors.textOnPrimary} />
-        <Text style={styles.primaryText}>Find hikers to follow</Text>
+        <Text style={styles.primaryText}>Discover hikers and hikes</Text>
       </Pressable>
 
       <Pressable

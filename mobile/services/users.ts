@@ -1,5 +1,5 @@
 import api from './api';
-import { UserProfile, PublicProfile, LeaderboardEntry, SosResult } from '../types/user';
+import { UserProfile, PublicProfile, LeaderboardEntry, SosResult, SuggestedHiker } from '../types/user';
 
 export const usersService = {
   async getMyProfile(): Promise<UserProfile> {
@@ -27,6 +27,12 @@ export const usersService = {
 
   async searchUsers(query: string): Promise<{ id: string; username: string; full_name: string | null; avatar_url: string | null }[]> {
     const response = await api.get('/users/search', { params: { q: query } });
+    return response.data;
+  },
+
+  /** Hikers to follow: people your follows follow first, then the most active. */
+  async getSuggestedHikers(limit = 10): Promise<SuggestedHiker[]> {
+    const response = await api.get('/users/suggested', { params: { limit } });
     return response.data;
   },
 

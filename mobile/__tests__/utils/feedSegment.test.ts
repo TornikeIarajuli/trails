@@ -1,13 +1,14 @@
 import { FEED_SEGMENTS, feedSegmentFromParam, LEADERBOARD_HREF } from '../../utils/feedSegment';
 
 describe('feed segments', () => {
-  it('has Activity first, then Leaderboard', () => {
-    expect(FEED_SEGMENTS.map((s) => s.label)).toEqual(['Activity', 'Leaderboard']);
+  it('has Following first, then Discover, then Leaderboard', () => {
+    expect(FEED_SEGMENTS.map((s) => s.label)).toEqual(['Following', 'Discover', 'Leaderboard']);
   });
 
   it('reads a segment from a route param', () => {
     expect(feedSegmentFromParam('leaderboard')).toBe('leaderboard');
     expect(feedSegmentFromParam('activity')).toBe('activity');
+    expect(feedSegmentFromParam('discover')).toBe('discover');
     expect(feedSegmentFromParam(['leaderboard', 'activity'])).toBe('leaderboard');
   });
 

@@ -359,13 +359,13 @@ describe('going places from a post', () => {
 });
 
 describe('an empty feed', () => {
-  it('explains what will appear and offers to follow hikers or explore trails', async () => {
+  it('explains what will appear and offers Discover or exploring trails', async () => {
     await render([]);
     expect(byTestId('empty-feed').length).toBeGreaterThan(0);
-    expect(shown()).toEqual(expect.arrayContaining(['Find hikers to follow', 'Explore trails']));
+    expect(shown()).toEqual(expect.arrayContaining(['Discover hikers and hikes', 'Explore trails']));
 
-    act(() => pressable('empty-feed-find-hikers').props.onPress());
-    expect(push).toHaveBeenCalledWith('/search');
+    act(() => pressable('empty-feed-discover').props.onPress());
+    expect(router.setParams).toHaveBeenCalledWith({ segment: 'discover' });
     act(() => pressable('empty-feed-explore').props.onPress());
     expect(navigate).toHaveBeenCalledWith('/(tabs)/home');
   });

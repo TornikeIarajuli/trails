@@ -10,6 +10,12 @@ export const feedService = {
     return response.data;
   },
 
+  /** Discover: everyone's posts (not your own), best first, shaped like the feed. */
+  async getDiscover(page = 1, limit = 20): Promise<PaginatedResponse<FeedItem>> {
+    const response = await api.get('/feed/discover', { params: { page, limit } });
+    return response.data;
+  },
+
   /** One post, shaped like a feed item. 404 when it was deleted or its author is blocked. */
   async getPost(activityId: string): Promise<FeedItem> {
     const response = await api.get(`/feed/activity/${encodeURIComponent(activityId)}`);

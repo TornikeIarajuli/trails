@@ -16,6 +16,18 @@ export interface Profile {
   last_seen_at: string | null;
 }
 
+/** Someone to follow, from Discover. */
+export interface SuggestedHiker {
+  id: string;
+  username: string;
+  full_name: string | null;
+  avatar_url: string | null;
+  total_trails_completed: number;
+  /** One person you follow who follows them; null when none does. */
+  followed_by: string | null;
+  mutual_count: number;
+}
+
 export interface ProfileStats {
   easy: number;
   medium: number;

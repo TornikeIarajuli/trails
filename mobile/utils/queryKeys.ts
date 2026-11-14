@@ -66,6 +66,9 @@ export const queryKeys = {
   feed: () => ['feed'] as const,
   // One post of the feed, on its own screen (opened from a notification)
   feedPost: (activityId: string) => ['feedPost', activityId] as const,
+  // Discover: everyone's posts, best first, and hikers to follow
+  feedDiscover: () => ['feedDiscover'] as const,
+  suggestedHikers: () => ['suggestedHikers'] as const,
 
   // Reviews
   reviews: {

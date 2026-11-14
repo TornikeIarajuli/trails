@@ -1,6 +1,6 @@
 /**
- * The Feed tab's "Activity | Leaderboard" segments, and the hidden old Ranks tab that now
- * sends links on to the Feed's Leaderboard segment.
+ * The Feed tab's "Following | Discover | Leaderboard" segments, and the hidden old Ranks tab
+ * that now sends links on to the Feed's Leaderboard segment.
  */
 let mockParams: { segment?: string } = {};
 
@@ -42,6 +42,11 @@ jest.mock('../../components/leaderboard/LeaderboardView', () => {
       React.createElement(Text, null, showTitle ? 'Ranked hikers, with title' : 'Ranked hikers'),
   };
 });
+jest.mock('../../components/feed/DiscoverList', () => {
+  const React = require('react');
+  const { Text } = require('react-native');
+  return { DiscoverList: () => React.createElement(Text, null, 'Everyone’s hikes') };
+});
 jest.mock('../../components/ui/ErrorState', () => ({ ErrorState: () => null }));
 jest.mock('../../components/ui/LoadingSpinner', () => ({ LoadingSpinner: () => null }));
 jest.mock('../../components/feed/FeedPostSkeleton', () => ({ FeedPostSkeleton: () => null }));
@@ -80,10 +85,11 @@ function rerenderWithParams(params: { segment?: string }) {
   act(() => renderer!.update(<FeedScreen />));
 }
 
-const tab = (key: 'activity' | 'leaderboard') =>
+type Key = 'activity' | 'discover' | 'leaderboard';
+const tab = (key: Key) =>
   renderer!.root.findAll((n) => n.props.testID === `feed-segment-${key}` && typeof n.props.onPress === 'function')[0];
-const isSelected = (key: 'activity' | 'leaderboard') => !!tab(key).props.accessibilityState?.selected;
-const choose = (key: 'activity' | 'leaderboard') => act(() => tab(key).props.onPress());
+const isSelected = (key: Key) => !!tab(key).props.accessibilityState?.selected;
+const choose = (key: Key) => act(() => tab(key).props.onPress());
 
 /** Whether the segment pane holding `label` is the one that can be seen and touched. */
 function paneVisible(label: string): boolean {
@@ -106,12 +112,35 @@ afterEach(() => {
 });
 
 describe('Feed segments', () => {
-  it('opens on Activity and loads the leaderboard only when it is chosen', () => {
+  it('opens on Following and loads Discover and the leaderboard only when they are chosen', () => {
     render(<FeedScreen />);
+    expect(shown()).toEqual(expect.arrayContaining(['Following', 'Discover', 'Leaderboard']));
     expect(isSelected('activity')).toBe(true);
     expect(isSelected('leaderboard')).toBe(false);
     expect(shown()).toContain('Activity a1');
     expect(shown()).not.toContain('Ranked hikers');
+    expect(shown()).not.toContain('Everyone’s hikes');
+  });
+
+  it('switches to Discover, and keeps it when going back to Following', () => {
+    render(<FeedScreen />);
+
+    choose('discover');
+    expect(isSelected('discover')).toBe(true);
+    expect(setParams).toHaveBeenLastCalledWith({ segment: 'discover' });
+    expect(paneVisible('Everyone’s hikes')).toBe(true);
+    expect(paneVisible('Activity a1')).toBe(false);
+
+    choose('activity');
+    expect(paneVisible('Activity a1')).toBe(true);
+    expect(paneVisible('Everyone’s hikes')).toBe(false);
+  });
+
+  it('opens Discover when the empty feed asks for it', () => {
+    render(<FeedScreen />);
+    rerenderWithParams({ segment: 'discover' });
+    expect(isSelected('discover')).toBe(true);
+    expect(paneVisible('Everyone’s hikes')).toBe(true);
   });
 
   it('switches to the leaderboard and back, keeping both mounted', () => {
