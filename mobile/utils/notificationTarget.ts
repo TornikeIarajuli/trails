@@ -74,6 +74,21 @@ export function getNotificationTarget(
       const trailId = text(d.trailId);
       return trailId ? { kind: 'route', href: `/trail/${trailId}` } : { kind: 'none' };
     }
+    case 'checkin_reminder':
+      // "Are you back?": check in, or add an hour
+      return { kind: 'route', href: '/trail/check-in' };
+    case 'overdue':
+      // A hiker this user watches over is late: where they were last, and who they are
+      return {
+        kind: 'sos',
+        lat: coordinate(d.lat, 90),
+        lng: coordinate(d.lng, 180),
+        userId: text(d.userId),
+      };
+    case 'checkin_back': {
+      const userId = text(d.userId);
+      return userId ? { kind: 'route', href: `/trail/user/${userId}` } : { kind: 'none' };
+    }
     case 'line_warning': {
       // Sent by the phone itself during a hike: back to the hike, with its warning banner
       const trailId = text(d.trailId);

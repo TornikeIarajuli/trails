@@ -3,6 +3,7 @@ import { useHikeStore } from '../store/hikeStore';
 import { analytics } from './analytics';
 import { stopBackgroundTracking } from './locationTask';
 import { computeElapsedSeconds } from './track';
+import { finishCheckIn } from './checkInSync';
 
 /**
  * Abandons the hike in progress: recording stops and its track is dropped.
@@ -15,5 +16,6 @@ export function discardActiveHike(): void {
     completionsService.clearActive(hike.trailId).catch(() => {});
   }
   void stopBackgroundTracking();
+  void finishCheckIn();
   hike.discardHike();
 }

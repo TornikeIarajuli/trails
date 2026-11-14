@@ -12,7 +12,7 @@ export default function PrivacyPolicy() {
           <p>When you use Mikiri Trails, we collect:</p>
           <ul className="list-disc pl-6 space-y-1">
             <li><strong>Account information:</strong> email address, username, and the optional profile details you add (name, bio, profile photo, contact details).</li>
-            <li><strong>Location data:</strong> GPS coordinates while you record a hike, your position when you ask for trails near you, and your position when you trigger SOS. When you finish a hike, the recorded GPS track is sent to our servers and stored there to verify the completion.</li>
+            <li><strong>Location data:</strong> GPS coordinates while you record a hike, your position when you ask for trails near you, and your position when you trigger SOS. When you finish a hike, the recorded GPS track is sent to our servers and stored there to verify the completion. If you set a &ldquo;Back by&rdquo; time for a hike, your position is also sent to our servers about every 10 minutes during that hike. Warnings near the occupation line and the state border are worked out on your phone; nothing is sent for them.</li>
             <li><strong>Photos:</strong> images you upload as trail photos, proof of completion, or profile photo.</li>
             <li><strong>Activity:</strong> trail completions, reviews, trail condition reports, bookmarks, comments, likes, follows, the group hikes you create or join, and the emergency contact you choose.</li>
             <li><strong>Presence:</strong> the time you last had the App open (&quot;last seen&quot;).</li>
@@ -57,7 +57,7 @@ export default function PrivacyPolicy() {
             <li>Your reviews, trail photos, trail condition reports, comments, and group hikes are visible to all users.</li>
             <li>Your email address is not shown to other users.</li>
             <li>Your recorded GPS tracks are not shown to other users.</li>
-            <li>If you trigger SOS, your current location is sent to your emergency contact. The person you choose as emergency contact is notified that you chose them.</li>
+            <li>If you trigger SOS, your current location is sent to your emergency contact. If you set a &ldquo;Back by&rdquo; time and have not checked in 30 minutes after it, your emergency contact is notified, with the last position your phone sent and when. The person you choose as emergency contact is notified that you chose them.</li>
           </ul>
         </section>
 

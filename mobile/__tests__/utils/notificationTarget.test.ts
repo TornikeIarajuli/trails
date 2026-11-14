@@ -71,6 +71,34 @@ describe('getNotificationTarget', () => {
     });
   });
 
+  it('opens the check-in for "Are you back?"', () => {
+    expect(getNotificationTarget('checkin_reminder', { checkinId: 'k1', trailId: 't1' })).toEqual({
+      kind: 'route',
+      href: '/trail/check-in',
+    });
+  });
+
+  it('treats an overdue hiker like an SOS: their last position and their profile', () => {
+    expect(getNotificationTarget('overdue', { userId: 'u9', lat: 42.6575, lng: 44.6417 })).toEqual({
+      kind: 'sos',
+      lat: 42.6575,
+      lng: 44.6417,
+      userId: 'u9',
+    });
+    expect(getNotificationTarget('overdue', { userId: 'u9' })).toEqual({ kind: 'sos', lat: null, lng: null, userId: 'u9' });
+  });
+
+  it('opens the profile of a hiker who is back', () => {
+    expect(getNotificationTarget('checkin_back', { userId: 'u9' })).toEqual({ kind: 'route', href: '/trail/user/u9' });
+  });
+
+  it('brings a line warning back to its hike', () => {
+    expect(getNotificationTarget(null, { type: 'line_warning', trailId: 't1', level: 'occupation' })).toEqual({
+      kind: 'route',
+      href: '/trail/t1/hike',
+    });
+  });
+
   it('opens a commented group hike on its own screen', () => {
     expect(getNotificationTarget('new_comment', { activityId: 'e1', activityType: 'event', trailId: 't1' })).toEqual({
       kind: 'route',

@@ -6,6 +6,7 @@ import { useSettingsStore } from '../store/settingsStore';
 import { flushHikeStorage } from './hikeStorage';
 import { getTrackingOptions } from './locationConfig';
 import { processFix } from './lineWatch';
+import { sendCheckInPosition } from './checkInSync';
 
 export const BACKGROUND_LOCATION_TASK = 'background-location';
 
@@ -39,6 +40,8 @@ TaskManager.defineTask(BACKGROUND_LOCATION_TASK, async ({ data, error }: any) =>
       trailId,
       language: useSettingsStore.getState().language,
     });
+    // "Back by": keep the last known position up to date, also from a pocket
+    void sendCheckInPosition(newest.coords.latitude, newest.coords.longitude);
   }
 
   // Off screen the OS may stop the app the moment this task returns, so the

@@ -69,6 +69,8 @@ export const queryKeys = {
   // Discover: everyone's posts, best first, and hikers to follow
   feedDiscover: () => ['feedDiscover'] as const,
   suggestedHikers: () => ['suggestedHikers'] as const,
+  // The open "Back by" check-in
+  checkIn: () => ['checkIn'] as const,
 
   // Reviews
   reviews: {

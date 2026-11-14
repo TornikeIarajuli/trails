@@ -23,6 +23,8 @@ import { useHikeStore } from '../../../store/hikeStore';
 import { useSettingsStore } from '../../../store/settingsStore';
 import { processFix, resetLineWatch, setLineWarningScreen, useLineWarning } from '../../../utils/lineWatch';
 import { LineWarningBanner } from '../../../components/hike/LineWarningBanner';
+import { BackByRow } from '../../../components/hike/BackBy';
+import { finishCheckIn, sendCheckInPosition } from '../../../utils/checkInSync';
 import { useLocationTracking } from '../../../hooks/useLocation';
 import { Config } from '../../../constants/config';
 import { parseGeoPoint, parseGeoLineString, haversineDistance } from '../../../utils/geo';
@@ -124,6 +126,7 @@ export default function HikeScreen() {
 
   const hydrated = useHikeStore((s) => s._hydrated);
   const lineWarningShown = useLineWarning((s) => s.warning !== null);
+  const isDarkMode = useSettingsStore((s) => s.isDarkMode);
   const isActive = useHikeStore((s) => s.isActive);
   const activeTrailId = useHikeStore((s) => s.trailId);
   const isPaused = useHikeStore((s) => s.isPaused);
@@ -212,6 +215,8 @@ export default function HikeScreen() {
       trailId: id,
       language: useSettingsStore.getState().language,
     });
+    // "Back by": the server keeps the latest position for the emergency contact
+    void sendCheckInPosition(location.latitude, location.longitude);
     if (!hasInitialLocation.current) {
       hasInitialLocation.current = true;
       mapRef.current?.animateToRegion({
@@ -351,6 +356,7 @@ export default function HikeScreen() {
       void stopBackgroundTracking();
       endHike({ localId: completion.localId });
       resetLineWatch();
+      void finishCheckIn();
       leaveScreen();
       Alert.alert(
         'Hike saved on your phone',
@@ -364,6 +370,7 @@ export default function HikeScreen() {
     void stopBackgroundTracking();
     endHike({ completionId: result?.id ?? null });
     resetLineWatch();
+    void finishCheckIn();
 
     if (!result?.id) {
       leaveScreen();
@@ -675,6 +682,16 @@ export default function HikeScreen() {
             )}
           />
         )}
+
+        {/* "Back by": tell the emergency contact if this hike runs late */}
+        {isThisHike && id ? (
+          <BackByRow
+            trailId={id}
+            estimatedHours={trail?.estimated_hours}
+            currentPosition={currentPosition}
+            isDarkMode={isDarkMode}
+          />
+        ) : null}
 
         <View style={styles.hikeActions}>
           <TouchableOpacity

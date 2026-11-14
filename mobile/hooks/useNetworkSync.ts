@@ -5,6 +5,7 @@ import { useAuthStore } from '../store/authStore';
 import { useHikeStore } from '../store/hikeStore';
 import { requestHikeSync, setHikeSyncOnline } from '../utils/hikeSync';
 import { entriesToSync } from '../utils/syncQueue';
+import { retryCheckInFinish } from '../utils/checkInSync';
 
 /**
  * Mounts globally in _layout.tsx.
@@ -21,11 +22,16 @@ export function useNetworkSync() {
   useEffect(() => {
     setHikeSyncOnline(isOnline);
     requestHikeSync();
+    // A "Back by" that ended without signal: tell the server now, before anyone is alerted
+    if (isOnline && isAuthenticated) void retryCheckInFinish();
   }, [isOnline, isAuthenticated, userId, pendingCount]);
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (state) => {
-      if (state === 'active') requestHikeSync();
+      if (state === 'active') {
+        requestHikeSync();
+        void retryCheckInFinish();
+      }
     });
     return () => subscription.remove();
   }, []);

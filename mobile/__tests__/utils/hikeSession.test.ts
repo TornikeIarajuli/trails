@@ -7,6 +7,9 @@ jest.mock('../../utils/locationTask', () => ({
 jest.mock('../../utils/analytics', () => ({
   analytics: { hikeAbandoned: jest.fn() },
 }));
+jest.mock('../../utils/checkInSync', () => ({
+  finishCheckIn: jest.fn(() => Promise.resolve()),
+}));
 
 import { completionsService } from '../../services/completions';
 import { useHikeStore, whenHikeStoreHydrated } from '../../store/hikeStore';
@@ -14,6 +17,7 @@ import { analytics } from '../../utils/analytics';
 import { discardActiveHike } from '../../utils/hikeSession';
 import { flushHikeStorage } from '../../utils/hikeStorage';
 import { stopBackgroundTracking } from '../../utils/locationTask';
+import { finishCheckIn } from '../../utils/checkInSync';
 
 const clearActive = completionsService.clearActive as jest.Mock;
 const stopTracking = stopBackgroundTracking as jest.Mock;
@@ -89,4 +93,9 @@ describe('discardActiveHike', () => {
     expect(() => discardActiveHike()).not.toThrow();
     expect(hike().isActive).toBe(false);
   });
+});
+
+it('ends the hike’s “Back by” check-in too, so nobody is alerted for an abandoned hike', () => {
+  discardActiveHike();
+  expect(finishCheckIn).toHaveBeenCalled();
 });

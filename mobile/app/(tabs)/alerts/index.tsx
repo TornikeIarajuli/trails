@@ -40,6 +40,9 @@ const TYPE_MARK: Record<string, { icon: IconName; color: string }> = {
   event_update: { icon: 'calendar', color: '#7C3AED' },
   emergency_contact: { icon: 'shield-checkmark', color: '#DC2626' },
   sos: { icon: 'alert-circle', color: '#DC2626' },
+  checkin_reminder: { icon: 'time', color: '#0284C7' },
+  overdue: { icon: 'alert-circle', color: '#DC2626' },
+  checkin_back: { icon: 'checkmark-circle', color: '#16A34A' },
   general: { icon: 'notifications', color: '#64748B' },
 };
 

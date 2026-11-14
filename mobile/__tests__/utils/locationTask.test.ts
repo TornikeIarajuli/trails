@@ -12,6 +12,8 @@ jest.mock('expo-location', () => ({
   requestBackgroundPermissionsAsync: jest.fn(),
 }));
 jest.mock('expo-task-manager', () => ({ defineTask: jest.fn() }));
+// The "Back by" position upload talks to the API; not under test here
+jest.mock('../../utils/checkInSync', () => ({ sendCheckInPosition: jest.fn(() => Promise.resolve()) }));
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AppState } from 'react-native';
