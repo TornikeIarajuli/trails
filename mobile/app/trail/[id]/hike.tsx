@@ -683,8 +683,8 @@ export default function HikeScreen() {
           />
         )}
 
-        {/* "Back by": tell the emergency contact if this hike runs late */}
-        {isThisHike && id ? (
+        {/* "Back by": tell the emergency contact if this hike runs late (needs an account) */}
+        {isThisHike && id && isAuthenticated ? (
           <BackByRow
             trailId={id}
             estimatedHours={trail?.estimated_hours}
