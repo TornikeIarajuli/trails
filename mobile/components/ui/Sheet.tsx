@@ -51,10 +51,16 @@ const DISMISS_DISTANCE = 120;
 const DISMISS_VELOCITY = 900;
 // See the keyboard handling in SheetPanel
 const KEYBOARD_EVENT_WAIT_MS = 600;
-const ESTIMATED_KEYBOARD_SHARE = 0.45;
-const ESTIMATED_KEYBOARD_MIN = 300;
-/** Android: a keyboard event has arrived for an input inside a sheet, so they can be relied on. */
-let keyboardEventsReachSheets = false;
+// A portrait keyboard with its suggestion strip is about 40–47% of the window. Too high only
+// leaves a gap above the keyboard; too low hides the input, so err high.
+const ESTIMATED_KEYBOARD_SHARE = 0.48;
+const ESTIMATED_KEYBOARD_MIN = 320;
+
+/** Keyboard height to lift a sheet by on Android when no keyboard event reached it. */
+export function estimatedKeyboardLift(windowHeight: number, navigationBar: number): number {
+  // The keyboard sits on top of the navigation bar, which the window height includes
+  return Math.max(ESTIMATED_KEYBOARD_MIN, Math.round(windowHeight * ESTIMATED_KEYBOARD_SHARE)) + navigationBar;
+}
 
 /**
  * While a sheet or dialog animates out, its parent has often already cleared what it
@@ -242,11 +248,14 @@ function SheetPanel({
   const focusedInput = useRef<TextInput | null>(null);
   const scrollRef = useRef<ScrollView>(null);
   const contentRef = useRef<View>(null);
+  // Per sheet: whether a keyboard event arrived while one of its inputs was focused. (A
+  // shared flag let one sheet that got events switch the estimate off for all later ones.)
+  const [eventsReachThisSheet, setEventsReachThisSheet] = useState(false);
 
   useEffect(() => {
     const ios = Platform.OS === 'ios';
     const shown = Keyboard.addListener(ios ? 'keyboardWillShow' : 'keyboardDidShow', (event: KeyboardEvent) => {
-      if (focusedInput.current) keyboardEventsReachSheets = true;
+      if (focusedInput.current) setEventsReachThisSheet(true);
       setKeyboardHeight(event.endCoordinates?.height ?? 0);
     });
     const hidden = Keyboard.addListener(ios ? 'keyboardWillHide' : 'keyboardDidHide', () => setKeyboardHeight(0));
@@ -257,20 +266,20 @@ function SheetPanel({
   }, []);
 
   useEffect(() => {
-    if (Platform.OS !== 'android' || !inputFocused || keyboardHeight > 0 || keyboardEventsReachSheets) {
+    if (Platform.OS !== 'android' || !inputFocused || keyboardHeight > 0 || eventsReachThisSheet) {
       setEstimating(false);
       return;
     }
     const timer = setTimeout(() => setEstimating(true), KEYBOARD_EVENT_WAIT_MS);
     return () => clearTimeout(timer);
-  }, [inputFocused, keyboardHeight]);
+  }, [inputFocused, keyboardHeight, eventsReachThisSheet]);
 
   // Android's events leave out the navigation bar, which the keyboard sits on
   const lift =
     keyboardHeight > 0
       ? keyboardHeight + (Platform.OS === 'android' ? insets.bottom : 0)
       : estimating
-        ? Math.max(ESTIMATED_KEYBOARD_MIN, Math.round(windowHeight * ESTIMATED_KEYBOARD_SHARE))
+        ? estimatedKeyboardLift(windowHeight, insets.bottom)
         : 0;
 
   useEffect(() => {

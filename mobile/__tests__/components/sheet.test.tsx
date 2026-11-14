@@ -29,6 +29,7 @@ import {
   SheetTextInput,
   useLastVisibleValue,
   useSheet,
+  estimatedKeyboardLift,
 } from '../../components/ui/Sheet';
 import { DIALOG_EXIT_MS, Dialog } from '../../components/ui/Dialog';
 import { ActionSheet } from '../../components/ui/ActionSheet';
@@ -370,7 +371,8 @@ describe('Sheet', () => {
       expect(panelMaxHeight()).toBeCloseTo(height * 0.9);
 
       advance(200);
-      const estimated = Math.max(300, Math.round(height * 0.45));
+      // Includes the navigation bar the keyboard sits on (0 in this test)
+      const estimated = estimatedKeyboardLift(height, 0);
       expect(panelMaxHeight()).toBe(height - estimated - 12);
 
       act(() => input.props.onBlur({ nativeEvent: {} }));
@@ -603,5 +605,12 @@ describe('BadgeUnlockModal', () => {
     press(pressables('Unlock again')[0]);
     expect(shown()).toContain('Ridge Runner');
     expect(shown()).not.toContain('1 / 2');
+  });
+});
+
+describe('estimatedKeyboardLift', () => {
+  it('adds the navigation bar to a generous keyboard estimate', () => {
+    expect(estimatedKeyboardLift(800, 48)).toBe(Math.round(800 * 0.48) + 48);
+    expect(estimatedKeyboardLift(500, 0)).toBe(320);
   });
 });
