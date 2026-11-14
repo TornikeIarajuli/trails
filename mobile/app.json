@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "GZA",
+    "name": "Kvali",
     "slug": "mikiri-trails",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -19,14 +19,14 @@
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#000000"
+      "backgroundColor": "#1F4D35"
     },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.gzatrails.app",
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "GZA uses your location to show nearby trails, check you in at checkpoints and record your route while a hike is in progress, including when the screen is off.",
-        "NSLocationAlwaysAndWhenInUseUsageDescription": "GZA uses your location to record your route while a hike is in progress, including when the screen is off.",
+        "NSLocationWhenInUseUsageDescription": "Kvali uses your location to show nearby trails, check you in at checkpoints and record your route while a hike is in progress, including when the screen is off.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Kvali uses your location to record your route while a hike is in progress, including when the screen is off.",
         "NSCameraUsageDescription": "We need camera access to take proof photos at checkpoints.",
         "NSPhotoLibraryUsageDescription": "We need photo library access to select proof photos.",
         "ITSAppUsesNonExemptEncryption": false
@@ -35,7 +35,8 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#000000"
+        "monochromeImage": "./assets/adaptive-icon-monochrome.png",
+        "backgroundColor": "#1F4D35"
       },
       "edgeToEdgeEnabled": true,
       "package": "com.gzatrails.app",
@@ -64,7 +65,7 @@
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "GZA uses your location to record your route while a hike is in progress, including when the screen is off.",
+          "locationAlwaysAndWhenInUsePermission": "Kvali uses your location to record your route while a hike is in progress, including when the screen is off.",
           "isIosBackgroundLocationEnabled": true,
           "isAndroidBackgroundLocationEnabled": false,
           "isAndroidForegroundServiceEnabled": true
@@ -73,15 +74,15 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Allow GZA to access your photos for proof submissions.",
+          "photosPermission": "Allow Kvali to access your photos for proof submissions.",
           "microphonePermission": false
         }
       ],
       [
         "expo-notifications",
         {
-          "icon": "./assets/icon.png",
-          "color": "#1B5E20"
+          "icon": "./assets/notification-icon.png",
+          "color": "#2E6B49"
         }
       ],
       [
