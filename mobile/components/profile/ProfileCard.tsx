@@ -232,6 +232,15 @@ export function ProfileCard({ profile }: ProfileCardProps) {
             <Icon name="create-outline" size={17} color={Colors.text} />
             <Text style={styles.editProfileText}>Edit profile</Text>
           </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.iconButton}
+            onPress={() => router.push('/(tabs)/profile/settings')}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel="Settings"
+          >
+            <Icon name="settings-outline" size={19} color={Colors.text} />
+          </TouchableOpacity>
           {/* TEMPORARY: manual over-the-air update check for testing */}
           <UpdateCheckButton />
         </View>
@@ -334,6 +343,16 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     fontSize: 13,
     color: Colors.primary,
     fontWeight: '500',
+  },
+  iconButton: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    backgroundColor: Colors.surface,
   },
   actions: {
     flexDirection: 'row',
