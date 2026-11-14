@@ -64,6 +64,7 @@ describe('FeedService', () => {
     rpcResults.clear();
     mockModeration.getBlockedUserIds.mockResolvedValue([]);
     rpcResults.set('get_activity_feed_count', { data: 3, error: null });
+    rpcResults.set('get_latest_comments', { data: [], error: null });
     warnLog = jest
       .spyOn(Logger.prototype, 'warn')
       .mockImplementation(() => undefined);
@@ -140,8 +141,84 @@ describe('FeedService', () => {
     const result = await service.getFeed('me');
 
     expect(result.data).toEqual([
-      { ...completion, like_count: 0, comment_count: 0, liked_by_me: false },
+      {
+        ...completion,
+        like_count: 0,
+        comment_count: 0,
+        liked_by_me: false,
+        latest_comment: null,
+      },
     ]);
+  });
+
+  it('adds the newest comment of each post, leaving out people the caller blocked', async () => {
+    rpcResults.set('get_activity_feed', {
+      data: [item('a1'), item('a2')],
+      error: null,
+    });
+    rpcResults.set('get_latest_comments', {
+      data: [
+        {
+          activity_id: 'a2',
+          comment_id: 'k9',
+          user_id: 'u5',
+          username: 'gio',
+          comment: 'Beautiful!',
+          created_at: '2026-11-14T08:00:00Z',
+        },
+      ],
+      error: null,
+    });
+    mockModeration.getBlockedUserIds.mockResolvedValue(['blocked-user']);
+    onTable('activity_likes', { data: [], error: null });
+    onTable('activity_comments', {
+      data: [{ activity_id: 'a2' }, { activity_id: 'a2' }],
+      error: null,
+    });
+
+    const result = await service.getFeed('me');
+
+    expect(mockAdmin.rpc).toHaveBeenCalledWith('get_latest_comments', {
+      p_activity_ids: ['a1', 'a2'],
+      p_hidden_user_ids: ['blocked-user'],
+    });
+    expect(result.data).toEqual([
+      expect.objectContaining({ activity_id: 'a1', latest_comment: null }),
+      expect.objectContaining({
+        activity_id: 'a2',
+        comment_count: 2,
+        latest_comment: {
+          id: 'k9',
+          user_id: 'u5',
+          username: 'gio',
+          comment: 'Beautiful!',
+        },
+      }),
+    ]);
+  });
+
+  it('still shows the posts and their counts when the latest comments cannot be loaded', async () => {
+    rpcResults.set('get_activity_feed', { data: [item('a1')], error: null });
+    rpcResults.set('get_latest_comments', {
+      data: null,
+      error: { message: 'timeout' },
+    });
+    onTable('activity_likes', {
+      data: [{ activity_id: 'a1', user_id: 'x' }],
+      error: null,
+    });
+    onTable('activity_comments', { data: [], error: null });
+
+    const result = await service.getFeed('me');
+
+    expect(result.data).toEqual([
+      expect.objectContaining({
+        activity_id: 'a1',
+        like_count: 1,
+        latest_comment: null,
+      }),
+    ]);
+    expect(warnLog).toHaveBeenCalled();
   });
 
   it('passes page and limit to the feed function', async () => {
@@ -199,6 +276,7 @@ describe('FeedService', () => {
         like_count: 1,
         comment_count: 2,
         liked_by_me: true,
+        latest_comment: null,
       });
     });
 

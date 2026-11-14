@@ -9,6 +9,22 @@ export interface FeedItem {
   [key: string]: unknown;
 }
 
+/** The newest comment of a post, shown under it in the feed. */
+export interface LatestComment {
+  id: string;
+  user_id: string;
+  username: string;
+  comment: string;
+}
+
+interface LatestCommentRow {
+  activity_id: string;
+  comment_id: string;
+  user_id: string;
+  username: string;
+  comment: string;
+}
+
 @Injectable()
 export class FeedService {
   private readonly logger = new Logger(FeedService.name);
@@ -43,7 +59,7 @@ export class FeedService {
     );
 
     return {
-      data: await this.withEngagement(userId, items),
+      data: await this.withEngagement(userId, items, blocked),
       pagination: {
         page,
         limit,
@@ -71,7 +87,7 @@ export class FeedService {
       throw new NotFoundException('This post is no longer available');
     }
 
-    const [post] = await this.withEngagement(userId, [item]);
+    const [post] = await this.withEngagement(userId, [item], blocked);
     return post;
   }
 
@@ -79,14 +95,20 @@ export class FeedService {
    * Adds like_count, comment_count and liked_by_me (contract C5) with one query for the
    * likes and one for the comments of the whole page. If either fails the items are
    * returned without the fields and the app falls back to fetching them per item.
+   * Also adds latest_comment, the newest comment by someone the caller has not blocked;
+   * when that cannot be loaded the posts simply show no comment preview.
    */
-  private async withEngagement(userId: string, items: FeedItem[]) {
+  private async withEngagement(
+    userId: string,
+    items: FeedItem[],
+    hiddenUserIds: string[] = [],
+  ) {
     if (items.length === 0) return items;
 
     const admin = this.supabaseService.getAdminClient();
     const ids = [...new Set(items.map((item) => String(item.activity_id)))];
 
-    const [likes, comments] = await Promise.all([
+    const [likes, comments, latest] = await Promise.all([
       admin
         .from('activity_likes')
         .select('activity_id, user_id')
@@ -95,6 +117,10 @@ export class FeedService {
         .from('activity_comments')
         .select('activity_id')
         .in('activity_id', ids),
+      admin.rpc('get_latest_comments', {
+        p_activity_ids: ids,
+        p_hidden_user_ids: hiddenUserIds,
+      }),
     ]);
 
     if (likes.error || comments.error) {
@@ -117,6 +143,22 @@ export class FeedService {
       if (like.user_id === userId) likedByMe.add(like.activity_id);
     }
 
+    const latestComments = new Map<string, LatestComment>();
+    if (latest.error) {
+      this.logger.warn(
+        `Could not load the latest comments: ${latest.error.message}`,
+      );
+    } else {
+      for (const row of (latest.data ?? []) as LatestCommentRow[]) {
+        latestComments.set(String(row.activity_id), {
+          id: row.comment_id,
+          user_id: row.user_id,
+          username: row.username,
+          comment: row.comment,
+        });
+      }
+    }
+
     const commentCounts = new Map<string, number>();
     for (const comment of (comments.data ?? []) as Array<{
       activity_id: string;
@@ -134,6 +176,7 @@ export class FeedService {
         like_count: likeCounts.get(id) ?? 0,
         comment_count: commentCounts.get(id) ?? 0,
         liked_by_me: likedByMe.has(id),
+        latest_comment: latestComments.get(id) ?? null,
       };
     });
   }
