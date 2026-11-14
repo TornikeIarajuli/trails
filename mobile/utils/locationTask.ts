@@ -5,6 +5,7 @@ import { useHikeStore, whenHikeStoreHydrated } from '../store/hikeStore';
 import { useSettingsStore } from '../store/settingsStore';
 import { flushHikeStorage } from './hikeStorage';
 import { getTrackingOptions } from './locationConfig';
+import { processFix } from './lineWatch';
 
 export const BACKGROUND_LOCATION_TASK = 'background-location';
 
@@ -26,6 +27,17 @@ TaskManager.defineTask(BACKGROUND_LOCATION_TASK, async ({ data, error }: any) =>
     addGpsPoint(loc.coords.latitude, loc.coords.longitude, {
       timestamp: loc.timestamp,
       accuracy: loc.coords.accuracy,
+    });
+  }
+
+  // Occupation line and state border, also with the phone in a pocket (the newest fix is enough)
+  const newest = locations?.[locations.length - 1];
+  if (newest) {
+    const { startTime, trailId } = useHikeStore.getState();
+    processFix(newest.coords.latitude, newest.coords.longitude, {
+      hikeKey: String(startTime ?? trailId ?? 'hike'),
+      trailId,
+      language: useSettingsStore.getState().language,
     });
   }
 

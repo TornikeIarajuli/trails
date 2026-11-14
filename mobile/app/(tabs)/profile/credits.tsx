@@ -48,8 +48,9 @@ export default function CreditsScreen() {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Maps and trail routes</Text>
         <Text style={styles.body}>
-          Trail routes, checkpoints and map data © OpenStreetMap contributors. The data is available
-          under the Open Database License (ODbL).
+          Trail routes, checkpoints, map data and the occupation line and state border used for
+          warnings during a hike © OpenStreetMap contributors. The data is available under the Open
+          Database License (ODbL).
         </Text>
         <Link url="https://www.openstreetmap.org/copyright" style={styles.link}>
           openstreetmap.org/copyright

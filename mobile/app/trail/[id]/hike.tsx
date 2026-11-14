@@ -20,6 +20,9 @@ import * as ImagePicker from 'expo-image-picker';
 import { useColors, ColorPalette } from '../../../constants/colors';
 import { useTrail } from '../../../hooks/useTrails';
 import { useHikeStore } from '../../../store/hikeStore';
+import { useSettingsStore } from '../../../store/settingsStore';
+import { processFix, resetLineWatch, setLineWarningScreen, useLineWarning } from '../../../utils/lineWatch';
+import { LineWarningBanner } from '../../../components/hike/LineWarningBanner';
 import { useLocationTracking } from '../../../hooks/useLocation';
 import { Config } from '../../../constants/config';
 import { parseGeoPoint, parseGeoLineString, haversineDistance } from '../../../utils/geo';
@@ -120,6 +123,7 @@ export default function HikeScreen() {
   const { topo, offline, toggle: toggleMapStyle } = useMapStyle({ autoTopoWhenOffline: true });
 
   const hydrated = useHikeStore((s) => s._hydrated);
+  const lineWarningShown = useLineWarning((s) => s.warning !== null);
   const isActive = useHikeStore((s) => s.isActive);
   const activeTrailId = useHikeStore((s) => s.trailId);
   const isPaused = useHikeStore((s) => s.isPaused);
@@ -167,6 +171,7 @@ export default function HikeScreen() {
 
   const beginHike = () => {
     if (!id) return;
+    resetLineWatch();
     startHike(id, useAuthStore.getState().user?.id ?? null);
     analytics.hikeStarted(id, trail?.name_en ?? id);
   };
@@ -176,6 +181,13 @@ export default function HikeScreen() {
     if (!hydrated || !id || finishedRef.current) return;
     if (!useHikeStore.getState().isActive) beginHike();
   }, [hydrated, id]);
+
+  // While this screen is open its banner and haptics carry the line warnings
+  useEffect(() => {
+    if (!isThisHike) return;
+    setLineWarningScreen(true);
+    return () => setLineWarningScreen(false);
+  }, [isThisHike]);
 
   // Show this hiker in the trail's "currently hiking" count while the screen is open
   useEffect(() => {
@@ -193,6 +205,12 @@ export default function HikeScreen() {
     addGpsPoint(location.latitude, location.longitude, {
       timestamp: location.timestamp,
       accuracy: location.accuracy,
+    });
+    // Occupation line and state border: banner, buzz, or a notification when off screen
+    processFix(location.latitude, location.longitude, {
+      hikeKey: String(useHikeStore.getState().startTime ?? id),
+      trailId: id,
+      language: useSettingsStore.getState().language,
     });
     if (!hasInitialLocation.current) {
       hasInitialLocation.current = true;
@@ -332,6 +350,7 @@ export default function HikeScreen() {
       enqueueCompletion(completion);
       void stopBackgroundTracking();
       endHike({ localId: completion.localId });
+      resetLineWatch();
       leaveScreen();
       Alert.alert(
         'Hike saved on your phone',
@@ -344,6 +363,7 @@ export default function HikeScreen() {
     analytics.hikeCompleted(trailId, completion.elapsedSeconds, hike.distanceCoveredMeters / 1000);
     void stopBackgroundTracking();
     endHike({ completionId: result?.id ?? null });
+    resetLineWatch();
 
     if (!result?.id) {
       leaveScreen();
@@ -572,9 +592,12 @@ export default function HikeScreen() {
         </View>
       </View>
 
+      {/* Occupation line or state border nearby */}
+      {isThisHike && <LineWarningBanner top={insets.top + 60} />}
+
       {/* Recording only continues while the app is open */}
       {locationStatus === 'ready' && backgroundTracking === 'unavailable' && (
-        <View style={[styles.notice, { top: insets.top + 60 }]} pointerEvents="none">
+        <View style={[styles.notice, { top: insets.top + (lineWarningShown ? 140 : 60) }]} pointerEvents="none">
           <Icon name="warning-outline" size={16} color={Colors.textOnPrimary} />
           <Text style={styles.noticeText}>Keep the app open — background tracking is unavailable</Text>
         </View>

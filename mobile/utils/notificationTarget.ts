@@ -74,6 +74,11 @@ export function getNotificationTarget(
       const trailId = text(d.trailId);
       return trailId ? { kind: 'route', href: `/trail/${trailId}` } : { kind: 'none' };
     }
+    case 'line_warning': {
+      // Sent by the phone itself during a hike: back to the hike, with its warning banner
+      const trailId = text(d.trailId);
+      return trailId ? { kind: 'route', href: `/trail/${trailId}/hike` } : { kind: 'none' };
+    }
     case 'emergency_contact': {
       const setterId = text(d.setterId);
       return setterId ? { kind: 'route', href: `/trail/user/${setterId}` } : { kind: 'none' };
