@@ -17,6 +17,15 @@ function eventHref(trailId: string | null, eventId: string): string {
   return `/trail/${trailId ?? 'event'}/event/${eventId}`;
 }
 
+// A post of the feed. A comment notification opens its comments too; the trail lets a
+// deleted post still lead somewhere.
+function postHref(activityId: string, openComments: boolean, trailId: string | null): string {
+  const query = [openComments ? 'comments=1' : null, trailId ? `trailId=${encodeURIComponent(trailId)}` : null]
+    .filter(Boolean)
+    .join('&');
+  return `/trail/post/${encodeURIComponent(activityId)}${query ? `?${query}` : ''}`;
+}
+
 /** The Alerts tab: notification taps open their target on top of it. */
 export const ALERTS_TAB_HREF = '/(tabs)/alerts';
 
@@ -32,21 +41,22 @@ export function getNotificationTarget(
   data: Record<string, unknown> | null | undefined,
 ): NotificationTarget {
   const d = data ?? {};
+  const kind = type ?? text(d.type);
 
-  switch (type ?? text(d.type)) {
+  switch (kind) {
     case 'new_follower': {
       const followerId = text(d.followerId);
       return followerId ? { kind: 'route', href: `/trail/user/${followerId}` } : { kind: 'none' };
     }
     case 'badge_earned':
       return { kind: 'route', href: `${ALERTS_TAB_HREF}/badges` };
-    case 'new_comment': {
+    case 'new_comment':
+    case 'new_like': {
       const activityId = text(d.activityId);
       const trailId = text(d.trailId);
+      // A group hike has its own screen, with its comments on it
       if (activityId && d.activityType === 'event') return { kind: 'route', href: eventHref(trailId, activityId) };
-      if (activityId && d.activityType === 'completion') {
-        return { kind: 'route', href: `/trail/completion/${activityId}` };
-      }
+      if (activityId) return { kind: 'route', href: postHref(activityId, kind === 'new_comment', trailId) };
       return trailId ? { kind: 'route', href: `/trail/${trailId}` } : { kind: 'none' };
     }
     case 'event_invite':

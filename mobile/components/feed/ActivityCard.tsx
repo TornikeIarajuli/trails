@@ -104,12 +104,22 @@ function LikeHeart({ liked, color }: { liked: boolean; color: string }) {
   );
 }
 
+/** How long a post screen waits before opening the comments, so it can slide in first. */
+export const COMMENTS_OPEN_DELAY_MS = 350;
+
 /**
  * A post in the feed: who did what on which trail, the photos (double-tap to like), big like,
  * comment and share buttons, the like count, details (hike stats, caption, condition, rating)
  * and the way into the comments.
  */
-export const ActivityCard = React.memo(function ActivityCard({ item }: { item: FeedItem }) {
+export const ActivityCard = React.memo(function ActivityCard({
+  item,
+  openCommentsOnMount = false,
+}: {
+  item: FeedItem;
+  /** Opens the comments right away: the post screen, opened from a comment notification. */
+  openCommentsOnMount?: boolean;
+}) {
   const Colors = useColors();
   const styles = useMemo(() => createStyles(Colors), [Colors]);
   const language = useSettingsStore((s) => s.language);
@@ -117,6 +127,15 @@ export const ActivityCard = React.memo(function ActivityCard({ item }: { item: F
   // The sheet is mounted on first use (not per card), then kept so it can animate out
   const [commentsOpened, setCommentsOpened] = useState(false);
   const [burst, setBurst] = useState(0);
+
+  useEffect(() => {
+    if (!openCommentsOnMount) return;
+    const timer = setTimeout(() => {
+      setCommentsOpened(true);
+      setShowComments(true);
+    }, COMMENTS_OPEN_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [openCommentsOnMount]);
 
   // Current API versions put the counts on the feed item. Only when they are
   // missing (older backend) fall back to one request per card.

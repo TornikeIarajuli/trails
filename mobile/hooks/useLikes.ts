@@ -3,14 +3,8 @@ import { likesService, ActivityLike } from '../services/likes';
 import { useAuthStore } from '../store/authStore';
 import { queryKeys } from '../utils/queryKeys';
 import { showError } from '../utils/showError';
-import {
-  FeedPages,
-  findFeedItem,
-  hasLikeSummary,
-  withLikeState,
-  withLikeToggled,
-} from '../utils/feedCache';
-import { patchFeedItem } from './useFeed';
+import { hasLikeSummary, withLikeState, withLikeToggled } from '../utils/feedCache';
+import { findCachedFeedItem, patchFeedItem } from './useFeed';
 
 /**
  * The full like list of one activity. The feed already carries `like_count` /
@@ -43,8 +37,8 @@ export function useToggleLike() {
       const likesKey = queryKeys.likes.activity(activity_id);
       await queryClient.cancelQueries({ queryKey: likesKey });
 
-      // Optimistic update of the feed item (current API)…
-      const feedItem = findFeedItem(queryClient.getQueryData<FeedPages>(queryKeys.feed()), activity_id);
+      // Optimistic update of the post, in the feed and on its own screen (current API)…
+      const feedItem = findCachedFeedItem(queryClient, activity_id);
       const previousSummary =
         feedItem && hasLikeSummary(feedItem)
           ? { liked: feedItem.liked_by_me, count: feedItem.like_count }

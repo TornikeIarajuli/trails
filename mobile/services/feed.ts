@@ -9,4 +9,10 @@ export const feedService = {
     });
     return response.data;
   },
+
+  /** One post, shaped like a feed item. 404 when it was deleted or its author is blocked. */
+  async getPost(activityId: string): Promise<FeedItem> {
+    const response = await api.get(`/feed/activity/${encodeURIComponent(activityId)}`);
+    return response.data;
+  },
 };

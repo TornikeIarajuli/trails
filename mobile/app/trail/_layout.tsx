@@ -33,6 +33,7 @@ export default function TrailLayout() {
       <Stack.Screen name="recommendations" />
       <Stack.Screen name="group-hikes" />
       <Stack.Screen name="completion/[id]" />
+      <Stack.Screen name="post/[id]" />
       <Stack.Screen name="[id]/events" />
       <Stack.Screen name="[id]/event/[eventId]/index" />
     </Stack>

@@ -34,6 +34,8 @@ const TYPE_MARK: Record<string, { icon: IconName; color: string }> = {
   completion_approved: { icon: 'checkmark-circle', color: '#16A34A' },
   new_follower: { icon: 'person-add', color: '#2563EB' },
   new_comment: { icon: 'chatbubble', color: '#0284C7' },
+  // The feed's like red
+  new_like: { icon: 'heart', color: '#E53935' },
   event_invite: { icon: 'calendar', color: '#7C3AED' },
   event_update: { icon: 'calendar', color: '#7C3AED' },
   emergency_contact: { icon: 'shield-checkmark', color: '#DC2626' },
@@ -315,7 +317,7 @@ export default function AlertsScreen() {
               <Icon name="notifications-outline" size={40} color={Colors.textLight} />
             </View>
             <Text style={styles.emptyTitle}>You're all caught up</Text>
-            <Text style={styles.emptySubtitle}>New followers, comments, badges and group hikes show up here.</Text>
+            <Text style={styles.emptySubtitle}>New followers, likes, comments, badges and group hikes show up here.</Text>
           </View>
         }
       />

@@ -64,6 +64,8 @@ export const queryKeys = {
 
   // Activity feed
   feed: () => ['feed'] as const,
+  // One post of the feed, on its own screen (opened from a notification)
+  feedPost: (activityId: string) => ['feedPost', activityId] as const,
 
   // Reviews
   reviews: {

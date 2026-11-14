@@ -45,21 +45,42 @@ describe('getNotificationTarget', () => {
     });
   });
 
-  it('routes comments by what was commented on', () => {
+  it('opens the commented post with its comments, whatever kind of post it is', () => {
+    expect(getNotificationTarget('new_comment', { activityId: 'c1', activityType: 'completion' })).toEqual({
+      kind: 'route',
+      href: '/trail/post/c1?comments=1',
+    });
+    expect(getNotificationTarget('new_comment', { activityId: 'p1', activityType: 'photo', trailId: 't1' })).toEqual({
+      kind: 'route',
+      href: '/trail/post/p1?comments=1&trailId=t1',
+    });
+    expect(getNotificationTarget(null, { type: 'new_comment', activityId: 'r1', activityType: 'review' })).toEqual({
+      kind: 'route',
+      href: '/trail/post/r1?comments=1',
+    });
+  });
+
+  it('opens the liked post, without opening its comments', () => {
+    expect(getNotificationTarget('new_like', { activityId: 'c1', activityType: 'completion', trailId: 't1' })).toEqual({
+      kind: 'route',
+      href: '/trail/post/c1?trailId=t1',
+    });
+    expect(getNotificationTarget(null, { type: 'new_like', activityId: 'p1', activityType: 'photo', actorId: 'u2' })).toEqual({
+      kind: 'route',
+      href: '/trail/post/p1',
+    });
+  });
+
+  it('opens a commented group hike on its own screen', () => {
     expect(getNotificationTarget('new_comment', { activityId: 'e1', activityType: 'event', trailId: 't1' })).toEqual({
       kind: 'route',
       href: '/trail/t1/event/e1',
     });
-    expect(getNotificationTarget('new_comment', { activityId: 'c1', activityType: 'completion' })).toEqual({
-      kind: 'route',
-      href: '/trail/completion/c1',
-    });
-    expect(getNotificationTarget('new_comment', { activityId: 'p1', activityType: 'photo', trailId: 't1' })).toEqual({
-      kind: 'route',
-      href: '/trail/t1',
-    });
-    // Without a trail there is nothing to open that would not switch tabs
-    expect(getNotificationTarget('new_comment', { activityId: 'p1', activityType: 'photo' })).toEqual({ kind: 'none' });
+  });
+
+  it('falls back to the trail, or nothing, when a comment or like names no post', () => {
+    expect(getNotificationTarget('new_comment', { trailId: 't1' })).toEqual({ kind: 'route', href: '/trail/t1' });
+    expect(getNotificationTarget('new_like', {})).toEqual({ kind: 'none' });
   });
 
   it('returns the SOS location, accepting numbers or numeric strings', () => {

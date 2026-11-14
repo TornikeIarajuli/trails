@@ -53,13 +53,14 @@ describe('navigateFromNotification (Alerts tab)', () => {
     expect(navigate).not.toHaveBeenCalled();
   });
 
-  it('opens the commented item for new_comment, or nothing when the payload has no trail', () => {
+  it('opens the post a comment or like is about, on top of the list', () => {
     navigateFromNotification({ type: 'new_comment', activityId: 'a-1', activityType: 'review', trailId: 't-1' });
-    expect(push).toHaveBeenCalledWith('/trail/t-1');
+    expect(navigate).toHaveBeenCalledWith('/(tabs)/alerts');
+    expect(push).toHaveBeenCalledWith('/trail/post/a-1?comments=1&trailId=t-1');
 
     push.mockClear();
-    navigateFromNotification({ type: 'new_comment', activityId: 'a-1', activityType: 'photo', commenterId: 'u-2' });
-    expect(push).not.toHaveBeenCalled();
+    navigateFromNotification({ type: 'new_like', activityId: 'a-2', activityType: 'photo', actorId: 'u-2' });
+    expect(push).toHaveBeenCalledWith('/trail/post/a-2');
   });
 
   it('opens the position of an SOS in the maps app and shows the Alerts tab', async () => {
@@ -109,6 +110,7 @@ describe('navigateFromNotification (Alerts tab)', () => {
       /^\/trail\/[^/]+\/event\/[^/]+$/,
       /^\/trail\/[^/]+$/,
       /^\/trail\/completion\/[^/]+$/,
+      /^\/trail\/post\/[^/?]+(\?[^/]*)?$/,
     ];
     const payloads = [
       { type: 'new_follower', followerId: 'u' },
@@ -116,6 +118,8 @@ describe('navigateFromNotification (Alerts tab)', () => {
       { type: 'new_comment', activityId: 'a', activityType: 'review', trailId: 't' },
       { type: 'new_comment', activityId: 'a', activityType: 'completion' },
       { type: 'new_comment', activityId: 'a', activityType: 'event', trailId: 't' },
+      { type: 'new_like', activityId: 'a', activityType: 'photo', trailId: 't' },
+      { type: 'new_like', activityId: 'a', activityType: 'completion' },
       { type: 'event_invite', eventId: 'e', trailId: 't' },
       { type: 'event_update', eventId: 'e', trailId: 't', cancelled: true },
       { type: 'completion_approved', completionId: 'c', trailId: 't' },
