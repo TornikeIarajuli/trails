@@ -2,7 +2,6 @@ import React, { useEffect, useState, useMemo } from 'react';
 import {
   View,
   Text,
-  Modal,
   TouchableOpacity,
   StyleSheet,
 } from 'react-native';
@@ -17,6 +16,8 @@ import Animated, {
 import { Ionicons } from '@expo/vector-icons';
 import { useColors, ColorPalette } from '../../constants/colors';
 import { Badge } from '../../types/badge';
+import { Dialog } from '../ui/Dialog';
+import { useLastVisibleValue } from '../ui/Sheet';
 import { BADGE_ICON_MAP } from './badgeConstants';
 
 interface BadgeUnlockModalProps {
@@ -88,58 +89,57 @@ function FlipCard({ badge, onNext, isLast, styles, Colors }: {
 export function BadgeUnlockModal({ badges, visible, onClose }: BadgeUnlockModalProps) {
   const Colors = useColors();
   const styles = useMemo(() => createStyles(Colors), [Colors]);
+  const open = visible && badges.length > 0;
+  // The parent usually clears the badges as it closes the dialog; keep them for its way out
+  const shown = useLastVisibleValue(badges, open);
   const [index, setIndex] = useState(0);
+  const [wasOpen, setWasOpen] = useState(open);
 
-  useEffect(() => {
-    if (visible) setIndex(0);
-  }, [visible]);
+  // Every opening starts at the first badge, from its very first frame
+  if (open !== wasOpen) {
+    setWasOpen(open);
+    if (open) setIndex(0);
+  }
+
+  const last = Math.max(0, shown.length - 1);
+  const position = Math.min(index, last);
+  const current = shown[position];
 
   const handleNext = () => {
-    if (index < badges.length - 1) {
-      setIndex(index + 1);
+    if (position < last) {
+      setIndex(position + 1);
     } else {
       onClose();
     }
   };
 
-  if (!visible || badges.length === 0) return null;
-
-  const current = badges[index];
-
+  // Only the button closes it, so nobody skips their badges by tapping beside the card
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <View style={styles.overlay}>
-        <View style={styles.modal}>
-          {badges.length > 1 && (
-            <Text style={styles.counter}>{index + 1} / {badges.length}</Text>
+    <Dialog visible={open} onClose={onClose} closeOnBackdropPress={false} style={styles.modal}>
+      {current ? (
+        <>
+          {shown.length > 1 && (
+            <Text style={styles.counter}>{position + 1} / {shown.length}</Text>
           )}
           <FlipCard
             key={current.id}
             badge={current}
             onNext={handleNext}
-            isLast={index === badges.length - 1}
+            isLast={position === last}
             styles={styles}
             Colors={Colors}
           />
-        </View>
-      </View>
-    </Modal>
+        </>
+      ) : null}
+    </Dialog>
   );
 }
 
 const createStyles = (Colors: ColorPalette) => StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.65)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
   modal: {
-    backgroundColor: Colors.surface,
     borderRadius: 28,
     padding: 32,
     alignItems: 'center',
-    width: '82%',
     maxWidth: 340,
   },
   counter: {

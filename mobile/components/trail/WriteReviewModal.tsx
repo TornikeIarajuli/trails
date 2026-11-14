@@ -1,19 +1,10 @@
-import React, { useState, useMemo } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  Modal,
-  TouchableOpacity,
-  TextInput,
-  KeyboardAvoidingView,
-  Platform,
-  Alert,
-} from 'react-native';
+import React, { useEffect, useState, useMemo } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors, ColorPalette } from '../../constants/colors';
 import { useSubmitReview } from '../../hooks/useReviews';
 import { haptics } from '../../utils/haptics';
+import { Sheet, SheetButton, SheetTextInput } from '../ui/Sheet';
 
 interface Props {
   trailId: string;
@@ -27,6 +18,13 @@ export function WriteReviewModal({ trailId, visible, onClose }: Props) {
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState('');
   const submitMutation = useSubmitReview();
+
+  // A fresh form each time it opens; while it slides away it keeps what was typed
+  useEffect(() => {
+    if (!visible) return;
+    setRating(0);
+    setComment('');
+  }, [visible]);
 
   const handleSubmit = () => {
     if (rating === 0) {
@@ -44,129 +42,67 @@ export function WriteReviewModal({ trailId, visible, onClose }: Props) {
         // Errors are reported by the hook
         onSuccess: () => {
           haptics.success();
-          setRating(0);
-          setComment('');
           onClose();
         },
       },
     );
   };
 
-  const handleClose = () => {
-    if (submitMutation.isPending) return;
-    setRating(0);
-    setComment('');
-    onClose();
-  };
-
   return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={handleClose}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.overlay}
-      >
-        <TouchableOpacity
-          style={styles.backdrop}
-          activeOpacity={1}
-          onPress={handleClose}
+    <Sheet
+      visible={visible}
+      onClose={onClose}
+      title="Write a Review"
+      closeLabel="Close review form"
+      dismissible={!submitMutation.isPending}
+      footer={
+        <SheetButton
+          title="Submit Review"
+          onPress={handleSubmit}
+          disabled={rating === 0}
+          loading={submitMutation.isPending}
         />
-        <View style={styles.sheet}>
-          <View style={styles.handle} />
-
-          <View style={styles.header}>
-            <Text style={styles.title}>Write a Review</Text>
-            <TouchableOpacity onPress={handleClose} accessibilityLabel="Close review form" accessibilityRole="button">
-              <Ionicons name="close" size={24} color={Colors.textSecondary} />
-            </TouchableOpacity>
-          </View>
-
-          <Text style={styles.label}>Your Rating</Text>
-          <View style={styles.starRow}>
-            {[1, 2, 3, 4, 5].map((star) => (
-              <TouchableOpacity
-                key={star}
-                onPress={() => setRating(star)}
-                hitSlop={4}
-                accessibilityLabel={`Rate ${star} star${star !== 1 ? 's' : ''}`}
-                accessibilityRole="button"
-              >
-                <Ionicons
-                  name={star <= rating ? 'star' : 'star-outline'}
-                  size={36}
-                  color="#FFB800"
-                />
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          <Text style={styles.label}>Comment (optional)</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Share your experience on this trail..."
-            placeholderTextColor={Colors.textLight}
-            multiline
-            numberOfLines={4}
-            textAlignVertical="top"
-            value={comment}
-            onChangeText={setComment}
-            maxLength={500}
-          />
-          <Text style={styles.charCount}>{comment.length}/500</Text>
-
+      }
+    >
+      <Text style={styles.label}>Your Rating</Text>
+      <View style={styles.starRow}>
+        {[1, 2, 3, 4, 5].map((star) => (
           <TouchableOpacity
-            style={[
-              styles.submitButton,
-              (rating === 0 || submitMutation.isPending) && styles.submitDisabled,
-            ]}
-            onPress={handleSubmit}
-            disabled={rating === 0 || submitMutation.isPending}
+            key={star}
+            onPress={() => setRating(star)}
+            hitSlop={4}
+            accessibilityLabel={`Rate ${star} star${star !== 1 ? 's' : ''}`}
+            accessibilityRole="button"
+            accessibilityState={{ selected: star === rating }}
           >
-            <Text style={styles.submitText}>
-              {submitMutation.isPending ? 'Submitting...' : 'Submit Review'}
-            </Text>
+            <Ionicons
+              name={star <= rating ? 'star' : 'star-outline'}
+              size={36}
+              color="#FFB800"
+            />
           </TouchableOpacity>
-        </View>
-      </KeyboardAvoidingView>
-    </Modal>
+        ))}
+      </View>
+
+      <Text style={styles.label}>Comment (optional)</Text>
+      <SheetTextInput
+        style={styles.input}
+        placeholder="Share your experience on this trail..."
+        placeholderTextColor={Colors.textLight}
+        multiline
+        numberOfLines={4}
+        textAlignVertical="top"
+        value={comment}
+        onChangeText={setComment}
+        maxLength={500}
+        accessibilityLabel="Comment"
+      />
+      <Text style={styles.charCount}>{comment.length}/500</Text>
+    </Sheet>
   );
 }
 
 const createStyles = (Colors: ColorPalette) => StyleSheet.create({
-  overlay: {
-    flex: 1,
-    justifyContent: 'flex-end',
-  },
-  backdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-  },
-  sheet: {
-    backgroundColor: Colors.surface,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingHorizontal: 20,
-    paddingBottom: 34,
-  },
-  handle: {
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: Colors.border,
-    alignSelf: 'center',
-    marginTop: 12,
-    marginBottom: 16,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: Colors.text,
-  },
   label: {
     fontSize: 14,
     fontWeight: '600',
@@ -185,6 +121,7 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     padding: 14,
     fontSize: 15,
     color: Colors.text,
+    backgroundColor: Colors.background,
     minHeight: 100,
   },
   charCount: {
@@ -192,20 +129,5 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     color: Colors.textLight,
     textAlign: 'right',
     marginTop: 4,
-    marginBottom: 20,
-  },
-  submitButton: {
-    backgroundColor: Colors.primary,
-    borderRadius: 12,
-    paddingVertical: 16,
-    alignItems: 'center',
-  },
-  submitDisabled: {
-    opacity: 0.5,
-  },
-  submitText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: Colors.textOnPrimary,
   },
 });

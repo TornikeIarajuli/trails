@@ -1,8 +1,8 @@
 import React, { useMemo } from 'react';
-import { Modal, View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors, ColorPalette } from '../../constants/colors';
+import { Sheet, SheetButton, useSheet } from './Sheet';
 
 type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -20,10 +20,16 @@ interface ActionSheetProps {
   message?: string;
   options: ActionSheetOption[];
   onSelect: (key: string) => void;
+  /** Called once the sheet has closed: Cancel, backdrop, swipe down or the back button. */
   onClose: () => void;
   /** Replaces the options with a spinner while a choice is being carried out. */
   loading?: boolean;
   cancelLabel?: string;
+  /**
+   * Every choice ends the sheet: it animates out first and `onSelect` runs after.
+   * Without it the sheet stays open and `onSelect` decides what comes next.
+   */
+  closeOnSelect?: boolean;
 }
 
 /**
@@ -39,97 +45,84 @@ export function ActionSheet({
   onClose,
   loading = false,
   cancelLabel = 'Cancel',
+  closeOnSelect = false,
 }: ActionSheetProps) {
+  return (
+    <Sheet
+      visible={visible}
+      onClose={onClose}
+      title={title}
+      showCloseButton={false}
+      closeLabel={cancelLabel}
+      dismissible={!loading}
+      scrollable={false}
+      dragAnywhere
+      footer={<CancelButton label={cancelLabel} disabled={loading} />}
+    >
+      <ActionSheetOptions
+        message={message}
+        options={options}
+        loading={loading}
+        onSelect={onSelect}
+        closeOnSelect={closeOnSelect}
+      />
+    </Sheet>
+  );
+}
+
+function CancelButton({ label, disabled }: { label: string; disabled: boolean }) {
+  const sheet = useSheet();
+  return <SheetButton title={label} variant="secondary" disabled={disabled} onPress={() => sheet.dismiss()} />;
+}
+
+function ActionSheetOptions({
+  message,
+  options,
+  loading,
+  onSelect,
+  closeOnSelect,
+}: Pick<ActionSheetProps, 'message' | 'options' | 'onSelect'> & { loading: boolean; closeOnSelect: boolean }) {
   const Colors = useColors();
   const styles = useMemo(() => createStyles(Colors), [Colors]);
-  const insets = useSafeAreaInsets();
+  const sheet = useSheet();
+
+  const choose = (key: string) => {
+    if (closeOnSelect) sheet.dismiss(() => onSelect(key));
+    else onSelect(key);
+  };
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <View style={styles.overlay}>
-        <TouchableOpacity
-          style={styles.backdrop}
-          activeOpacity={1}
-          onPress={onClose}
-          accessibilityLabel="Close"
-          accessibilityRole="button"
-        />
-        <View style={[styles.sheet, { paddingBottom: insets.bottom + 8 }]}>
-          <View style={styles.handle} />
-          {title ? <Text style={styles.title}>{title}</Text> : null}
-          {message ? <Text style={styles.message}>{message}</Text> : null}
+    <View>
+      {message ? <Text style={styles.message}>{message}</Text> : null}
 
-          {loading ? (
-            <ActivityIndicator style={styles.loading} color={Colors.primary} />
-          ) : (
-            options.map((option) => {
-              const color = option.destructive ? Colors.error : Colors.text;
-              return (
-                <TouchableOpacity
-                  key={option.key}
-                  style={styles.option}
-                  onPress={() => onSelect(option.key)}
-                  activeOpacity={0.7}
-                  accessibilityRole="button"
-                  accessibilityLabel={option.label}
-                  accessibilityState={{ selected: !!option.selected }}
-                >
-                  {option.icon ? <Ionicons name={option.icon} size={20} color={color} /> : null}
-                  <Text style={[styles.optionLabel, { color }]}>{option.label}</Text>
-                  {option.selected ? (
-                    <Ionicons name="checkmark" size={20} color={Colors.primary} />
-                  ) : null}
-                </TouchableOpacity>
-              );
-            })
-          )}
-
-          <TouchableOpacity
-            style={styles.cancel}
-            onPress={onClose}
-            activeOpacity={0.7}
-            accessibilityRole="button"
-            accessibilityLabel={cancelLabel}
-          >
-            <Text style={styles.cancelLabel}>{cancelLabel}</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    </Modal>
+      {loading ? (
+        <ActivityIndicator style={styles.loading} color={Colors.primary} />
+      ) : (
+        options.map((option, index) => {
+          const color = option.destructive ? Colors.error : Colors.text;
+          return (
+            <TouchableOpacity
+              key={option.key}
+              style={[styles.option, index === options.length - 1 && styles.optionLast]}
+              onPress={() => choose(option.key)}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel={option.label}
+              accessibilityState={{ selected: !!option.selected }}
+            >
+              {option.icon ? <Ionicons name={option.icon} size={20} color={color} /> : null}
+              <Text style={[styles.optionLabel, { color }]}>{option.label}</Text>
+              {option.selected ? <Ionicons name="checkmark" size={20} color={Colors.primary} /> : null}
+            </TouchableOpacity>
+          );
+        })
+      )}
+    </View>
   );
 }
 
 const createStyles = (Colors: ColorPalette) =>
   StyleSheet.create({
-    overlay: {
-      flex: 1,
-      justifyContent: 'flex-end',
-    },
-    backdrop: {
-      ...StyleSheet.absoluteFillObject,
-      backgroundColor: 'rgba(0,0,0,0.4)',
-    },
-    sheet: {
-      backgroundColor: Colors.surface,
-      borderTopLeftRadius: 20,
-      borderTopRightRadius: 20,
-      paddingHorizontal: 16,
-      paddingTop: 8,
-    },
-    handle: {
-      width: 36,
-      height: 4,
-      borderRadius: 2,
-      backgroundColor: Colors.border,
-      alignSelf: 'center',
-      marginBottom: 12,
-    },
-    title: {
-      fontSize: 16,
-      fontWeight: '700',
-      color: Colors.text,
-      marginBottom: 4,
-    },
     message: {
       fontSize: 14,
       lineHeight: 20,
@@ -147,19 +140,11 @@ const createStyles = (Colors: ColorPalette) =>
       borderBottomWidth: StyleSheet.hairlineWidth,
       borderBottomColor: Colors.border,
     },
+    optionLast: {
+      borderBottomWidth: 0,
+    },
     optionLabel: {
       flex: 1,
       fontSize: 16,
-    },
-    cancel: {
-      minHeight: 50,
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginTop: 4,
-    },
-    cancelLabel: {
-      fontSize: 16,
-      fontWeight: '600',
-      color: Colors.textSecondary,
     },
   });

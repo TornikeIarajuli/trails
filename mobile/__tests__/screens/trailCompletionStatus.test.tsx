@@ -15,6 +15,9 @@ jest.mock('expo-secure-store', () => ({
 }));
 jest.mock('expo-router', () => ({ router: { push: jest.fn(), replace: jest.fn() } }));
 jest.mock('@expo/vector-icons', () => ({ Ionicons: () => null }));
+jest.mock('react-native-safe-area-context', () => ({
+  useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
+}));
 jest.mock('../../utils/queryClient', () => ({ queryClient: { clear: jest.fn() } }));
 jest.mock('../../utils/haptics', () => ({
   haptics: { tap: jest.fn(), select: jest.fn(), success: jest.fn(), warning: jest.fn() },
@@ -84,6 +87,13 @@ const shown = () => (renderer?.toJSON() ? texts(renderer.root) : []);
 async function flush() {
   await act(async () => {
     for (let i = 0; i < 5; i++) await new Promise((resolve) => setTimeout(resolve, 0));
+  });
+}
+
+/** Lets a closing sheet finish sliding away. */
+async function waitForSheetToClose() {
+  await act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 400));
   });
 }
 
@@ -246,7 +256,26 @@ describe('marking a past hike', () => {
     expect(logPastHike).toHaveBeenCalledWith('trail-1', 2019);
     expect(shown()).toContain('You hiked this in 2019 · before the app');
     expect(shown()).toContain('Marked as done. It shows on your profile and in My Georgia.');
+    await waitForSheetToClose();
     expect(shown()).not.toContain('When did you hike it?');
+  });
+
+  it('closes the picker without marking anything', async () => {
+    await render();
+
+    await press('Hiked it before? Mark as done');
+    await press(String(THIS_YEAR - 1));
+    const close = renderer!.root.findAll(
+      (n) => n.props.accessibilityLabel === 'Close' && n.props.hitSlop === 10 && typeof n.props.onPress === 'function',
+    )[0];
+    await act(async () => close.props.onPress());
+    // Still on screen while it slides away
+    expect(shown()).toContain('When did you hike it?');
+    await waitForSheetToClose();
+
+    expect(shown()).not.toContain('When did you hike it?');
+    expect(logPastHike).not.toHaveBeenCalled();
+    expect(shown()).toContain('Hiked it before? Mark as done');
   });
 
   it('shows the server’s answer and keeps the picker open when it refuses', async () => {
@@ -275,6 +304,8 @@ describe('marking a past hike', () => {
 
     expect(shown()).toContain('This trail was already on your profile.');
     expect(shown()).toContain('You completed this trail · Nov 13, 2026');
+    await waitForSheetToClose();
+    expect(shown()).not.toContain('When did you hike it?');
   });
 
   it('shows the badges the past hike earned, once the picker has closed', async () => {

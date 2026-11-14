@@ -1,19 +1,16 @@
 import React, { useMemo, useState, useRef } from 'react';
 import {
-  Modal,
   View,
   Text,
   TextInput,
   TouchableOpacity,
   FlatList,
-  KeyboardAvoidingView,
   Platform,
   StyleSheet,
   ActivityIndicator,
   Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useColors, ColorPalette } from '../../constants/colors';
 import { useComments, useAddComment, useDeleteComment } from '../../hooks/useComments';
 import { useWithoutBlocked } from '../../hooks/useModeration';
@@ -21,6 +18,7 @@ import { useAuthStore } from '../../store/authStore';
 import { Avatar } from '../ui/Avatar';
 import { ErrorState } from '../ui/ErrorState';
 import { ContentMenu } from '../moderation/ContentMenu';
+import { Sheet, SheetTextInput } from '../ui/Sheet';
 import { ActivityComment } from '../../types/comment';
 
 function getRelativeTime(dateStr: string): string {
@@ -44,7 +42,6 @@ interface CommentsSheetProps {
 export function CommentsSheet({ activityId, activityType, visible, onClose }: CommentsSheetProps) {
   const Colors = useColors();
   const styles = useMemo(() => createStyles(Colors), [Colors]);
-  const insets = useSafeAreaInsets();
 
   const currentUserId = useAuthStore((s) => s.user?.id);
   const [text, setText] = useState('');
@@ -114,127 +111,76 @@ export function CommentsSheet({ activityId, activityType, visible, onClose }: Co
     );
   };
 
+  const inputRow = currentUserId ? (
+    <View style={styles.inputRow}>
+      <SheetTextInput
+        ref={inputRef}
+        style={styles.input}
+        placeholder="Add a comment…"
+        placeholderTextColor={Colors.textLight}
+        value={text}
+        onChangeText={setText}
+        maxLength={500}
+        multiline
+        accessibilityLabel="Add a comment"
+      />
+      <TouchableOpacity
+        style={[styles.sendButton, (!text.trim() || addComment.isPending) && styles.sendButtonDisabled]}
+        onPress={handleSend}
+        disabled={!text.trim() || addComment.isPending}
+        accessibilityLabel="Send comment"
+        accessibilityRole="button"
+      >
+        {addComment.isPending ? (
+          <ActivityIndicator size="small" color={Colors.textOnPrimary} />
+        ) : (
+          <Ionicons name="send" size={18} color={Colors.textOnPrimary} />
+        )}
+      </TouchableOpacity>
+    </View>
+  ) : null;
+
   return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <View style={styles.overlay}>
-        <TouchableOpacity
-          style={styles.backdrop}
-          onPress={onClose}
-          accessibilityLabel="Close comments"
-          accessibilityRole="button"
+    <Sheet
+      visible={visible}
+      onClose={onClose}
+      title="Comments"
+      closeLabel="Close comments"
+      scrollable={false}
+      footer={inputRow}
+    >
+      {isLoading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator color={Colors.primary} />
+        </View>
+      ) : isError && comments.length === 0 ? (
+        <ErrorState
+          compact
+          error={error}
+          message="Couldn't load the comments."
+          onRetry={() => refetch()}
+          retrying={isRefetching}
+          style={styles.loadError}
         />
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={[styles.sheet, { paddingBottom: insets.bottom + 8 }]}
-        >
-          {/* Handle + header */}
-          <View style={styles.handle} />
-          <View style={styles.sheetHeader}>
-            <Text style={styles.sheetTitle}>Comments</Text>
-            <TouchableOpacity onPress={onClose} accessibilityLabel="Close comments" accessibilityRole="button">
-              <Ionicons name="close" size={22} color={Colors.textSecondary} />
-            </TouchableOpacity>
-          </View>
-
-          {/* Comment list */}
-          {isLoading ? (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator color={Colors.primary} />
-            </View>
-          ) : isError && comments.length === 0 ? (
-            <ErrorState
-              compact
-              error={error}
-              message="Couldn't load the comments."
-              onRetry={() => refetch()}
-              retrying={isRefetching}
-              style={styles.loadError}
-            />
-          ) : (
-            <FlatList
-              data={comments}
-              keyExtractor={(item) => item.id}
-              renderItem={renderComment}
-              contentContainerStyle={styles.listContent}
-              showsVerticalScrollIndicator={false}
-              keyboardShouldPersistTaps="handled"
-              ListEmptyComponent={
-                <Text style={styles.emptyText}>No comments yet. Be the first!</Text>
-              }
-            />
-          )}
-
-          {/* Input row */}
-          {currentUserId && (
-            <View style={styles.inputRow}>
-              <TextInput
-                ref={inputRef}
-                style={styles.input}
-                placeholder="Add a comment…"
-                placeholderTextColor={Colors.textLight}
-                value={text}
-                onChangeText={setText}
-                maxLength={500}
-                multiline
-              />
-              <TouchableOpacity
-                style={[styles.sendButton, (!text.trim() || addComment.isPending) && styles.sendButtonDisabled]}
-                onPress={handleSend}
-                disabled={!text.trim() || addComment.isPending}
-                accessibilityLabel="Send comment"
-                accessibilityRole="button"
-              >
-                {addComment.isPending ? (
-                  <ActivityIndicator size="small" color={Colors.textOnPrimary} />
-                ) : (
-                  <Ionicons name="send" size={18} color={Colors.textOnPrimary} />
-                )}
-              </TouchableOpacity>
-            </View>
-          )}
-        </KeyboardAvoidingView>
-      </View>
-    </Modal>
+      ) : (
+        <FlatList
+          data={comments}
+          keyExtractor={(item) => item.id}
+          renderItem={renderComment}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          ListEmptyComponent={
+            <Text style={styles.emptyText}>No comments yet. Be the first!</Text>
+          }
+        />
+      )}
+    </Sheet>
   );
 }
 
 const createStyles = (Colors: ColorPalette) =>
   StyleSheet.create({
-    overlay: {
-      flex: 1,
-      justifyContent: 'flex-end',
-    },
-    backdrop: {
-      ...StyleSheet.absoluteFillObject,
-      backgroundColor: 'rgba(0,0,0,0.4)',
-    },
-    sheet: {
-      backgroundColor: Colors.background,
-      borderTopLeftRadius: 20,
-      borderTopRightRadius: 20,
-      maxHeight: '80%',
-      paddingHorizontal: 16,
-    },
-    handle: {
-      width: 36,
-      height: 4,
-      backgroundColor: Colors.border,
-      borderRadius: 2,
-      alignSelf: 'center',
-      marginTop: 10,
-      marginBottom: 4,
-    },
-    sheetHeader: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      paddingVertical: 12,
-    },
-    sheetTitle: {
-      fontSize: 16,
-      fontWeight: '700',
-      color: Colors.text,
-    },
     loadingContainer: {
       height: 120,
       justifyContent: 'center',
@@ -261,7 +207,7 @@ const createStyles = (Colors: ColorPalette) =>
     },
     commentBubble: {
       flex: 1,
-      backgroundColor: Colors.surface,
+      backgroundColor: Colors.background,
       borderRadius: 12,
       padding: 10,
     },
@@ -291,13 +237,10 @@ const createStyles = (Colors: ColorPalette) =>
       flexDirection: 'row',
       alignItems: 'flex-end',
       gap: 8,
-      paddingTop: 8,
-      borderTopWidth: 1,
-      borderTopColor: Colors.borderLight,
     },
     input: {
       flex: 1,
-      backgroundColor: Colors.surface,
+      backgroundColor: Colors.background,
       borderRadius: 20,
       paddingHorizontal: 14,
       paddingVertical: Platform.OS === 'ios' ? 10 : 6,

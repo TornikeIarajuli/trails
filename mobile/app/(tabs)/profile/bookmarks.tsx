@@ -254,6 +254,7 @@ export default function BookmarksScreen() {
             { key: 'remove', label: 'Remove bookmark', icon: 'trash-outline', destructive: true },
           ]}
           onSelect={onEditAction}
+          closeOnSelect
           onClose={() => setEditing(null)}
         />
       )}

@@ -1,6 +1,8 @@
 /** @type {import('jest').Config} */
 module.exports = {
   preset: 'jest-expo',
+  // Runs after the preset's own setup files. Sheets use gesture-handler, whose native module needs this mock.
+  setupFiles: ['react-native-gesture-handler/jestSetup'],
   testMatch: [
     '**/__tests__/**/*.test.ts',
     '**/__tests__/**/*.test.tsx',

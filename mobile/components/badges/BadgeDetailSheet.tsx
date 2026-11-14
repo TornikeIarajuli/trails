@@ -2,7 +2,6 @@ import React, { useMemo } from 'react';
 import {
   View,
   Text,
-  Modal,
   TouchableOpacity,
   StyleSheet,
   Share,
@@ -11,6 +10,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useColors, ColorPalette } from '../../constants/colors';
 import { Badge } from '../../types/badge';
 import { formatDate } from '../../utils/formatters';
+import { Sheet, SheetButton, useLastVisibleValue } from '../ui/Sheet';
 import { BADGE_ICON_MAP, BADGE_CATEGORY_COLOR, BADGE_CATEGORY_LABEL } from './badgeConstants';
 
 interface Props {
@@ -22,10 +22,33 @@ interface Props {
 }
 
 export function BadgeDetailSheet({ badge, earned, earnedAt, progress, onClose }: Props) {
+  const visible = !!badge;
+  // The screen clears the badge as the sheet closes; keep showing it while it slides away
+  const shown = useLastVisibleValue({ badge, earned, earnedAt, progress }, visible);
+
+  return (
+    <Sheet
+      visible={visible}
+      onClose={onClose}
+      scrollable={false}
+      dragAnywhere
+      footer={<SheetButton title="Close" variant="secondary" onPress={onClose} />}
+    >
+      {shown.badge ? (
+        <BadgeDetail
+          badge={shown.badge}
+          earned={shown.earned}
+          earnedAt={shown.earnedAt}
+          progress={shown.progress}
+        />
+      ) : null}
+    </Sheet>
+  );
+}
+
+function BadgeDetail({ badge, earned, earnedAt, progress }: Omit<Props, 'badge' | 'onClose'> & { badge: Badge }) {
   const Colors = useColors();
   const styles = useMemo(() => createStyles(Colors), [Colors]);
-
-  if (!badge) return null;
 
   const iconName = BADGE_ICON_MAP[badge.icon] ?? 'ribbon';
   const color = BADGE_CATEGORY_COLOR[badge.category] ?? Colors.primary;
@@ -38,91 +61,70 @@ export function BadgeDetailSheet({ badge, earned, earnedAt, progress, onClose }:
   };
 
   return (
-    <Modal visible={!!badge} transparent animationType="slide" onRequestClose={onClose}>
-      <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={onClose} />
-      <View style={styles.sheet}>
-        {/* Drag handle */}
-        <View style={styles.handle} />
+    <View style={styles.content}>
+      {/* Icon */}
+      <View style={[styles.iconCircle, { backgroundColor: earned ? color : Colors.borderLight }]}>
+        <Ionicons name={iconName as any} size={40} color={earned ? '#fff' : Colors.textLight} />
+        {!earned && (
+          <View style={styles.lockBadge}>
+            <Ionicons name="lock-closed" size={14} color={Colors.textLight} />
+          </View>
+        )}
+      </View>
 
-        {/* Icon */}
-        <View style={[styles.iconCircle, { backgroundColor: earned ? color : Colors.borderLight }]}>
-          <Ionicons name={iconName as any} size={40} color={earned ? '#fff' : Colors.textLight} />
-          {!earned && (
-            <View style={styles.lockBadge}>
-              <Ionicons name="lock-closed" size={14} color={Colors.textLight} />
-            </View>
-          )}
-        </View>
+      {/* Category pill */}
+      <View style={[styles.categoryPill, { backgroundColor: color + '20' }]}>
+        <Text style={[styles.categoryText, { color }]}>
+          {BADGE_CATEGORY_LABEL[badge.category]}
+        </Text>
+      </View>
 
-        {/* Category pill */}
-        <View style={[styles.categoryPill, { backgroundColor: color + '20' }]}>
-          <Text style={[styles.categoryText, { color }]}>
-            {BADGE_CATEGORY_LABEL[badge.category]}
+      {/* Name + description */}
+      <Text style={styles.name}>{badge.name_en}</Text>
+      <Text style={styles.description}>{badge.description_en}</Text>
+
+      {/* Earned date or progress */}
+      {earned && earnedAt ? (
+        <View style={[styles.statusRow, { backgroundColor: Colors.success + '15' }]}>
+          <Ionicons name="checkmark-circle" size={18} color={Colors.success} />
+          <Text style={[styles.statusText, { color: Colors.success }]}>
+            Earned {formatDate(earnedAt)}
           </Text>
         </View>
-
-        {/* Name + description */}
-        <Text style={styles.name}>{badge.name_en}</Text>
-        <Text style={styles.description}>{badge.description_en}</Text>
-
-        {/* Earned date or progress */}
-        {earned && earnedAt ? (
-          <View style={[styles.statusRow, { backgroundColor: Colors.success + '15' }]}>
-            <Ionicons name="checkmark-circle" size={18} color={Colors.success} />
-            <Text style={[styles.statusText, { color: Colors.success }]}>
-              Earned {formatDate(earnedAt)}
-            </Text>
+      ) : progress ? (
+        <View style={styles.progressSection}>
+          <View style={styles.progressHeader}>
+            <Text style={styles.progressLabel}>Progress</Text>
+            <Text style={[styles.progressPct, { color }]}>{pct}%</Text>
           </View>
-        ) : progress ? (
-          <View style={styles.progressSection}>
-            <View style={styles.progressHeader}>
-              <Text style={styles.progressLabel}>Progress</Text>
-              <Text style={[styles.progressPct, { color }]}>{pct}%</Text>
-            </View>
-            <View style={styles.progressTrack}>
-              <View style={[styles.progressFill, { width: `${pct}%`, backgroundColor: color }]} />
-            </View>
-            <Text style={styles.progressCount}>
-              {progress.current} / {progress.target}
-            </Text>
+          <View style={styles.progressTrack}>
+            <View style={[styles.progressFill, { width: `${pct}%`, backgroundColor: color }]} />
           </View>
-        ) : null}
+          <Text style={styles.progressCount}>
+            {progress.current} / {progress.target}
+          </Text>
+        </View>
+      ) : null}
 
-        {/* Actions */}
-        {earned && (
-          <TouchableOpacity style={[styles.shareBtn, { borderColor: color }]} onPress={handleShare}>
-            <Ionicons name="share-outline" size={18} color={color} />
-            <Text style={[styles.shareBtnText, { color }]}>Share Badge</Text>
-          </TouchableOpacity>
-        )}
-
-        <TouchableOpacity style={styles.closeBtn} onPress={onClose}>
-          <Text style={styles.closeBtnText}>Close</Text>
+      {/* Actions */}
+      {earned && (
+        <TouchableOpacity
+          style={[styles.shareBtn, { borderColor: color }]}
+          onPress={handleShare}
+          accessibilityRole="button"
+        >
+          <Ionicons name="share-outline" size={18} color={color} />
+          <Text style={[styles.shareBtnText, { color }]}>Share Badge</Text>
         </TouchableOpacity>
-      </View>
-    </Modal>
+      )}
+    </View>
   );
 }
 
 const createStyles = (Colors: ColorPalette) => StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.45)',
-  },
-  sheet: {
-    backgroundColor: Colors.surface,
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    padding: 28,
+  content: {
     alignItems: 'center',
-    paddingBottom: 40,
-  },
-  handle: {
-    width: 40,
-    height: 4,
-    backgroundColor: Colors.borderLight,
-    borderRadius: 2,
-    marginBottom: 24,
+    paddingTop: 12,
   },
   iconCircle: {
     width: 88,
@@ -224,23 +226,12 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     borderWidth: 1.5,
     borderRadius: 12,
     paddingHorizontal: 28,
-    paddingVertical: 12,
-    marginBottom: 12,
+    minHeight: 50,
     width: '100%',
     justifyContent: 'center',
   },
   shareBtnText: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '700',
-  },
-  closeBtn: {
-    paddingVertical: 12,
-    width: '100%',
-    alignItems: 'center',
-  },
-  closeBtnText: {
-    fontSize: 15,
-    color: Colors.textSecondary,
-    fontWeight: '600',
   },
 });

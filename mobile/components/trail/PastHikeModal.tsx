@@ -1,19 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  Modal,
-  TouchableOpacity,
-  ScrollView,
-  ActivityIndicator,
-} from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors, ColorPalette } from '../../constants/colors';
 import { useLogPastHike } from '../../hooks/useCompletions';
 import { pastHikeErrorMessage, pastHikeYearOptions } from '../../utils/pastHikes';
 import { haptics } from '../../utils/haptics';
 import { PastHikeResponse } from '../../types/completion';
+import { Sheet, SheetButton } from '../ui/Sheet';
 
 interface Props {
   trailId: string;
@@ -44,10 +37,6 @@ export function PastHikeModal({ trailId, visible, onClose, onLogged }: Props) {
   }, [visible]);
 
   const saving = logPastHike.isPending;
-
-  const handleClose = () => {
-    if (!saving) onClose();
-  };
 
   const pick = (value: number) => {
     haptics.select();
@@ -87,122 +76,60 @@ export function PastHikeModal({ trailId, visible, onClose, onLogged }: Props) {
   };
 
   return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={handleClose}>
-      <View style={styles.overlay}>
-        <TouchableOpacity
-          style={styles.backdrop}
-          activeOpacity={1}
-          onPress={handleClose}
-          accessibilityLabel="Close"
-        />
-        <View style={styles.sheet}>
-          <View style={styles.handle} />
-
-          <View style={styles.header}>
-            <Text style={styles.title}>When did you hike it?</Text>
-            <TouchableOpacity
-              onPress={handleClose}
-              disabled={saving}
-              accessibilityLabel="Close"
-              accessibilityRole="button"
-            >
-              <Ionicons name="close" size={24} color={Colors.textSecondary} />
-            </TouchableOpacity>
-          </View>
-
-          <Text style={styles.explainer}>
-            It will show on your profile and in My Georgia. The leaderboard counts only hikes recorded with the app.
-          </Text>
-
-          <View style={styles.chips}>
-            {years.recent.map(renderChip)}
-            {years.earlier.length > 0 && !showEarlier && (
-              <TouchableOpacity
-                style={styles.chip}
-                onPress={() => {
-                  haptics.tap();
-                  setShowEarlier(true);
-                }}
-                disabled={saving}
-                accessibilityRole="button"
-                accessibilityLabel="Show earlier years"
-              >
-                <Text style={styles.chipText}>Earlier…</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-
-          {showEarlier && (
-            <ScrollView style={styles.earlier} contentContainerStyle={styles.chips} nestedScrollEnabled>
-              {years.earlier.map(renderChip)}
-            </ScrollView>
-          )}
-
+    <Sheet
+      visible={visible}
+      onClose={onClose}
+      title="When did you hike it?"
+      dismissible={!saving}
+      footer={
+        <>
           {errorMsg ? (
             <View style={styles.errorBanner}>
               <Ionicons name="alert-circle" size={18} color={Colors.error} />
               <Text style={styles.errorText}>{errorMsg}</Text>
             </View>
           ) : null}
-
-          <TouchableOpacity
-            style={[styles.confirm, (year === null || saving) && styles.confirmDisabled]}
+          <SheetButton
+            title={year === null ? 'Pick a year' : `Mark as done · ${year}`}
             onPress={handleConfirm}
-            disabled={year === null || saving}
+            disabled={year === null}
+            loading={saving}
+          />
+        </>
+      }
+    >
+      <Text style={styles.explainer}>
+        It will show on your profile and in My Georgia. The leaderboard counts only hikes recorded with the app.
+      </Text>
+
+      <View style={styles.chips}>
+        {years.recent.map(renderChip)}
+        {years.earlier.length > 0 && !showEarlier && (
+          <TouchableOpacity
+            style={styles.chip}
+            onPress={() => {
+              haptics.tap();
+              setShowEarlier(true);
+            }}
+            disabled={saving}
             accessibilityRole="button"
-            accessibilityState={{ disabled: year === null || saving, busy: saving }}
+            accessibilityLabel="Show earlier years"
           >
-            {saving ? (
-              <ActivityIndicator color={Colors.textOnPrimary} />
-            ) : (
-              <Text style={styles.confirmText}>{year === null ? 'Pick a year' : `Mark as done · ${year}`}</Text>
-            )}
+            <Text style={styles.chipText}>Earlier…</Text>
           </TouchableOpacity>
-        </View>
+        )}
       </View>
-    </Modal>
+
+      {/* The sheet's body scrolls, so the long run of earlier years needs no scroller of its own */}
+      {showEarlier && <View style={[styles.chips, styles.earlier]}>{years.earlier.map(renderChip)}</View>}
+    </Sheet>
   );
 }
 
 const createStyles = (Colors: ColorPalette) => StyleSheet.create({
-  overlay: {
-    flex: 1,
-    justifyContent: 'flex-end',
-  },
-  backdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-  },
-  sheet: {
-    backgroundColor: Colors.surface,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingHorizontal: 20,
-    paddingBottom: 34,
-  },
-  handle: {
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: Colors.border,
-    alignSelf: 'center',
-    marginTop: 12,
-    marginBottom: 16,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: Colors.text,
-  },
   explainer: {
-    fontSize: 13,
-    lineHeight: 19,
+    fontSize: 14,
+    lineHeight: 20,
     color: Colors.textSecondary,
     marginBottom: 16,
   },
@@ -213,8 +140,9 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   },
   chip: {
     paddingHorizontal: 14,
-    paddingVertical: 9,
-    borderRadius: 18,
+    minHeight: 38,
+    justifyContent: 'center',
+    borderRadius: 20,
     borderWidth: 1,
     borderColor: Colors.border,
     backgroundColor: Colors.background,
@@ -233,14 +161,12 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     color: Colors.textOnPrimary,
   },
   earlier: {
-    maxHeight: 180,
     marginTop: 8,
   },
   errorBanner: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginTop: 16,
     paddingHorizontal: 12,
     paddingVertical: 10,
     borderRadius: 10,
@@ -253,20 +179,5 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     fontSize: 14,
     color: Colors.error,
     fontWeight: '500',
-  },
-  confirm: {
-    marginTop: 20,
-    backgroundColor: Colors.primary,
-    borderRadius: 12,
-    paddingVertical: 16,
-    alignItems: 'center',
-  },
-  confirmDisabled: {
-    opacity: 0.5,
-  },
-  confirmText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: Colors.textOnPrimary,
   },
 });

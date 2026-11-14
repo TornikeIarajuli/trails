@@ -1,21 +1,11 @@
-import React, { useState, useMemo } from 'react';
-import {
-  View,
-  Text,
-  Modal,
-  ScrollView,
-  TouchableOpacity,
-  TextInput,
-  StyleSheet,
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-} from 'react-native';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors, ColorPalette } from '../../constants/colors';
 import { useReportCondition } from '../../hooks/useCommunity';
 import { ConditionType, SeverityLevel } from '../../types/community';
 import { haptics } from '../../utils/haptics';
+import { Sheet, SheetButton, SheetTextInput } from '../ui/Sheet';
 
 interface ReportConditionModalProps {
   trailId: string;
@@ -51,6 +41,16 @@ export function ReportConditionModal({
   const [severity, setSeverity] = useState<SeverityLevel>('info');
   const [description, setDescription] = useState('');
   const reportMutation = useReportCondition();
+  // A report that was sent starts the next one empty; one that was closed unsent is kept
+  const sent = useRef(false);
+
+  useEffect(() => {
+    if (!visible || !sent.current) return;
+    sent.current = false;
+    setConditionType(null);
+    setSeverity('info');
+    setDescription('');
+  }, [visible]);
 
   const handleSubmit = () => {
     if (!conditionType) {
@@ -69,144 +69,95 @@ export function ReportConditionModal({
         // Errors are reported by the hook
         onSuccess: () => {
           haptics.success();
-          setConditionType(null);
-          setSeverity('info');
-          setDescription('');
+          sent.current = true;
           onClose();
         },
       },
     );
   };
 
-  const handleClose = () => {
-    if (!reportMutation.isPending) onClose();
-  };
-
   return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={handleClose}>
-      <KeyboardAvoidingView
-        style={styles.overlay}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      >
-        <View style={styles.modal}>
-          <View style={styles.header}>
-            <Text style={styles.title}>Report Condition</Text>
-            <TouchableOpacity onPress={handleClose} accessibilityLabel="Close report form" accessibilityRole="button">
-              <Ionicons name="close" size={24} color={Colors.text} />
+    <Sheet
+      visible={visible}
+      onClose={onClose}
+      title="Report Condition"
+      closeLabel="Close report form"
+      dismissible={!reportMutation.isPending}
+      footer={
+        <SheetButton
+          title="Submit Report"
+          onPress={handleSubmit}
+          disabled={!conditionType}
+          loading={reportMutation.isPending}
+        />
+      }
+    >
+      <Text style={[styles.sectionTitle, styles.firstSection]}>Condition Type</Text>
+      <View style={styles.chipGrid}>
+        {CONDITIONS.map((c) => {
+          const selected = conditionType === c.type;
+          return (
+            <TouchableOpacity
+              key={c.type}
+              style={[styles.chip, selected && styles.chipActive]}
+              onPress={() => setConditionType(c.type)}
+              accessibilityRole="button"
+              accessibilityState={{ selected }}
+            >
+              <Ionicons
+                name={c.icon as any}
+                size={16}
+                color={selected ? Colors.textOnPrimary : Colors.textSecondary}
+              />
+              <Text style={[styles.chipText, selected && styles.chipTextActive]}>{c.label}</Text>
             </TouchableOpacity>
-          </View>
+          );
+        })}
+      </View>
 
-          <ScrollView showsVerticalScrollIndicator={false}>
-            <Text style={styles.sectionTitle}>Condition Type</Text>
-            <View style={styles.chipGrid}>
-              {CONDITIONS.map((c) => (
-                <TouchableOpacity
-                  key={c.type}
-                  style={[
-                    styles.chip,
-                    conditionType === c.type && styles.chipActive,
-                  ]}
-                  onPress={() => setConditionType(c.type)}
-                >
-                  <Ionicons
-                    name={c.icon as any}
-                    size={16}
-                    color={conditionType === c.type ? Colors.textOnPrimary : Colors.textSecondary}
-                  />
-                  <Text
-                    style={[
-                      styles.chipText,
-                      conditionType === c.type && styles.chipTextActive,
-                    ]}
-                  >
-                    {c.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+      <Text style={styles.sectionTitle}>Severity</Text>
+      <View style={styles.severityRow}>
+        {SEVERITIES.map((s) => {
+          const selected = severity === s.level;
+          return (
+            <TouchableOpacity
+              key={s.level}
+              style={[styles.severityChip, selected && { backgroundColor: s.color, borderColor: s.color }]}
+              onPress={() => setSeverity(s.level)}
+              accessibilityRole="button"
+              accessibilityState={{ selected }}
+            >
+              <Text style={[styles.severityText, selected && styles.severityTextActive]}>{s.label}</Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
 
-            <Text style={styles.sectionTitle}>Severity</Text>
-            <View style={styles.severityRow}>
-              {SEVERITIES.map((s) => (
-                <TouchableOpacity
-                  key={s.level}
-                  style={[
-                    styles.severityChip,
-                    severity === s.level && { backgroundColor: s.color },
-                  ]}
-                  onPress={() => setSeverity(s.level)}
-                >
-                  <Text
-                    style={[
-                      styles.severityText,
-                      severity === s.level && styles.severityTextActive,
-                    ]}
-                  >
-                    {s.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            <Text style={styles.sectionTitle}>Description (Optional)</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Describe the condition..."
-              placeholderTextColor={Colors.textLight}
-              value={description}
-              onChangeText={setDescription}
-              multiline
-              numberOfLines={3}
-            />
-          </ScrollView>
-
-          <TouchableOpacity
-            style={[styles.submitButton, !conditionType && styles.submitDisabled]}
-            onPress={handleSubmit}
-            disabled={!conditionType || reportMutation.isPending}
-          >
-            <Text style={styles.submitText}>
-              {reportMutation.isPending ? 'Submitting...' : 'Submit Report'}
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </KeyboardAvoidingView>
-    </Modal>
+      <Text style={styles.sectionTitle}>Description (Optional)</Text>
+      <SheetTextInput
+        style={styles.input}
+        placeholder="Describe the condition..."
+        placeholderTextColor={Colors.textLight}
+        value={description}
+        onChangeText={setDescription}
+        multiline
+        numberOfLines={3}
+        accessibilityLabel="Description"
+      />
+    </Sheet>
   );
 }
 
 const createStyles = (Colors: ColorPalette) => StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'flex-end',
-  },
-  modal: {
-    backgroundColor: Colors.background,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 32,
-    maxHeight: '80%',
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: Colors.text,
-  },
   sectionTitle: {
     fontSize: 14,
     fontWeight: '600',
     color: Colors.textSecondary,
     marginTop: 16,
     marginBottom: 8,
+  },
+  firstSection: {
+    marginTop: 0,
   },
   chipGrid: {
     flexDirection: 'row',
@@ -218,9 +169,9 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     alignItems: 'center',
     gap: 6,
     paddingHorizontal: 14,
-    paddingVertical: 8,
+    minHeight: 38,
     borderRadius: 20,
-    backgroundColor: Colors.surface,
+    backgroundColor: Colors.background,
     borderWidth: 1,
     borderColor: Colors.border,
   },
@@ -242,9 +193,10 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   },
   severityChip: {
     flex: 1,
-    paddingVertical: 10,
+    minHeight: 42,
+    justifyContent: 'center',
     borderRadius: 10,
-    backgroundColor: Colors.surface,
+    backgroundColor: Colors.background,
     borderWidth: 1,
     borderColor: Colors.border,
     alignItems: 'center',
@@ -258,7 +210,7 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     color: '#fff',
   },
   input: {
-    backgroundColor: Colors.surface,
+    backgroundColor: Colors.background,
     borderWidth: 1,
     borderColor: Colors.border,
     borderRadius: 12,
@@ -268,20 +220,5 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     color: Colors.text,
     minHeight: 80,
     textAlignVertical: 'top',
-  },
-  submitButton: {
-    backgroundColor: Colors.primary,
-    borderRadius: 12,
-    paddingVertical: 14,
-    alignItems: 'center',
-    marginTop: 20,
-  },
-  submitDisabled: {
-    opacity: 0.5,
-  },
-  submitText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: Colors.textOnPrimary,
   },
 });

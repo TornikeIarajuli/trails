@@ -88,6 +88,7 @@ export function BookmarkButton({ trailId, style }: BookmarkButtonProps) {
           title={isBookmarked ? 'Move to list' : 'Save to list'}
           options={options}
           onSelect={chooseCategory}
+          closeOnSelect
           onClose={() => setShowCategories(false)}
         />
       )}

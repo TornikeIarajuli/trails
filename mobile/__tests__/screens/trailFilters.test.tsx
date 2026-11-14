@@ -11,7 +11,7 @@ jest.mock('../../utils/haptics', () => ({
 }));
 
 import React, { useState } from 'react';
-import { ActivityIndicator, Keyboard, Text } from 'react-native';
+import { ActivityIndicator, Keyboard, StyleSheet, Text } from 'react-native';
 import TestRenderer, { act, ReactTestInstance, ReactTestRenderer } from 'react-test-renderer';
 import { TrailFilters } from '../../components/trail/TrailFilters';
 import { TrailDifficulty } from '../../types/trail';
@@ -95,7 +95,16 @@ const openSheet = () => act(() => filtersButton().props.onPress());
 const sheetOpen = () => shown().includes('Difficulty');
 const selected = (label: string) => !!pressableFor(label).props.accessibilityState?.selected;
 
+/** The sheet slides away before it is gone. */
+function finishClosing() {
+  expect(sheetOpen()).toBe(true);
+  act(() => {
+    jest.advanceTimersByTime(500);
+  });
+}
+
 beforeEach(() => {
+  jest.useFakeTimers();
   jest.clearAllMocks();
   searches = [];
 });
@@ -103,6 +112,7 @@ beforeEach(() => {
 afterEach(() => {
   act(() => renderer?.unmount());
   renderer = null;
+  jest.useRealTimers();
 });
 
 describe('Explore filters', () => {
@@ -181,6 +191,7 @@ describe('Explore filters', () => {
     render({ resultCount: 24 });
     openSheet();
     press('Show 24 trails');
+    finishClosing();
     expect(sheetOpen()).toBe(false);
   });
 
@@ -188,6 +199,7 @@ describe('Explore filters', () => {
     render({ resultCount: 0 });
     openSheet();
     press('No trails match');
+    finishClosing();
     expect(sheetOpen()).toBe(false);
   });
 
@@ -213,6 +225,20 @@ describe('Explore filters', () => {
     openSheet();
     const modal = renderer!.root.findAll((n) => typeof n.props.onRequestClose === 'function')[0];
     act(() => modal.props.onRequestClose());
+    finishClosing();
+    expect(sheetOpen()).toBe(false);
+  });
+
+  it('closes when the dimmed background is tapped', () => {
+    render();
+    openSheet();
+    // The full-screen pressable behind the sheet
+    const backdrop = renderer!.root.findAll(
+      (n) => n.props.style === StyleSheet.absoluteFill && typeof n.props.onPress === 'function',
+    )[0];
+    expect(backdrop.props.accessibilityLabel).toBe('Close filters');
+    act(() => backdrop.props.onPress());
+    finishClosing();
     expect(sheetOpen()).toBe(false);
   });
 });
