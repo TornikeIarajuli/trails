@@ -1,12 +1,13 @@
-import { useInfiniteQuery, useQuery, QueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient, QueryClient } from '@tanstack/react-query';
 import { feedService } from '../services/feed';
 import { usersService } from '../services/users';
 import { FeedItem } from '../types/feed';
 import { FeedPages, findFeedItem, mapFeedItem } from '../utils/feedCache';
 import { queryKeys } from '../utils/queryKeys';
+import { showError } from '../utils/showError';
 
-/** The lists of posts kept in the cache: Following, and Discover. */
-const POST_LISTS = [queryKeys.feed(), queryKeys.feedDiscover()] as const;
+/** The lists of posts kept in the cache: Following, Discover, and your saved posts. */
+const POST_LISTS = [queryKeys.feed(), queryKeys.feedDiscover(), queryKeys.feedSaved()] as const;
 
 const nextPage = (lastPage: { pagination: { page: number; totalPages: number } }) => {
   const { page, totalPages } = lastPage.pagination;
@@ -32,6 +33,17 @@ export function useDiscoverFeed(enabled = true) {
     initialPageParam: 1,
     enabled,
     staleTime: 5 * 60 * 1000,
+  });
+}
+
+/** The posts you saved, most recently saved first. */
+export function useSavedPosts() {
+  return useInfiniteQuery({
+    queryKey: queryKeys.feedSaved(),
+    queryFn: ({ pageParam = 1 }) => feedService.getSaved(pageParam),
+    getNextPageParam: nextPage,
+    initialPageParam: 1,
+    staleTime: 60 * 1000,
   });
 }
 
@@ -77,4 +89,29 @@ export function findCachedFeedItem(queryClient: QueryClient, activityId: string)
     if (item) return item;
   }
   return queryClient.getQueryData<FeedItem>(queryKeys.feedPost(activityId));
+}
+
+/**
+ * Saves a post for later, or takes it off the list: shown at once wherever the post is cached,
+ * put back if the server says no. The saved list is marked out of date but not reloaded while
+ * open, so a post unsaved there stays on screen (and can be saved again) until you come back.
+ */
+export function useToggleSave() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ activityId, save }: { activityId: string; save: boolean }) =>
+      save ? feedService.savePost(activityId) : feedService.unsavePost(activityId),
+    onMutate: ({ activityId, save }) => {
+      const previous = findCachedFeedItem(queryClient, activityId)?.saved_by_me ?? false;
+      patchFeedItem(queryClient, activityId, (item) => ({ ...item, saved_by_me: save }));
+      return { previous };
+    },
+    onError: (err, { activityId }, context) => {
+      patchFeedItem(queryClient, activityId, (item) => ({ ...item, saved_by_me: context?.previous ?? false }));
+      showError(err);
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.feedSaved(), refetchType: 'none' });
+    },
+  });
 }

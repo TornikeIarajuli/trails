@@ -68,6 +68,8 @@ export const queryKeys = {
   feedPost: (activityId: string) => ['feedPost', activityId] as const,
   // Discover: everyone's posts, best first, and hikers to follow
   feedDiscover: () => ['feedDiscover'] as const,
+  // The posts you saved (Profile > Saved posts)
+  feedSaved: () => ['feedSaved'] as const,
   suggestedHikers: () => ['suggestedHikers'] as const,
   // The open "Back by" check-in
   checkIn: () => ['checkIn'] as const,

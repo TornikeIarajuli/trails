@@ -27,7 +27,7 @@ jest.mock('../../components/ui/Icon', () => {
   const { Text } = require('react-native');
   return { Icon: ({ name }: { name: string }) => React.createElement(Text, { testID: `icon-${name}` }) };
 });
-jest.mock('../../services/feed', () => ({ feedService: { getFeed: jest.fn() } }));
+jest.mock('../../services/feed', () => ({ feedService: { getFeed: jest.fn(), savePost: jest.fn(), unsavePost: jest.fn() } }));
 jest.mock('../../services/likes', () => ({ likesService: { getLikes: jest.fn(), toggleLike: jest.fn() } }));
 jest.mock('../../services/comments', () => ({
   commentsService: { getComments: jest.fn(), addComment: jest.fn(), deleteComment: jest.fn() },
@@ -60,6 +60,8 @@ import { DOUBLE_TAP_MS } from '../../hooks/useDoubleTap';
 import type { FeedItem } from '../../types/feed';
 
 const getFeed = feedService.getFeed as jest.Mock;
+const savePost = feedService.savePost as jest.Mock;
+const unsavePost = feedService.unsavePost as jest.Mock;
 const toggleLike = likesService.toggleLike as jest.Mock;
 const getTrails = trailsService.getTrails as jest.Mock;
 const push = router.push as jest.Mock;
@@ -368,5 +370,38 @@ describe('an empty feed', () => {
     expect(router.setParams).toHaveBeenCalledWith({ segment: 'discover' });
     act(() => pressable('empty-feed-explore').props.onPress());
     expect(navigate).toHaveBeenCalledWith('/(tabs)/home');
+  });
+});
+
+describe('saving a post', () => {
+  const bookmark = () =>
+    renderer!.root.findAll((n) => typeof n.props.testID === 'string' && n.props.testID.startsWith('icon-bookmark'))[0]?.props.testID;
+  const saveLabel = () =>
+    renderer!.root.findAll((n) => n.props.testID === 'save-button' && typeof n.props.accessibilityLabel === 'string')[0]?.props
+      .accessibilityLabel;
+
+  it('saves it for later and takes it off the list again', async () => {
+    savePost.mockResolvedValue({ saved: true });
+    unsavePost.mockResolvedValue({ saved: false });
+    await render([post({ saved_by_me: false })]);
+    expect(bookmark()).toBe('icon-bookmark-outline');
+    expect(saveLabel()).toBe('Save post');
+
+    await press('save-button');
+    expect(savePost).toHaveBeenCalledWith('c1');
+    expect(bookmark()).toBe('icon-bookmark');
+    expect(saveLabel()).toBe('Remove from saved posts');
+
+    await press('save-button');
+    expect(unsavePost).toHaveBeenCalledWith('c1');
+    expect(bookmark()).toBe('icon-bookmark-outline');
+  });
+
+  it('puts the bookmark back when saving fails', async () => {
+    savePost.mockRejectedValue(new Error('offline'));
+    await render([post({ saved_by_me: false })]);
+    await press('save-button');
+    expect(savePost).toHaveBeenCalled();
+    expect(bookmark()).toBe('icon-bookmark-outline');
   });
 });

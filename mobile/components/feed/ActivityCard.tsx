@@ -15,6 +15,7 @@ import { useColors, ColorPalette } from '../../constants/colors';
 import { FeedItem } from '../../types/feed';
 import { useComments } from '../../hooks/useComments';
 import { useLikes, useToggleLike } from '../../hooks/useLikes';
+import { useToggleSave } from '../../hooks/useFeed';
 import { usePrefetchTrail } from '../../hooks/useTrails';
 import { useSettingsStore } from '../../store/settingsStore';
 import { hasLikeSummary } from '../../utils/feedCache';
@@ -150,6 +151,7 @@ export const ActivityCard = React.memo(function ActivityCard({
   const commentCount = feedHasCommentCount ? item.comment_count ?? 0 : fallbackComments?.length ?? 0;
 
   const toggleLike = useToggleLike();
+  const toggleSave = useToggleSave();
 
   const chips = completionChips(item);
 
@@ -178,6 +180,13 @@ export const ActivityCard = React.memo(function ActivityCard({
   const openComments = () => {
     setCommentsOpened(true);
     setShowComments(true);
+  };
+
+  const saved = item.saved_by_me ?? false;
+  const toggleSaved = () => {
+    if (toggleSave.isPending) return;
+    haptics.tap();
+    toggleSave.mutate({ activityId: item.activity_id, save: !saved });
   };
 
   const share = () => {
@@ -285,6 +294,16 @@ export const ActivityCard = React.memo(function ActivityCard({
           label={`Share ${trailName}`}
           styles={styles}
           testID="share-button"
+        />
+        <View style={styles.actionsSpacer} />
+        <ActionButton
+          icon={saved ? 'bookmark' : 'bookmark-outline'}
+          color={Colors.text}
+          onPress={toggleSaved}
+          label={saved ? 'Remove from saved posts' : 'Save post'}
+          selected={saved}
+          styles={styles}
+          testID="save-button"
         />
       </View>
 
@@ -451,6 +470,9 @@ const createStyles = (Colors: ColorPalette) =>
     },
     actionPressed: {
       opacity: 0.6,
+    },
+    actionsSpacer: {
+      flex: 1,
     },
     details: {
       paddingHorizontal: 14,

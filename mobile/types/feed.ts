@@ -26,6 +26,10 @@ export interface FeedItem {
   elapsed_seconds?: number | null;
   /** The newest comment, by someone the viewer has not blocked; shown under the post. */
   latest_comment?: FeedComment | null;
+  /** Whether the viewer saved the post for later (Profile > Saved posts). */
+  saved_by_me?: boolean;
+  /** When the viewer saved it; only on the saved posts list. */
+  saved_at?: string;
   // Not sent by the API yet; shown when a future version adds it.
   /** 'past' for a trail marked as done before the app. */
   source?: 'hike' | 'past' | null;

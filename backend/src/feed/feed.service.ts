@@ -134,11 +134,94 @@ export class FeedService {
   }
 
   /**
+   * The caller's saved posts that still exist, most recently saved first, shaped like the
+   * feed (likes and comments included). Leaves out posts by people they blocked.
+   */
+  async getSaved(userId: string, page = 1, limit = 20) {
+    const admin = this.supabaseService.getAdminClient();
+    const offset = (page - 1) * limit;
+
+    const [result, blocked] = await Promise.all([
+      admin.rpc('get_saved_posts', {
+        p_user_id: userId,
+        p_limit: limit,
+        p_offset: offset,
+      }),
+      this.moderationService.getBlockedUserIds(userId),
+    ]);
+
+    throwIfError(result.error);
+    const rows = (result.data ?? []) as Array<
+      FeedItem & { total_count?: number | string; saved_at?: string }
+    >;
+    const total = rows.length > 0 ? Number(rows[0].total_count ?? 0) : offset;
+    const blockedIds = new Set(blocked);
+    const items = rows
+      .filter((row) => !blockedIds.has(row.user_id))
+      .map((row) => {
+        const item: FeedItem & { total_count?: number | string } = { ...row };
+        delete item.total_count;
+        return item as FeedItem;
+      });
+
+    return {
+      data: await this.withEngagement(userId, items, blocked),
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  /**
+   * Saves a post for later. Saving it twice is fine. Not found when the post no longer exists
+   * (or is no longer a post of its own) or its author is blocked.
+   */
+  async savePost(userId: string, activityId: string) {
+    const admin = this.supabaseService.getAdminClient();
+    const [result, blocked] = await Promise.all([
+      admin.rpc('get_activity_item', { p_activity_id: activityId }),
+      this.moderationService.getBlockedUserIds(userId),
+    ]);
+    throwIfError(result.error);
+    const item = ((result.data ?? []) as FeedItem[])[0];
+    if (!item || blocked.includes(item.user_id)) {
+      throw new NotFoundException('This post is no longer available');
+    }
+
+    const { error } = await admin.from('saved_posts').upsert(
+      {
+        user_id: userId,
+        activity_id: activityId,
+        activity_type: item.activity_type,
+      },
+      { onConflict: 'user_id,activity_id', ignoreDuplicates: true },
+    );
+    throwIfError(error);
+    return { saved: true };
+  }
+
+  /** Takes a post off the saved list; fine when it was not on it. */
+  async unsavePost(userId: string, activityId: string) {
+    const admin = this.supabaseService.getAdminClient();
+    const { error } = await admin
+      .from('saved_posts')
+      .delete()
+      .eq('user_id', userId)
+      .eq('activity_id', activityId);
+    throwIfError(error);
+    return { saved: false };
+  }
+
+  /**
    * Adds like_count, comment_count and liked_by_me (contract C5) with one query for the
    * likes and one for the comments of the whole page. If either fails the items are
    * returned without the fields and the app falls back to fetching them per item.
    * Also adds latest_comment, the newest comment by someone the caller has not blocked;
-   * when that cannot be loaded the posts simply show no comment preview.
+   * when that cannot be loaded the posts simply show no comment preview. And saved_by_me,
+   * left out when the saved posts cannot be loaded.
    */
   private async withEngagement(
     userId: string,
@@ -150,7 +233,7 @@ export class FeedService {
     const admin = this.supabaseService.getAdminClient();
     const ids = [...new Set(items.map((item) => String(item.activity_id)))];
 
-    const [likes, comments, latest] = await Promise.all([
+    const [likes, comments, latest, saved] = await Promise.all([
       admin
         .from('activity_likes')
         .select('activity_id, user_id')
@@ -163,6 +246,11 @@ export class FeedService {
         p_activity_ids: ids,
         p_hidden_user_ids: hiddenUserIds,
       }),
+      admin
+        .from('saved_posts')
+        .select('activity_id')
+        .eq('user_id', userId)
+        .in('activity_id', ids),
     ]);
 
     if (likes.error || comments.error) {
@@ -201,6 +289,17 @@ export class FeedService {
       }
     }
 
+    let savedByMe: Set<string> | null = null;
+    if (saved.error) {
+      this.logger.warn(`Could not load saved posts: ${saved.error.message}`);
+    } else {
+      savedByMe = new Set(
+        ((saved.data ?? []) as Array<{ activity_id: string }>).map((row) =>
+          String(row.activity_id),
+        ),
+      );
+    }
+
     const commentCounts = new Map<string, number>();
     for (const comment of (comments.data ?? []) as Array<{
       activity_id: string;
@@ -219,6 +318,7 @@ export class FeedService {
         comment_count: commentCounts.get(id) ?? 0,
         liked_by_me: likedByMe.has(id),
         latest_comment: latestComments.get(id) ?? null,
+        ...(savedByMe ? { saved_by_me: savedByMe.has(id) } : {}),
       };
     });
   }

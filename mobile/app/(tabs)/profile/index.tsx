@@ -18,6 +18,7 @@ import { haptics } from '../../../utils/haptics';
 
 const QUICK_LINKS = [
   { key: 'bookmarks', icon: 'bookmark-outline', label: 'Bookmarks', route: '/(tabs)/profile/bookmarks' },
+  { key: 'saved-posts', icon: 'newspaper-outline', label: 'Saved posts', route: '/(tabs)/profile/saved-posts' },
   { key: 'recommendations', icon: 'compass-outline', label: 'For You', route: '/(tabs)/profile/recommendations' },
   { key: 'analytics', icon: 'bar-chart-outline', label: 'Analytics', route: '/(tabs)/profile/analytics' },
 ] as const;

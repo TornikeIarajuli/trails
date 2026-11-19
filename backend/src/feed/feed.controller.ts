@@ -1,8 +1,10 @@
 import {
   Controller,
+  Delete,
   Get,
   Param,
   ParseUUIDPipe,
+  Put,
   Query,
   UseGuards,
 } from '@nestjs/common';
@@ -28,6 +30,30 @@ export class FeedController {
     @Query() query: PaginationDto,
   ) {
     return this.feedService.getDiscover(userId, query.page, query.limit);
+  }
+
+  /** The caller's saved posts, most recently saved first. */
+  @Get('saved')
+  getSaved(@CurrentUser('id') userId: string, @Query() query: PaginationDto) {
+    return this.feedService.getSaved(userId, query.page, query.limit);
+  }
+
+  /** Saves a post for later. */
+  @Put('saved/:id')
+  savePost(
+    @CurrentUser('id') userId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.feedService.savePost(userId, id);
+  }
+
+  /** Takes a post off the saved list. */
+  @Delete('saved/:id')
+  unsavePost(
+    @CurrentUser('id') userId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.feedService.unsavePost(userId, id);
   }
 
   /** One post, for notification taps ("nino liked your hike"). */
