@@ -246,7 +246,7 @@ describe('Day routes', () => {
     list.mockResolvedValue({ data: imereti, total: 4 });
     const openURL = jest.spyOn(Linking, 'openURL').mockReset().mockResolvedValue(true);
     await render(<DayRoutesScreen />);
-    expect(list).toHaveBeenCalledWith({ region: 'Imereti', limit: 200 });
+    expect(list).toHaveBeenCalledWith({ region: 'Samegrelo', limit: 200 });
     const text = shown();
     expect(text).toEqual(expect.arrayContaining(['Martvili Canyon', 'Okatse Canyon', 'Kinchkha Waterfall', 'Prometheus Cave']));
     expect(text).toContain('Two canyons, a cave and a waterfall');

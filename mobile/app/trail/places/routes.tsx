@@ -14,8 +14,8 @@ import { kindMeta } from '../../../utils/places';
 import { withBottomInset } from '../../../utils/insets';
 import { haptics } from '../../../utils/haptics';
 
-/** Where most first visits go for a day of sights: canyons, caves and waterfalls close together. */
-const DEFAULT_REGION = 'Imereti';
+/** The classic day of sights: the Okatse and Martvili canyons, Martvili Monastery, Nokalakevi. */
+const DEFAULT_REGION = 'Samegrelo';
 
 /**
  * Day routes: a region's best-known sights a short drive apart, in the order that drives least,
