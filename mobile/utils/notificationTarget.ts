@@ -74,6 +74,11 @@ export function getNotificationTarget(
       if (eventId) return { kind: 'route', href: `${eventHref(trailId, eventId)}/chat` };
       return trailId ? { kind: 'route', href: `/trail/${trailId}` } : { kind: 'none' };
     }
+    case 'good_weather': {
+      // A trail you bookmarked gets a good day: the trail, with its forecast
+      const trailId = text(d.trailId);
+      return trailId ? { kind: 'route', href: `/trail/${trailId}` } : { kind: 'none' };
+    }
     case 'event_invite':
     case 'event_update': {
       const eventId = text(d.eventId);

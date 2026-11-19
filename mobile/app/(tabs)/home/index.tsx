@@ -26,6 +26,7 @@ import { TrailCardSkeleton } from '../../../components/ui/Skeleton';
 import { Config } from '../../../constants/config';
 import { haptics } from '../../../utils/haptics';
 import { GroupHikesStrip } from '../../../components/events/GroupHikesStrip';
+import { PlacesStrip } from '../../../components/places/PlacesStrip';
 
 const RADIUS_OPTIONS = [5, 15, 25] as const;
 type Radius = (typeof RADIUS_OPTIONS)[number];
@@ -261,6 +262,34 @@ export default function HomeScreen() {
           <Text style={[styles.quickChipText, viewMode === 'map' && styles.quickChipTextActive]}>Map</Text>
         </TouchableOpacity>
 
+        <TouchableOpacity
+          style={styles.quickChip}
+          onPress={() => {
+            haptics.tap();
+            router.push('/trail/places' as never);
+          }}
+          accessibilityLabel="Lakes, waterfalls, peaks and other places"
+          accessibilityRole="button"
+          testID="places-chip"
+        >
+          <Icon name="location-outline" size={16} color={Colors.textSecondary} />
+          <Text style={styles.quickChipText}>Places</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.quickChip}
+          onPress={() => {
+            haptics.tap();
+            router.push('/trail/places/routes' as never);
+          }}
+          accessibilityLabel="Day routes through a region"
+          accessibilityRole="button"
+          testID="routes-chip"
+        >
+          <Icon name="route" size={16} color={Colors.textSecondary} />
+          <Text style={styles.quickChipText}>Day routes</Text>
+        </TouchableOpacity>
+
         {/* Opened on the root stack so Back returns here, not to the Profile tab */}
         <TouchableOpacity
           style={styles.quickChip}
@@ -299,6 +328,20 @@ export default function HomeScreen() {
         >
           <Icon name="people-outline" size={16} color={Colors.textSecondary} />
           <Text style={styles.quickChipText}>Group hikes</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.quickChip}
+          onPress={() => {
+            haptics.tap();
+            router.push('/trail/weather-here' as never);
+          }}
+          accessibilityLabel="The weather where you are"
+          accessibilityRole="button"
+          testID="weather-here-chip"
+        >
+          <Icon name="partly-sunny-outline" size={16} color={Colors.textSecondary} />
+          <Text style={styles.quickChipText}>Weather here</Text>
         </TouchableOpacity>
       </ScrollView>
 
@@ -371,7 +414,14 @@ export default function HomeScreen() {
             />
           }
           // Upcoming group hikes lead the plain list (not while searching or filtering)
-          ListHeaderComponent={!debouncedSearch && !difficulty && !region && !nearbyMode ? <GroupHikesStrip /> : null}
+          ListHeaderComponent={
+            !debouncedSearch && !difficulty && !region && !nearbyMode ? (
+              <>
+                <GroupHikesStrip />
+                <PlacesStrip />
+              </>
+            ) : null
+          }
           ListEmptyComponent={renderEmpty()}
           ListFooterComponent={
             !nearbyMode && trailsQuery.isFetchingNextPage ? (

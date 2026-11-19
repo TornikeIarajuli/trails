@@ -28,6 +28,8 @@ export interface NotificationPreferences {
   new_comment?: boolean;
   /** New messages in the chat of a trip you joined. */
   group_chat?: boolean;
+  /** A trail you bookmarked gets a good hiking day ahead. */
+  good_weather?: boolean;
 }
 
 export const notificationsService = {

@@ -82,6 +82,14 @@ const PREF_ROWS: {
     color: '#0F766E',
     bg: '#CCFBF1',
   },
+  {
+    key: 'good_weather',
+    label: 'Good hiking weather',
+    description: 'When a trail you bookmarked gets a good day ahead',
+    icon: 'sunny',
+    color: '#EA580C',
+    bg: '#FFEDD5',
+  },
 ];
 
 export default function NotificationPreferencesScreen() {

@@ -152,6 +152,18 @@ export const queryKeys = {
   },
 
   // Events
+  // Places beyond trails (lakes, waterfalls, peaks...) and day routes through them
+  places: {
+    list: (filter: string) => ['places', 'list', filter] as const,
+    detail: (id: string) => ['places', 'detail', id] as const,
+    region: (region: string) => ['places', 'region', region] as const,
+  },
+  // Weather for any point (a place, or where you stand); not kept offline
+  forecastAt: (scope: string, lat: number, lng: number, elevationM: number | null) =>
+    ['forecast', scope, lat.toFixed(3), lng.toFixed(3), elevationM] as const,
+  // Good hiking days ahead, from the daily outlook
+  outlook: (days: number) => ['outlook', days] as const,
+
   // Local guides and booking requests
   guides: {
     list: (filter: string) => ['guides', 'list', filter] as const,

@@ -61,6 +61,8 @@ export const IONICON_TO_SKETCHY: Record<string, string> = {
   flashlight: 'flashlight',
   flower: 'flower',
   footsteps: 'footprints',
+  fish: 'fish',
+  binoculars: 'binoculars',
   funnel: 'funnel',
   globe: 'earth',
   'git-network': 'route',
@@ -146,6 +148,7 @@ export const EXTRA_SKETCHY = [
   'backpack', 'tent', 'footprints', 'mountain', 'mountain-snow', 'signpost', 'droplet', 'route',
   'flame-kindling', 'medal', 'award', 'calendar-check', 'zap', 'sun', 'cloud-rain', 'svaneti-tower',
   'sunrise', 'sunset', 'wind', 'thermometer', 'droplet-off',
+  'castle', 'church', 'droplets', 'tent-tree', 'telescope', 'moon-star', 'sparkles', 'house', 'landmark', 'map-pinned',
 ] as const;
 
 /** Filled Ionicons whose shape is painted in, so state (liked, bookmarked, rated) still shows. */

@@ -4,7 +4,7 @@ export default function PrivacyPolicy() {
   return (
     <div className="max-w-3xl mx-auto px-6 py-12">
       <h1 className="text-3xl font-bold mb-2">Privacy Policy</h1>
-      <p className="text-sm text-gray-500 mb-8">Last updated: November 14, 2026</p>
+      <p className="text-sm text-gray-500 mb-8">Last updated: November 20, 2026</p>
 
       <div className="prose prose-gray max-w-none space-y-6">
         <section>
@@ -45,7 +45,7 @@ export default function PrivacyPolicy() {
             <li><strong>Expo:</strong> delivery of push notifications (your push token and the content of each notification).</li>
             <li><strong>PostHog:</strong> product analytics and crash reports from the App, hosted in the United States (usage events, errors in the App, device information, and your user ID and email address as identifier).</li>
             <li><strong>Sentry:</strong> error logs from the API, which can include technical details of the request that failed.</li>
-            <li><strong>Google Maps, OpenTopoMap and Open-Meteo:</strong> the App loads map images directly from Google Maps (the standard and satellite maps) or OpenTopoMap (the topographic map), and trail weather from Open-Meteo. Like any website, these services receive your device&apos;s IP address and the map area or location being looked up. Topographic map images you view or save stay on your phone until you delete them in Settings.</li>
+            <li><strong>Google Maps, OpenTopoMap and Open-Meteo:</strong> the App loads map images directly from Google Maps (the standard and satellite maps) or OpenTopoMap (the topographic map), and weather from Open-Meteo. Like any website, these services receive your device&apos;s IP address and the map area or location being looked up. When you open “Weather here”, your location, rounded to about 100 metres, is sent to Open-Meteo for the forecast and to our server to find places near you; it is not saved with your account. Topographic map images you view or save stay on your phone until you delete them in Settings.</li>
           </ul>
           <p className="mt-2">Data travels between the App and our servers over encrypted connections (HTTPS). Photos you upload are stored at public web addresses: anyone who has the link to a photo can open it without signing in.</p>
         </section>

@@ -40,6 +40,7 @@ import { useWithoutBlocked } from '../../../hooks/useModeration';
 import { ReviewsList } from '../../../components/trail/ReviewsList';
 import { WriteReviewModal } from '../../../components/trail/WriteReviewModal';
 import { TrailForecastCard } from '../../../components/trail/TrailForecastCard';
+import { NearbyPlaces } from '../../../components/places/NearbyPlaces';
 import { useTrailForecast } from '../../../hooks/useTrailForecast';
 import { useGuides } from '../../../hooks/useGuides';
 import { neededHours, verdictForToday } from '../../../utils/trailVerdict';
@@ -524,6 +525,8 @@ export default function TrailDetailScreen() {
           )}
 
           <CheckpointList checkpoints={checkpoints} />
+
+          {!isPlaceholderData && <NearbyPlaces near={startPoint} title="Near this trail" />}
 
           {guideCount > 0 && (
             <TouchableOpacity

@@ -111,3 +111,20 @@ it('shares the start with a link that opens anywhere', async () => {
   });
   expect(openURL).not.toHaveBeenCalled();
 });
+
+it('works for a place too: its name, not "the start"', async () => {
+  act(() => {
+    renderer = TestRenderer.create(<DirectionsRow trailId="p1" trailName="Abudelauri Lakes" start={{ latitude: 42.5786, longitude: 44.74494 }} isPlace />);
+  });
+  expect(shown()).toEqual(['Directions', '42.57860° N, 44.74494° E']);
+  act(() => byLabel('Directions, 42.57860° N, 44.74494° E').props.onPress());
+  expect(shown()).toContain('Abudelauri Lakes is at 42.57860° N, 44.74494° E.');
+  act(() => byLabel('Share the location').props.onPress());
+  act(() => {
+    jest.advanceTimersByTime(SHEET_EXIT_MS + 50);
+  });
+  await flush();
+  expect(share).toHaveBeenCalledWith({
+    message: 'Abudelauri Lakes: 42.57860° N, 44.74494° E\nhttps://www.google.com/maps/search/?api=1&query=42.578600,44.744940',
+  });
+});

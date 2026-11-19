@@ -20,6 +20,8 @@ node content/06b-photo-places.mjs   # trails with nothing within 10 km: 25 km ge
 node content/07-photos.mjs          # pick + resize photos -> content/images/<trail-id>/*.webp, contact sheets in work/sheets/
 node content/09-build-dataset.mjs   # corrected values, checkpoints, provenance                    -> content/trails.json
 node content/12-terrain.mjs         # OSM terrain along each route (Overpass) -> trails.json `terrain`, work/terrain.json
+node content/13-places.mjs          # named outdoor places from the OSM extract -> content/places.json
+node content/14-places-apply.mjs    # places.json -> public.places (keys from the environment; --dry-run counts only)
 node content/10-seed.mjs            # supabase/seed.sql (trails + checkpoints, idempotent upserts)
 node content/11-report.mjs          # content/REPORT.md, content/CREDITS.md, mobile/assets/data/photo-credits.json
 node content/verify.mjs             # checks all of the above (exit code 1 on a problem)
@@ -105,6 +107,34 @@ Geofabrik's dated file name (`georgia-261113.osm.pbf`) gives that date. Reading 
   `drinking_water=no` left out). `shelters`: `amenity=shelter`, alpine and wilderness huts within 200 m, once within
   100 m (bus-stop shelters left out).
 - The matching lives in `content/lib/terrain.mjs` (unit tests in `content/terrain.test.mjs`).
+
+### Places beyond trails (`public.places`) — `content/13-places.mjs`, `content/14-places-apply.mjs`
+
+Named outdoor places for the app's places screens (`GET /places`): peaks, passes, lakes, waterfalls, viewpoints,
+campsites, huts, caves, canyons, glaciers, castles, defensive towers, monasteries, hot springs, fishing spots.
+
+```bash
+node content/13-places.mjs [--pbf content/cache/osm/georgia-YYMMDD.osm.pbf] [--no-elevation]
+node content/14-places-apply.mjs --dry-run
+SUPABASE_URL=… SUPABASE_SERVICE_ROLE_KEY=… node content/14-places-apply.mjs   # after migration 068
+```
+
+- Reads the newest Geofabrik extract in `content/cache/osm/` (download as for the terrain step) in three passes
+  (relations, ways, nodes), so it never holds every node; an area sits at the mean of its outer nodes. Needs
+  `content/work/osm-admin.json` (02) for the country and occupied-territory outlines, and `content/trails.json`.
+- Kinds and names: `content/lib/places.mjs` (unit tests in `content/places.test.mjs`). Named features only, except
+  campsites ("Campsite") and fishing spots ("Fishing spot"); a name that only says what the thing is ("ტბა",
+  "Waterfall") is no name. `name_en`: `name:en`, `int_name`, else the name romanised (Georgian national system;
+  Russian on the border ridge); `name_ka`: the Georgian of the name, else `name:ka`.
+- Kept on Georgian-controlled ground only, as for trails (not in the occupied territories, not abroad), with 300 m
+  of slack so summits and passes on the border ridge stay. Same kind and English name within 300 m: one place, the
+  most notable. `region`: of the nearest trail start within 80 km, else null.
+- Elevation: the `ele` tag, else Open-Meteo's elevation API (Copernicus DEM, 100 points a request, one a second,
+  cached in `content/cache/places-elevation.json`). `notability`: Wikidata +3, Wikipedia +3, `tourism=attraction`
+  +2, `name:en` +1, photo +1, plus the kind (canyon 3; waterfall, lake, viewpoint, castle, tower, monastery,
+  glacier, hot spring 2; others 1; a peak of 3000 m or more 1 more).
+- The apply step upserts on `(osm_type, osm_id)` in batches of 500 and leaves places no longer in the file alone.
+  Data © OpenStreetMap contributors (ODbL).
 
 ### Review flags (`trails.review_flags`)
 

@@ -47,4 +47,10 @@ describe('the start as text', () => {
       'Start of Juta to Roshka: 42.57860° N, 44.74494° E\nhttps://www.google.com/maps/search/?api=1&query=42.578600,44.744940',
     );
   });
+
+  it('names a place as it is, not as a trail start', () => {
+    expect(shareLocationMessage('Abudelauri Lakes', juta, false)).toBe(
+      'Abudelauri Lakes: 42.57860° N, 44.74494° E\nhttps://www.google.com/maps/search/?api=1&query=42.578600,44.744940',
+    );
+  });
 });

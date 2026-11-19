@@ -37,6 +37,18 @@ describe('getNotificationTarget', () => {
     expect(getNotificationTarget('group_chat', { trailId: 't1' })).toEqual({ kind: 'route', href: '/trail/t1' });
   });
 
+  it('opens the trail, with its forecast, for good hiking weather', () => {
+    expect(getNotificationTarget('good_weather', { trailId: 't1', date: '2026-11-22' })).toEqual({
+      kind: 'route',
+      href: '/trail/t1',
+    });
+    expect(getNotificationTarget(null, { type: 'good_weather', trailId: 't2', date: '2026-11-22' })).toEqual({
+      kind: 'route',
+      href: '/trail/t2',
+    });
+    expect(getNotificationTarget('good_weather', { date: '2026-11-22' })).toEqual({ kind: 'none' });
+  });
+
   it('opens the trail for a cancelled group hike, whose page is gone', () => {
     expect(getNotificationTarget('event_update', { eventId: 'e1', trailId: 't1', cancelled: true })).toEqual({
       kind: 'route',

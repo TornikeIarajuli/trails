@@ -5,6 +5,9 @@ describe('forecastUrl', () => {
     const url = forecastUrl({ latitude: 42.517, longitude: 44.683, elevationM: 3338.4 });
     expect(url).toContain('latitude=42.51700&longitude=44.68300&elevation=3338&');
     expect(url).toContain('forecast_days=7');
+    // The last two days too: rain that fell yesterday still makes tracks muddy
+    expect(url).toContain('past_days=2');
+    expect(url).toMatch(/hourly=[^&]*cloud_cover[^&]*surface_pressure/);
     expect(url).toContain('timezone=auto');
     expect(url).toMatch(/hourly=[^&]*wind_gusts_10m[^&]*freezing_level_height/);
     expect(url).toMatch(/daily=sunrise,sunset,daylight_duration,uv_index_max/);
@@ -62,6 +65,8 @@ describe('parseMountainForecast', () => {
       windKmh: 7.7,
       gustKmh: 33,
       freezingLevelM: null,
+      cloudCover: null,
+      pressureHpa: null,
     });
     expect(f.days).toEqual([
       { date: '2026-11-20', sunrise: '2026-11-20T07:57', sunset: '2026-11-20T17:34', daylightSeconds: 34603.8, uvMax: 3.45, tempMaxC: -4.3, tempMinC: -8.5 },
@@ -71,5 +76,21 @@ describe('parseMountainForecast', () => {
 
   it('copes with an empty answer', () => {
     expect(parseMountainForecast({}, 5)).toEqual({ fetchedAt: 5, elevationM: null, utcOffsetSeconds: 0, current: null, days: [], hours: [] });
+  });
+});
+
+describe('cloud cover and air pressure', () => {
+  it('reads them per hour when the forecast has them', () => {
+    const f = parseMountainForecast(
+      {
+        hourly: {
+          time: ['2026-11-20T07:00'],
+          cloud_cover: [35],
+          surface_pressure: [702.4],
+        },
+      },
+      1,
+    );
+    expect(f.hours[0]).toEqual(expect.objectContaining({ cloudCover: 35, pressureHpa: 702.4 }));
   });
 });

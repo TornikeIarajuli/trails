@@ -80,6 +80,8 @@ export interface DayVerdict {
   sunset: string | null;
   daylightSeconds: number | null;
   uvMax: number | null;
+  /** What an activity adds to the day: golden hour, bite windows, the dark hours… */
+  highlights?: { label: string; value: string }[];
 }
 
 export interface VerdictTrail {

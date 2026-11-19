@@ -9,6 +9,9 @@ jest.mock('expo-router', () => ({
   },
 }));
 jest.mock('expo-image', () => ({ Image: () => null }));
+jest.mock('../../utils/haptics', () => ({
+  haptics: { tap: jest.fn(), select: jest.fn(), success: jest.fn(), warning: jest.fn() },
+}));
 jest.mock('../../store/authStore', () => ({ useAuthStore: (sel: (s: { isAuthenticated: boolean }) => unknown) => sel({ isAuthenticated: true }) }));
 jest.mock('../../hooks/useNotifications', () => ({ useMarkAllRead: () => ({ mutate: mockMarkAll }) }));
 jest.mock('../../hooks/useFollows', () => ({
@@ -49,6 +52,18 @@ function mockPage() {
       trail: { id: 't1', name_en: 'Juta', cover_image_url: 'https://x/juta.webp' },
       badge: null,
     },
+    {
+      id: 'n3',
+      type: 'good_weather',
+      title: 'Good hiking weather',
+      body: 'Juta on Saturday 21 Nov: Dry and calm',
+      data: { trailId: 't1', date: '2026-11-21', type: 'good_weather' },
+      read_at: now,
+      created_at: now,
+      actor: null,
+      trail: { id: 't1', name_en: 'Juta', cover_image_url: 'https://x/juta.webp' },
+      badge: null,
+    },
   ],
   };
   return mockPageCache;
@@ -69,6 +84,7 @@ jest.mock('../../hooks/useNotificationCenter', () => ({
 import React from 'react';
 import { Text } from 'react-native';
 import TestRenderer, { act, ReactTestRenderer } from 'react-test-renderer';
+import { router } from 'expo-router';
 import AlertsScreen from '../../app/(tabs)/alerts/index';
 
 const texts = (r: ReactTestRenderer) => r.root.findAllByType(Text).map((t) => [t.props.children].flat().filter((c) => typeof c === 'string').join(''));
@@ -102,5 +118,23 @@ describe('Alerts screen', () => {
     const shown = texts(r);
     expect(shown).toContain('nino');
     expect(shown.some((t) => t.includes('Your hike on Juta was approved.'))).toBe(true);
+  });
+
+  it('marks good hiking weather with a sun, and opens the trail when tapped', () => {
+    let r!: ReactTestRenderer;
+    act(() => {
+      r = TestRenderer.create(<AlertsScreen />);
+    });
+    expect(r.root.findAll((n) => n.props.name === 'sunny').length).toBeGreaterThan(0);
+    expect(texts(r)).toContain('Good hiking weather');
+
+    const row = r.root.findAll(
+      (n) =>
+        typeof n.props.onPress === 'function' &&
+        typeof n.props.accessibilityLabel === 'string' &&
+        n.props.accessibilityLabel.includes('Juta on Saturday 21 Nov'),
+    )[0];
+    act(() => row.props.onPress());
+    expect(router.push).toHaveBeenCalledWith('/trail/t1');
   });
 });

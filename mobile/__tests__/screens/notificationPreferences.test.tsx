@@ -60,3 +60,23 @@ it('treats a setting an older server does not send as on', () => {
   act(() => switchFor(renderer, 'Comments').props.onValueChange(false));
   expect(mockMutate).toHaveBeenCalledWith({ new_comment: false });
 });
+
+it('turns good hiking weather alerts off, on until then even before the server knows them', () => {
+  mockPrefs = { ...base };
+  const renderer = render();
+  const labels = renderer.root.findAllByType(Text).map((t) => t.props.children);
+  expect(labels).toEqual(
+    expect.arrayContaining(['Good hiking weather', 'When a trail you bookmarked gets a good day ahead']),
+  );
+  expect(switchFor(renderer, 'Good hiking weather').props.value).toBe(true);
+  act(() => switchFor(renderer, 'Good hiking weather').props.onValueChange(false));
+  expect(mockMutate).toHaveBeenCalledWith({ good_weather: false });
+});
+
+it('shows good hiking weather alerts as off when they are', () => {
+  mockPrefs = { ...base, good_weather: false };
+  const renderer = render();
+  expect(switchFor(renderer, 'Good hiking weather').props.value).toBe(false);
+  act(() => switchFor(renderer, 'Good hiking weather').props.onValueChange(true));
+  expect(mockMutate).toHaveBeenCalledWith({ good_weather: true });
+});

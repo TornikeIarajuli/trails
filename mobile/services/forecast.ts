@@ -18,6 +18,10 @@ export interface HourForecast {
   gustKmh: number | null;
   /** Height of the 0 °C line. */
   freezingLevelM: number | null;
+  /** Sky covered by cloud, %. Absent from forecasts saved before it was asked for. */
+  cloudCover?: number | null;
+  /** Air pressure at the place, hPa (fishing: a falling barometer). */
+  pressureHpa?: number | null;
 }
 
 export interface DayForecast {
@@ -71,6 +75,8 @@ const HOURLY = [
   'wind_speed_10m',
   'wind_gusts_10m',
   'freezing_level_height',
+  'cloud_cover',
+  'surface_pressure',
 ];
 const DAILY = ['sunrise', 'sunset', 'daylight_duration', 'uv_index_max', 'temperature_2m_max', 'temperature_2m_min'];
 const CURRENT = ['temperature_2m', 'apparent_temperature', 'weather_code', 'wind_speed_10m', 'wind_gusts_10m'];
@@ -95,6 +101,8 @@ export function forecastUrl({ latitude, longitude, elevationM }: ForecastPoint):
     `current=${CURRENT.join(',')}`,
     'timezone=auto',
     'forecast_days=7',
+    // The last two days too: rain that has fallen still makes tracks muddy
+    'past_days=2',
   ].filter(Boolean);
   return `https://api.open-meteo.com/v1/forecast?${params.join('&')}`;
 }
@@ -117,6 +125,8 @@ export function parseMountainForecast(data: any, fetchedAt: number): MountainFor
         windKmh: num(column(h, 'wind_speed_10m', i)),
         gustKmh: num(column(h, 'wind_gusts_10m', i)),
         freezingLevelM: num(column(h, 'freezing_level_height', i)),
+        cloudCover: num(column(h, 'cloud_cover', i)),
+        pressureHpa: num(column(h, 'surface_pressure', i)),
       };
     })
     .filter((h) => /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(h.time));

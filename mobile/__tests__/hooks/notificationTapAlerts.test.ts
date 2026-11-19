@@ -34,6 +34,7 @@ describe('navigateFromNotification (Alerts tab)', () => {
     [{ type: 'event_update', eventId: 'e-1', trailId: 't-1', cancelled: false }, '/trail/t-1/event/e-1'],
     [{ type: 'completion_approved', completionId: 'c-1', trailId: 't-1' }, '/trail/completion/c-1'],
     [{ type: 'emergency_contact', setterId: 'u-3' }, '/trail/user/u-3'],
+    [{ type: 'good_weather', trailId: 't-1', date: '2026-11-22' }, '/trail/t-1'],
   ])('opens the Alerts tab, then the screen for %j on top of it', (data, href) => {
     navigateFromNotification(data);
 

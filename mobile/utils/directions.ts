@@ -65,7 +65,7 @@ export function formatCoordinates({ latitude, longitude }: Destination): string 
   return `${lat}, ${lng}`;
 }
 
-/** What "Share the location" sends: the trail, the coordinates and a link that opens anywhere. */
-export function shareLocationMessage(trailName: string, destination: Destination): string {
-  return `Start of ${trailName}: ${formatCoordinates(destination)}\n${placeUrl(destination)}`;
+/** What "Share the location" sends: the trail's start (or a place), the coordinates and a link that opens anywhere. */
+export function shareLocationMessage(name: string, destination: Destination, isStart = true): string {
+  return `${isStart ? `Start of ${name}` : name}: ${formatCoordinates(destination)}\n${placeUrl(destination)}`;
 }

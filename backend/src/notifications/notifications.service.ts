@@ -392,6 +392,7 @@ export class NotificationsService {
         new_like: true,
         new_comment: true,
         group_chat: true,
+        good_weather: true,
       }
     );
   }
@@ -407,6 +408,7 @@ export class NotificationsService {
       new_like: boolean;
       new_comment: boolean;
       group_chat: boolean;
+      good_weather: boolean;
     }>,
   ) {
     const admin = this.supabaseService.getAdminClient();

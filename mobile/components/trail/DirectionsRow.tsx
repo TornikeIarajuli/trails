@@ -18,21 +18,24 @@ interface DirectionsRowProps {
   trailId: string;
   trailName: string;
   start: { latitude: number; longitude: number } | null;
+  /** A place (a lake, a fortress) rather than a trail's start. */
+  isPlace?: boolean;
 }
 
 /**
  * Below the trail map: driving directions to the start in Google Maps, Waze or another maps app,
- * or the start's location sent to friends.
+ * or the start's location sent to friends. The same for a place.
  */
-export function DirectionsRow({ trailId, trailName, start }: DirectionsRowProps) {
+export function DirectionsRow({ trailId, trailName, start, isPlace = false }: DirectionsRowProps) {
   const Colors = useColors();
   const styles = useMemo(() => createStyles(Colors), [Colors]);
   const [open, setOpen] = useState(false);
 
   if (!start) return null;
 
-  const destination = { ...start, label: `Start of ${trailName}` };
+  const destination = { ...start, label: isPlace ? trailName : `Start of ${trailName}` };
   const coordinates = formatCoordinates(start);
+  const title = isPlace ? 'Directions' : 'Directions to the start';
   const options: ActionSheetOption[] = [
     ...directionsChoices(Platform.OS).map((choice) => ({
       key: choice.key,
@@ -45,7 +48,7 @@ export function DirectionsRow({ trailId, trailName, start }: DirectionsRowProps)
   const choose = async (key: string) => {
     analytics.directionsOpened(trailId, key);
     if (key === 'share') {
-      await Share.share({ message: shareLocationMessage(trailName, start) }).catch(() => {});
+      await Share.share({ message: shareLocationMessage(trailName, start, !isPlace) }).catch(() => {});
       return;
     }
     try {
@@ -53,7 +56,7 @@ export function DirectionsRow({ trailId, trailName, start }: DirectionsRowProps)
     } catch {
       // No app takes the link (no maps app for "another app"): the web map always opens
       Linking.openURL(placeUrl(start)).catch(() => {
-        Alert.alert('Could not open a map', `The start is at ${coordinates}.`);
+        Alert.alert('Could not open a map', `${isPlace ? trailName : 'The start'} is at ${coordinates}.`);
       });
     }
   };
@@ -68,12 +71,12 @@ export function DirectionsRow({ trailId, trailName, start }: DirectionsRowProps)
         }}
         activeOpacity={0.7}
         accessibilityRole="button"
-        accessibilityLabel={`Directions to the start, ${coordinates}`}
+        accessibilityLabel={`${title}, ${coordinates}`}
         testID="directions-row"
       >
         <Icon name="car-outline" size={20} color={Colors.primary} />
         <View style={styles.textBlock}>
-          <Text style={styles.title}>Directions to the start</Text>
+          <Text style={styles.title}>{title}</Text>
           <Text style={styles.hint}>{coordinates}</Text>
         </View>
         <Icon name="chevron-forward" size={16} color={Colors.textLight} />
@@ -81,8 +84,8 @@ export function DirectionsRow({ trailId, trailName, start }: DirectionsRowProps)
 
       <ActionSheet
         visible={open}
-        title="Directions to the start"
-        message={`${trailName} starts at ${coordinates}.`}
+        title={title}
+        message={isPlace ? `${trailName} is at ${coordinates}.` : `${trailName} starts at ${coordinates}.`}
         options={options}
         onSelect={choose}
         onClose={() => setOpen(false)}

@@ -33,4 +33,9 @@ export class UpdateNotificationPreferencesDto {
   @IsOptional()
   @IsBoolean()
   group_chat?: boolean;
+
+  /** A trail you bookmarked gets a good hiking day ahead. */
+  @IsOptional()
+  @IsBoolean()
+  good_weather?: boolean;
 }

@@ -6,6 +6,7 @@ import { useFeed } from '../../../hooks/useFeed';
 import { EmptyFeed } from '../../../components/feed/EmptyFeed';
 import { PostList } from '../../../components/feed/PostList';
 import { DiscoverList } from '../../../components/feed/DiscoverList';
+import { GoodDaysList } from '../../../components/feed/GoodDaysList';
 import { LeaderboardView } from '../../../components/leaderboard/LeaderboardView';
 import { haptics } from '../../../utils/haptics';
 import { Icon } from '../../../components/ui/Icon';
@@ -37,16 +38,19 @@ function SegmentPane({ visible, styles, children }: { visible: boolean; styles: 
   );
 }
 
+/** The segments with posts, where the "Post" button shows. */
+const POST_SEGMENTS: ReadonlySet<FeedSegment> = new Set<FeedSegment>(['activity', 'discover']);
+
 /**
- * The Feed tab: the people you follow, Discover (everyone's posts and hikers to follow), and
- * the leaderboard (formerly its own "Ranks" tab).
+ * The Feed tab: the people you follow, Discover (everyone's posts and hikers to follow), the
+ * good hiking days ahead, and the leaderboard (formerly its own "Ranks" tab).
  */
 export default function FeedScreen() {
   const Colors = useColors();
   const styles = useMemo(() => createStyles(Colors), [Colors]);
   const params = useLocalSearchParams<{ segment?: string }>();
   const [segment, setSegment] = useState<FeedSegment>(() => feedSegmentFromParam(params.segment) ?? 'activity');
-  // Discover and the leaderboard are only loaded once someone opens them
+  // Discover, the good days and the leaderboard are only loaded once someone opens them
   const [opened, setOpened] = useState<ReadonlySet<FeedSegment>>(() => new Set([segment]));
   const open = useCallback(
     (next: FeedSegment) => setOpened((prev) => (prev.has(next) ? prev : new Set(prev).add(next))),
@@ -88,7 +92,14 @@ export default function FeedScreen() {
               accessibilityState={{ selected: active }}
               testID={`feed-segment-${key}`}
             >
-              <Text style={[styles.segmentText, active && styles.segmentTextActive]}>{label}</Text>
+              <Text
+                style={[styles.segmentText, active && styles.segmentTextActive]}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.85}
+              >
+                {label}
+              </Text>
             </TouchableOpacity>
           );
         })}
@@ -103,6 +114,11 @@ export default function FeedScreen() {
             <DiscoverList />
           </SegmentPane>
         )}
+        {opened.has('gooddays') && (
+          <SegmentPane visible={segment === 'gooddays'} styles={styles}>
+            <GoodDaysList />
+          </SegmentPane>
+        )}
         {opened.has('leaderboard') && (
           <SegmentPane visible={segment === 'leaderboard'} styles={styles}>
             <LeaderboardView />
@@ -110,8 +126,8 @@ export default function FeedScreen() {
         )}
       </View>
 
-      {/* Write a post: over the posts, not the leaderboard */}
-      {segment !== 'leaderboard' && (
+      {/* Write a post: over the posts, not the good days or the leaderboard */}
+      {POST_SEGMENTS.has(segment) && (
         <TouchableOpacity
           style={styles.newPost}
           onPress={() => {
@@ -174,6 +190,7 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     minHeight: 38,
     alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: 2,
     borderRadius: 9,
   },
   segmentActive: {
