@@ -102,6 +102,19 @@ describe('buildGearPlan', () => {
     expect(item(plan, 'tent')?.note).toMatch(/3 huts mapped on the way/);
   });
 
+  it('says to carry all the water after a recent "water source dry" report', () => {
+    const now = Date.parse('2026-11-20T09:00:00Z');
+    const terrain = { source: 'osm' as const, fetched_at: '2026-11-14', coverage: 1, max_sac: 'T2' as const, sac_km: {}, surfaces_km: {}, fords: 0, water_points: 2, shelters: 0 };
+    const reported = (daysAgo: number) => ({ condition_type: 'water_dry', reported_at: new Date(now - daysAgo * 86_400_000).toISOString() });
+
+    const dry = buildGearPlan({ ...trek, terrain, recent_conditions: [{ condition_type: 'muddy', reported_at: '2026-11-19T08:00:00Z' }, reported(3)] }, { month: 8, now });
+    expect(item(dry, 'water')?.note).toMatch(/a water source was reported dry on 17 Nov: carry all you need$/);
+
+    // Older than three weeks, or another kind of report: the mapped sources again
+    const old = buildGearPlan({ ...trek, terrain, recent_conditions: [reported(30)] }, { month: 8, now });
+    expect(item(old, 'water')?.note).toMatch(/2 water sources mapped on the way$/);
+  });
+
   it('uses boots on rocky ground even when the route is otherwise easy', () => {
     const plan = buildGearPlan(
       {

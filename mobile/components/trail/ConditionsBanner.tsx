@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Icon } from '../ui/Icon';
 import { useColors, ColorPalette } from '../../constants/colors';
-import { pickMostSevereCondition } from '../../utils/conditions';
+import { conditionLabel, pickMostSevereCondition } from '../../utils/conditions';
 
 interface ConditionItem {
   id: string;
@@ -31,17 +31,6 @@ const SEVERITY_ICONS: Record<string, string> = {
   danger: 'alert-circle',
 };
 
-const CONDITION_LABELS: Record<string, string> = {
-  trail_clear: 'Trail Clear',
-  muddy: 'Muddy',
-  snow: 'Snow',
-  fallen_tree: 'Fallen Tree',
-  flooded: 'Flooded',
-  overgrown: 'Overgrown',
-  damaged: 'Damaged',
-  closed: 'Closed',
-};
-
 export function ConditionsBanner({ conditions, totalCount, onPress }: ConditionsBannerProps) {
   const Colors = useColors();
   const styles = useMemo(() => createStyles(Colors), [Colors]);
@@ -53,7 +42,7 @@ export function ConditionsBanner({ conditions, totalCount, onPress }: Conditions
   const others = Math.max((totalCount ?? conditions.length) - 1, 0);
   const color = SEVERITY_COLORS[top.severity] ?? SEVERITY_COLORS.info;
   const icon = SEVERITY_ICONS[top.severity] ?? 'information-circle';
-  const label = CONDITION_LABELS[top.condition_type] ?? top.condition_type;
+  const label = conditionLabel(top.condition_type);
 
   return (
     <TouchableOpacity

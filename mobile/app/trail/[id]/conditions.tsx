@@ -21,35 +21,13 @@ import { ErrorState } from '../../../components/ui/ErrorState';
 import { ContentMenu } from '../../../components/moderation/ContentMenu';
 import { TrailCondition } from '../../../types/community';
 import { formatDate } from '../../../utils/formatters';
-import { sortConditionsBySeverity } from '../../../utils/conditions';
+import { conditionIcon, conditionLabel, sortConditionsBySeverity } from '../../../utils/conditions';
 import { withBottomInset } from '../../../utils/insets';
 
 const SEVERITY_COLORS: Record<string, string> = {
   info: '#2196F3',
   warning: '#FF9800',
   danger: '#F44336',
-};
-
-const CONDITION_ICONS: Record<string, string> = {
-  trail_clear: 'checkmark-circle',
-  muddy: 'water',
-  snow: 'snow',
-  fallen_tree: 'leaf',
-  flooded: 'rainy',
-  overgrown: 'flower',
-  damaged: 'construct',
-  closed: 'close-circle',
-};
-
-const CONDITION_LABELS: Record<string, string> = {
-  trail_clear: 'Trail Clear',
-  muddy: 'Muddy',
-  snow: 'Snow',
-  fallen_tree: 'Fallen Tree',
-  flooded: 'Flooded',
-  overgrown: 'Overgrown',
-  damaged: 'Damaged',
-  closed: 'Closed',
 };
 
 export default function ConditionsScreen() {
@@ -66,14 +44,14 @@ export default function ConditionsScreen() {
 
   const renderCondition = ({ item }: { item: TrailCondition }) => {
     const color = SEVERITY_COLORS[item.severity] ?? SEVERITY_COLORS.info;
-    const icon = CONDITION_ICONS[item.condition_type] ?? 'alert-circle';
-    const label = CONDITION_LABELS[item.condition_type] ?? item.condition_type;
+    const icon = conditionIcon(item.condition_type);
+    const label = conditionLabel(item.condition_type);
 
     return (
       <View style={[styles.card, { borderLeftColor: color }]}>
         <View style={styles.cardHeader}>
           <View style={styles.typeRow}>
-            <Icon name={icon as any} size={20} color={color} />
+            <Icon name={icon} size={20} color={color} />
             <Text style={[styles.typeLabel, { color }]}>{label}</Text>
           </View>
           <View style={styles.cardHeaderRight}>

@@ -50,21 +50,8 @@ export function commentsLinkLabel(count: number): string | null {
   return `View all ${count.toLocaleString('en-US')} comments`;
 }
 
-const CONDITION_LABELS: Record<string, string> = {
-  trail_clear: 'Trail clear',
-  muddy: 'Muddy',
-  snow: 'Snow',
-  fallen_tree: 'Fallen tree',
-  flooded: 'Flooded',
-  overgrown: 'Overgrown',
-  damaged: 'Damaged',
-  closed: 'Closed',
-};
-
-export function conditionLabel(conditionType: string | null | undefined): string {
-  if (!conditionType) return '';
-  return CONDITION_LABELS[conditionType] ?? conditionType.replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase());
-}
+/** Shared with the report sheets: one list of condition types for the whole app. */
+export { conditionLabel } from './conditions';
 
 /** A review's rating, from the post's extra text, as 0–5 whole stars. */
 export function reviewStars(extraText: string | null | undefined): number {

@@ -13,6 +13,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Trash2 } from "lucide-react";
 
+/** Names that read better than the type's words. */
+const conditionNames: Record<string, string> = {
+  water_dry: "water source dry",
+};
+
 const severityColors: Record<string, string> = {
   info: "bg-blue-100 text-blue-800",
   warning: "bg-yellow-100 text-yellow-800",
@@ -58,7 +63,7 @@ export function ConditionsList() {
             {rows.map((c) => (
               <TableRow key={c.id}>
                 <TableCell className="font-medium">{c.trails?.name_en ?? "-"}</TableCell>
-                <TableCell className="text-sm">{c.condition_type.replace(/_/g, " ")}</TableCell>
+                <TableCell className="text-sm">{conditionNames[c.condition_type] ?? c.condition_type.replace(/_/g, " ")}</TableCell>
                 <TableCell>
                   <span className={`px-2 py-0.5 rounded text-xs font-medium ${severityColors[c.severity] ?? ""}`}>
                     {c.severity}

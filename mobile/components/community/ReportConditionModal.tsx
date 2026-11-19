@@ -5,6 +5,7 @@ import { useColors, ColorPalette } from '../../constants/colors';
 import { useReportCondition } from '../../hooks/useCommunity';
 import { ConditionType, SeverityLevel } from '../../types/community';
 import { haptics } from '../../utils/haptics';
+import { CONDITION_KINDS } from '../../utils/conditions';
 import { Sheet, SheetButton, SheetTextInput } from '../ui/Sheet';
 
 interface ReportConditionModalProps {
@@ -12,17 +13,6 @@ interface ReportConditionModalProps {
   visible: boolean;
   onClose: () => void;
 }
-
-const CONDITIONS: { type: ConditionType; label: string; icon: string }[] = [
-  { type: 'trail_clear', label: 'Trail Clear', icon: 'checkmark-circle' },
-  { type: 'muddy', label: 'Muddy', icon: 'water' },
-  { type: 'snow', label: 'Snow', icon: 'snow' },
-  { type: 'fallen_tree', label: 'Fallen Tree', icon: 'leaf' },
-  { type: 'flooded', label: 'Flooded', icon: 'rainy' },
-  { type: 'overgrown', label: 'Overgrown', icon: 'flower' },
-  { type: 'damaged', label: 'Damaged', icon: 'construct' },
-  { type: 'closed', label: 'Closed', icon: 'close-circle' },
-];
 
 const SEVERITIES: { level: SeverityLevel; label: string; color: string }[] = [
   { level: 'info', label: 'Info', color: '#2196F3' },
@@ -94,18 +84,22 @@ export function ReportConditionModal({
     >
       <Text style={[styles.sectionTitle, styles.firstSection]}>Condition Type</Text>
       <View style={styles.chipGrid}>
-        {CONDITIONS.map((c) => {
+        {CONDITION_KINDS.map((c) => {
           const selected = conditionType === c.type;
           return (
             <TouchableOpacity
               key={c.type}
               style={[styles.chip, selected && styles.chipActive]}
-              onPress={() => setConditionType(c.type)}
+              onPress={() => {
+                setConditionType(c.type);
+                // Its usual seriousness, which the hiker can still change
+                setSeverity(c.afterHikeSeverity);
+              }}
               accessibilityRole="button"
               accessibilityState={{ selected }}
             >
               <Icon
-                name={c.icon as any}
+                name={c.icon}
                 size={16}
                 color={selected ? Colors.textOnPrimary : Colors.textSecondary}
               />

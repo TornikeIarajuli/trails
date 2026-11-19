@@ -1,4 +1,10 @@
-import { pickMostSevereCondition, sortConditionsBySeverity } from '../../utils/conditions';
+import {
+  CONDITION_KINDS,
+  conditionIcon,
+  conditionLabel,
+  pickMostSevereCondition,
+  sortConditionsBySeverity,
+} from '../../utils/conditions';
 
 const report = (id: string, severity: string, reported_at: string) => ({ id, severity, reported_at });
 
@@ -40,5 +46,27 @@ describe('pickMostSevereCondition', () => {
     const copy = [...conditions];
     expect(sortConditionsBySeverity(conditions).map((c) => c.id)).toEqual(['info', 'odd']);
     expect(conditions).toEqual(copy);
+  });
+});
+
+describe('condition kinds', () => {
+  it('offers every condition the server accepts, crowded and dry water included', () => {
+    expect(CONDITION_KINDS.map((k) => k.type).sort()).toEqual(
+      ['closed', 'crowded', 'damaged', 'fallen_tree', 'flooded', 'muddy', 'overgrown', 'snow', 'trail_clear', 'water_dry'],
+    );
+  });
+
+  it('names and draws each one, and reads an unknown one as words', () => {
+    expect(conditionLabel('water_dry')).toBe('Water source dry');
+    expect(conditionLabel('crowded')).toBe('Crowded');
+    expect(conditionLabel('rock_fall')).toBe('Rock fall');
+    expect(conditionLabel(null)).toBe('');
+    expect(conditionIcon('water_dry')).toBe('droplet-off');
+    expect(conditionIcon('rock_fall')).toBe('alert-circle');
+  });
+
+  it('suggests how serious each is: a closure is danger, a crowd is only info', () => {
+    const severity = Object.fromEntries(CONDITION_KINDS.map((k) => [k.type, k.afterHikeSeverity]));
+    expect(severity).toEqual(expect.objectContaining({ closed: 'danger', crowded: 'info', water_dry: 'warning', trail_clear: 'info' }));
   });
 });

@@ -38,6 +38,8 @@ export interface GearTrail {
   elevation_profile?: [number, number][] | null;
   review_flags?: string[];
   terrain?: TrailTerrain | null;
+  /** Hikers' latest condition reports (trail detail). */
+  recent_conditions?: { condition_type: string; reported_at: string }[];
 }
 
 export interface GearPlan {
@@ -134,11 +136,31 @@ export function describeForecast(f: GearForecast): string | null {
   return `${f.day === 'today' ? 'Today' : 'Tomorrow'} at the trailhead: ${parts.join(', ')}`;
 }
 
+/** A "water source dry" report counts for this long. */
+export const DRY_REPORT_DAYS = 21;
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+/** The newest "water source dry" report from the last three weeks, as "14 Nov"; null if none. */
+export function recentDryReport(
+  conditions: { condition_type: string; reported_at: string }[] | undefined,
+  now: number,
+): string | null {
+  const newest = (conditions ?? [])
+    .filter((c) => c.condition_type === 'water_dry')
+    .map((c) => Date.parse(c.reported_at))
+    .filter((t) => Number.isFinite(t) && t <= now + 60_000 && now - t <= DRY_REPORT_DAYS * 86_400_000)
+    .sort((a, b) => b - a)[0];
+  if (newest === undefined) return null;
+  const d = new Date(newest);
+  return `${d.getDate()} ${MONTHS[d.getMonth()]}`;
+}
+
 export function buildGearPlan(
   trail: GearTrail,
-  options: { month: number; forecast?: GearForecast | null },
+  options: { month: number; forecast?: GearForecast | null; now?: number },
 ): GearPlan {
   const { month } = options;
+  const now = options.now ?? Date.now();
   const f = options.forecast ?? null;
   const items = new Map<GearKey, GearItem>();
   const add = (key: GearKey, level: GearLevel, note: string | null = null) => {
@@ -189,7 +211,10 @@ export function buildGearPlan(
     : litres > 3
       ? `About ${formatLitres(litres)} L, or less where you can refill`
       : `About ${formatLitres(litres)} L`;
-  if (waterPoints > 0) waterNote += ` · ${plural(waterPoints, 'water source')} mapped on the way`;
+  // A hiker found a spring or stream dry lately: the mapped ones may not be running either
+  const dryOn = recentDryReport(trail.recent_conditions, now);
+  if (dryOn) waterNote += ` · a water source was reported dry on ${dryOn}: carry all you need`;
+  else if (waterPoints > 0) waterNote += ` · ${plural(waterPoints, 'water source')} mapped on the way`;
   add('water', 'essential', waterNote);
   add('food', 'essential', hours <= 3 ? 'Snacks' : multiDay ? `For ${days} days, unless you stay in guesthouses` : 'Lunch and snacks');
 

@@ -11,6 +11,10 @@ export enum ConditionType {
   OVERGROWN = 'overgrown',
   DAMAGED = 'damaged',
   CLOSED = 'closed',
+  /** Busy trail or full parking. */
+  CROWDED = 'crowded',
+  /** A spring, tap or stream on the way has run dry. */
+  WATER_DRY = 'water_dry',
 }
 
 export enum SeverityLevel {

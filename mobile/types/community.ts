@@ -6,7 +6,9 @@ export type ConditionType =
   | 'flooded'
   | 'overgrown'
   | 'damaged'
-  | 'closed';
+  | 'closed'
+  | 'crowded'
+  | 'water_dry';
 
 export type SeverityLevel = 'info' | 'warning' | 'danger';
 

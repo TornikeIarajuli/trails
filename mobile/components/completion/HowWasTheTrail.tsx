@@ -7,7 +7,7 @@ import { useSubmitReview, useTrailReviews, useUpdateReview } from '../../hooks/u
 import { useReportCondition } from '../../hooks/useCommunity';
 import { communityService } from '../../services/community';
 import { useAuthStore } from '../../store/authStore';
-import { conditionLabel } from '../../utils/feedPost';
+import { CONDITION_KINDS, conditionLabel } from '../../utils/conditions';
 import { queryKeys } from '../../utils/queryKeys';
 import { haptics } from '../../utils/haptics';
 import type { ConditionType, SeverityLevel } from '../../types/community';
@@ -15,16 +15,10 @@ import type { ConditionType, SeverityLevel } from '../../types/community';
 const STAR_AMBER = '#FFB800';
 
 /** The conditions offered after a hike, and how serious each is for the trail page. */
-export const AFTER_HIKE_CONDITIONS: { type: ConditionType; severity: SeverityLevel }[] = [
-  { type: 'trail_clear', severity: 'info' },
-  { type: 'muddy', severity: 'warning' },
-  { type: 'snow', severity: 'warning' },
-  { type: 'fallen_tree', severity: 'warning' },
-  { type: 'overgrown', severity: 'warning' },
-  { type: 'flooded', severity: 'warning' },
-  { type: 'damaged', severity: 'warning' },
-  { type: 'closed', severity: 'danger' },
-];
+export const AFTER_HIKE_CONDITIONS: { type: ConditionType; severity: SeverityLevel }[] = CONDITION_KINDS.map((k) => ({
+  type: k.type,
+  severity: k.afterHikeSeverity,
+}));
 
 /**
  * Right after a hike: "How was the trail?" One tap on the stars rates it (tap again to
