@@ -38,6 +38,7 @@ export default function TrailLayout() {
       <Stack.Screen name="check-in" />
       <Stack.Screen name="[id]/events" />
       <Stack.Screen name="[id]/event/[eventId]/index" />
+      <Stack.Screen name="[id]/event/[eventId]/chat" />
     </Stack>
   );
 }

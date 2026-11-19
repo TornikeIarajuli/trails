@@ -28,4 +28,9 @@ export class UpdateNotificationPreferencesDto {
   @IsOptional()
   @IsBoolean()
   new_comment?: boolean;
+
+  /** New messages in the chat of a trip you joined. */
+  @IsOptional()
+  @IsBoolean()
+  group_chat?: boolean;
 }

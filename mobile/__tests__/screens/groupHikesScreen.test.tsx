@@ -16,8 +16,10 @@ jest.mock('../../hooks/useTrails', () => ({
   useTrails: () => ({ data: { pages: [{ data: [{ id: 't1', name_en: 'Juta to Roshka', region: 'Kazbegi' }] }] }, isLoading: false }),
 }));
 const mockEvents: { data: unknown[] | undefined } = { data: [] };
+const mockMine: { data: unknown[] | undefined } = { data: [] };
 jest.mock('../../hooks/useEvents', () => ({
   useUpcomingEvents: () => ({ data: mockEvents.data, isLoading: false, isError: false, refetch: jest.fn(), isRefetching: false }),
+  useMyEvents: () => ({ data: mockMine.data }),
 }));
 
 import React from 'react';
@@ -48,7 +50,37 @@ function render() {
 }
 
 describe('Group hikes screen', () => {
-  beforeEach(() => mockPush.mockClear());
+  beforeEach(() => {
+    mockPush.mockClear();
+    mockMine.data = [];
+  });
+
+  it('puts your own trips first, private ones too, without listing them twice', () => {
+    const later = new Date(Date.now() + 10 * 86_400_000).toISOString();
+    const trip = {
+      id: 'e7',
+      trail_id: 't1',
+      organizer_id: 'u1',
+      title: 'Svaneti in three days',
+      description: null,
+      scheduled_at: later,
+      max_participants: null,
+      created_at: later,
+      visibility: 'private',
+      days: [{ day_number: 2 }, { day_number: 3 }],
+      organizer: { id: 'u1', username: 'me', avatar_url: null },
+      trails: { id: 't1', name_en: 'Juta to Roshka', region: 'Kazbegi' },
+      participants: [{ user_id: 'u1' }],
+    };
+    mockMine.data = [trip];
+    mockEvents.data = [{ ...trip, id: 'e8', title: 'Someone else', visibility: 'public', days: [] }];
+    const r = render();
+    const shown = texts(r);
+    expect(shown.indexOf('Your trips and hikes')).toBeLessThan(shown.indexOf('Svaneti in three days'));
+    expect(shown.filter((t) => t === 'Svaneti in three days')).toHaveLength(1);
+    expect(shown.some((t) => /· 3 days · Private$/.test(t))).toBe(true);
+    expect(shown).toContain('Someone else');
+  });
 
   it('lists upcoming hikes with who is going and the user’s own', () => {
     const soon = new Date(Date.now() + 2 * 3_600_000).toISOString();

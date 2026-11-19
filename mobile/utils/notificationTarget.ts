@@ -59,6 +59,13 @@ export function getNotificationTarget(
       if (activityId) return { kind: 'route', href: postHref(activityId, kind === 'new_comment', trailId) };
       return trailId ? { kind: 'route', href: `/trail/${trailId}` } : { kind: 'none' };
     }
+    case 'group_chat': {
+      // A message in a trip's chat: the chat itself
+      const eventId = text(d.eventId);
+      const trailId = text(d.trailId);
+      if (eventId) return { kind: 'route', href: `${eventHref(trailId, eventId)}/chat` };
+      return trailId ? { kind: 'route', href: `/trail/${trailId}` } : { kind: 'none' };
+    }
     case 'event_invite':
     case 'event_update': {
       const eventId = text(d.eventId);

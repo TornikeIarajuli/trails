@@ -6,11 +6,12 @@ import { Icon } from '../../components/ui/Icon';
 import { ErrorState } from '../../components/ui/ErrorState';
 import { GroupHikeCard } from '../../components/events/GroupHikeCard';
 import { useColors, ColorPalette } from '../../constants/colors';
-import { useUpcomingEvents } from '../../hooks/useEvents';
+import { useMyEvents, useUpcomingEvents } from '../../hooks/useEvents';
 import { useWithoutBlocked } from '../../hooks/useModeration';
 import { TrailPickerSheet } from '../../components/trail/TrailPickerSheet';
 import { useAuthStore } from '../../store/authStore';
-import { groupUpcomingHikes } from '../../utils/groupHikes';
+import { HikeSection, groupUpcomingHikes } from '../../utils/groupHikes';
+import type { TrailEvent } from '../../services/events';
 import { withBottomInset } from '../../utils/insets';
 import { haptics } from '../../utils/haptics';
 
@@ -28,7 +29,17 @@ export default function GroupHikesScreen() {
 
   const { data, isLoading, isError, error, refetch, isRefetching } = useUpcomingEvents();
   const events = useWithoutBlocked(data, (e) => e.organizer_id);
-  const sections = useMemo(() => groupUpcomingHikes(events), [events]);
+  // Your own trips and hikes first (private ones too), then everyone's, without repeats
+  const { data: mine } = useMyEvents();
+  const myEvents = useWithoutBlocked(mine, (e) => e.organizer_id);
+  const sections = useMemo(() => {
+    const mineIds = new Set(myEvents.map((e) => e.id));
+    const rest = groupUpcomingHikes(events.filter((e) => !mineIds.has(e.id)));
+    const own: HikeSection<TrailEvent>[] = myEvents.length
+      ? [{ key: 'mine', title: 'Your trips and hikes', data: myEvents }]
+      : [];
+    return [...own, ...rest];
+  }, [events, myEvents]);
 
   const plan = () => {
     if (!isAuthenticated) {
@@ -60,7 +71,7 @@ export default function GroupHikesScreen() {
         refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => refetch()} tintColor={Colors.primary} colors={[Colors.primary]} />}
         ListHeaderComponent={
           sections.length ? (
-            <Text style={styles.intro}>Hikes other people are organizing. Open one to see who's going and join.</Text>
+            <Text style={styles.intro}>Group hikes and trips people are organizing. Open one to see who's going and join.</Text>
           ) : null
         }
         ListEmptyComponent={

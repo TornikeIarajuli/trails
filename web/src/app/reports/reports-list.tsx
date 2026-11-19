@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { getReports, setReportStatus } from "@/lib/actions";
+import { deleteEventMessage, getReports, setReportStatus } from "@/lib/actions";
 import { call } from "@/lib/call";
 import { reportReasonLabel } from "@/lib/trail-review";
 import { REPORTS_UNAVAILABLE } from "@/lib/types";
@@ -34,6 +34,7 @@ function targetHref(type: string, id: string): string | null {
     case "condition": return "/conditions";
     case "completion": return "/completions";
     case "post": return "/posts";
+    case "message": return "/events";
     default: return null;
   }
 }
@@ -51,6 +52,18 @@ export function ReportsList() {
     if (res.error !== null) alert(`Could not update: ${res.error}`);
     if (res.error === null && rows.length === 1 && page > 1) setPage(page - 1);
     else reload();
+  }
+
+  async function removeMessage(reportId: string, messageId: string) {
+    if (!confirm("Delete this chat message? The report is marked resolved.")) return;
+    setBusyId(reportId);
+    const res = await call(deleteEventMessage(messageId));
+    setBusyId(null);
+    if (res.error !== null) {
+      alert(`Could not delete: ${res.error}`);
+      return;
+    }
+    await close(reportId, "actioned");
   }
 
   return (
@@ -121,6 +134,11 @@ export function ReportsList() {
                             <Button variant="outline" size="sm" disabled={busyId !== null} onClick={() => close(r.id, "actioned")}>
                               Resolved
                             </Button>
+                            {r.target_type === "message" && r.target_name !== "(message deleted)" && (
+                              <Button variant="destructive" size="sm" disabled={busyId !== null} onClick={() => removeMessage(r.id, r.target_id)}>
+                                Delete message
+                              </Button>
+                            )}
                           </div>
                         )}
                       </TableCell>

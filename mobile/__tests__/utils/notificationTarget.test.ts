@@ -23,6 +23,14 @@ describe('getNotificationTarget', () => {
     });
   });
 
+  it("opens a trip's chat for a new message", () => {
+    expect(getNotificationTarget('group_chat', { eventId: 'e1', trailId: 't1', messageId: 'm1' })).toEqual({
+      kind: 'route',
+      href: '/trail/t1/event/e1/chat',
+    });
+    expect(getNotificationTarget('group_chat', { trailId: 't1' })).toEqual({ kind: 'route', href: '/trail/t1' });
+  });
+
   it('opens the trail for a cancelled group hike, whose page is gone', () => {
     expect(getNotificationTarget('event_update', { eventId: 'e1', trailId: 't1', cancelled: true })).toEqual({
       kind: 'route',

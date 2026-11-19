@@ -240,7 +240,7 @@ export interface ReportRow {
   status: string;
   created_at: string;
   reporter: { username: string } | null;
-  target_name?: string | null; // the trail's name, for target_type 'trail'
+  target_name?: string | null; // the trail's name for 'trail'; the quoted text for 'message'
 }
 
 // Trail review state and hike quality come from migrations 051 and 052.

@@ -32,6 +32,7 @@ export const IONICON_TO_SKETCHY: Record<string, string> = {
   cellular: 'signal',
   'chatbox-ellipses': 'message-square-more',
   chatbubble: 'message-circle',
+  chatbubbles: 'messages-square',
   checkbox: 'square-check',
   checkmark: 'check',
   'checkmark-circle': 'circle-check',

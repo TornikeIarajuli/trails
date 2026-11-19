@@ -74,6 +74,14 @@ const PREF_ROWS: {
     color: '#8B5CF6',
     bg: '#EDE9FE',
   },
+  {
+    key: 'group_chat',
+    label: 'Group chat',
+    description: 'New messages in the chat of a trip or group hike you joined',
+    icon: 'chatbubbles',
+    color: '#0F766E',
+    bg: '#CCFBF1',
+  },
 ];
 
 export default function NotificationPreferencesScreen() {

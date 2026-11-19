@@ -38,6 +38,7 @@ const TYPE_MARK: Record<string, { icon: IconName; color: string }> = {
   new_like: { icon: 'heart', color: '#E53935' },
   event_invite: { icon: 'calendar', color: '#7C3AED' },
   event_update: { icon: 'calendar', color: '#7C3AED' },
+  group_chat: { icon: 'chatbubbles', color: '#0F766E' },
   emergency_contact: { icon: 'shield-checkmark', color: '#DC2626' },
   sos: { icon: 'alert-circle', color: '#DC2626' },
   checkin_reminder: { icon: 'time', color: '#0284C7' },

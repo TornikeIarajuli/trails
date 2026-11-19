@@ -18,6 +18,7 @@ import { AuthGuard } from '../common/guards/auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { CreateEventDto, EventsQueryDto } from './dto/create-event.dto';
 import { UpdateEventDto } from './dto/update-event.dto';
+import { EventMessageDto, EventMessagesQueryDto } from './dto/trip.dto';
 
 @Controller('events')
 export class EventsController {
@@ -28,9 +29,48 @@ export class EventsController {
     return this.eventsService.findAll(query.trail_id);
   }
 
+  /** Your trips and group hikes, public or private, until their last day. */
+  @Get('mine')
+  @UseGuards(AuthGuard)
+  findMine(@CurrentUser('id') userId: string) {
+    return this.eventsService.findMine(userId);
+  }
+
   @Get(':id')
   findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.eventsService.findOne(id);
+  }
+
+  /** The trip's chat, for those who joined. */
+  @Get(':id/messages')
+  @UseGuards(AuthGuard)
+  listMessages(
+    @CurrentUser('id') userId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query() query: EventMessagesQueryDto,
+  ) {
+    return this.eventsService.listMessages(userId, id, query.before, query.limit ?? 50);
+  }
+
+  @Post(':id/messages')
+  @UseGuards(AuthGuard)
+  @Throttle({ default: { ttl: 60000, limit: 30 } })
+  postMessage(
+    @CurrentUser('id') userId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: EventMessageDto,
+  ) {
+    return this.eventsService.postMessage(userId, id, dto.body);
+  }
+
+  @Delete(':id/messages/:messageId')
+  @UseGuards(AuthGuard)
+  deleteMessage(
+    @CurrentUser('id') userId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('messageId', ParseUUIDPipe) messageId: string,
+  ) {
+    return this.eventsService.deleteMessage(userId, id, messageId);
   }
 
   @Post()

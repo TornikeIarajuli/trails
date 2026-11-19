@@ -31,7 +31,8 @@ export function hikeDateLabel(scheduledAt: string): string {
 }
 
 export interface HikeSection<T> {
-  key: 'week' | 'next' | 'later';
+  /** 'mine': your own trips and hikes, first. */
+  key: 'mine' | 'week' | 'next' | 'later';
   title: string;
   data: T[];
 }

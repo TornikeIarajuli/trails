@@ -120,12 +120,17 @@ export class NotificationsService {
     body: string,
     data?: Record<string, any>,
     type = 'general',
+    options: { history?: boolean } = {},
   ): Promise<PushResult> {
     try {
-      return await this.deliver(userId, title, body, type, {
-        ...(data ?? {}),
+      return await this.deliver(
+        userId,
+        title,
+        body,
         type,
-      });
+        { ...(data ?? {}), type },
+        options.history !== false,
+      );
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       this.logger.error('Push notification failed', message);
@@ -139,6 +144,7 @@ export class NotificationsService {
     body: string,
     type: string,
     payload: Record<string, any>,
+    keepHistory = true,
   ): Promise<PushResult> {
     const admin = this.supabaseService.getAdminClient();
 
@@ -154,18 +160,20 @@ export class NotificationsService {
       return { sent: 0, skipped: 'user_preference' };
     }
 
-    // Persist to notification history
-    const { error: historyError } = await admin.from('notifications').insert({
-      user_id: userId,
-      type,
-      title,
-      body,
-      data: payload,
-    });
-    if (historyError) {
-      this.logger.warn(
-        `Could not store ${type} notification: ${historyError.message}`,
-      );
+    // Persist to notification history (chat messages only push: the chat is their history)
+    if (keepHistory) {
+      const { error: historyError } = await admin.from('notifications').insert({
+        user_id: userId,
+        type,
+        title,
+        body,
+        data: payload,
+      });
+      if (historyError) {
+        this.logger.warn(
+          `Could not store ${type} notification: ${historyError.message}`,
+        );
+      }
     }
 
     const { data: tokens, error: tokensError } = await admin
@@ -383,6 +391,7 @@ export class NotificationsService {
         trail_condition: true,
         new_like: true,
         new_comment: true,
+        group_chat: true,
       }
     );
   }
@@ -397,6 +406,7 @@ export class NotificationsService {
       trail_condition: boolean;
       new_like: boolean;
       new_comment: boolean;
+      group_chat: boolean;
     }>,
   ) {
     const admin = this.supabaseService.getAdminClient();

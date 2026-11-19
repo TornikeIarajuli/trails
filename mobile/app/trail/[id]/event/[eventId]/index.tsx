@@ -11,6 +11,7 @@ import {
   Platform,
   ActivityIndicator,
   RefreshControl,
+  Share,
 } from 'react-native';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { Icon } from '../../../../../components/ui/Icon';
@@ -30,6 +31,7 @@ import { Avatar } from '../../../../../components/ui/Avatar';
 import { ContentMenu } from '../../../../../components/moderation/ContentMenu';
 import { ActivityComment } from '../../../../../types/comment';
 import { getErrorStatus } from '../../../../../utils/showError';
+import { inviteMessage, isPrivate, itinerary } from '../../../../../utils/trips';
 
 function getRelativeTime(dateStr: string): string {
   const diffMs = Date.now() - new Date(dateStr).getTime();
@@ -110,6 +112,15 @@ export default function EventDetailScreen() {
   const isFull = event.max_participants != null && participants.length >= event.max_participants;
 
   const scheduledDate = new Date(event.scheduled_at);
+  const days = itinerary(event);
+  const multiDay = days.length > 1;
+  const privateTrip = isPrivate(event);
+  const inTrip = isParticipant || isOrganizer;
+
+  const shareInvite = () => {
+    haptics.tap();
+    Share.share({ message: inviteMessage(event) }).catch(() => {});
+  };
 
   const handleDelete = () => {
     Alert.alert('Cancel group hike', 'This cancels the hike for everyone who joined.', [
@@ -147,16 +158,52 @@ export default function EventDetailScreen() {
         </Text>
       </View>
 
-      <TouchableOpacity
-        style={styles.section}
-        onPressIn={() => prefetchTrail(event.trail_id)}
-        onPress={() => router.push(`/trail/${event.trail_id}` as any)}
-        activeOpacity={0.7}
-        accessibilityRole="button"
-      >
-        <Text style={styles.label}>Trail</Text>
-        <Text style={styles.value}>{event.trails?.name_en}</Text>
-      </TouchableOpacity>
+      {privateTrip ? (
+        <View style={styles.privateNote} testID="event-private">
+          <Icon name="lock-closed-outline" size={14} color={Colors.textSecondary} />
+          <Text style={styles.privateText}>Private: only people with the link can see and join it.</Text>
+        </View>
+      ) : null}
+
+      {multiDay ? (
+        <View style={styles.section} testID="event-itinerary">
+          <Text style={styles.label}>Itinerary · {days.length} days</Text>
+          {days.map((day) => (
+            <TouchableOpacity
+              key={day.dayNumber}
+              style={styles.dayRow}
+              disabled={!day.trailId}
+              onPressIn={() => (day.trailId ? prefetchTrail(day.trailId) : undefined)}
+              onPress={() => router.push(`/trail/${day.trailId}` as any)}
+              activeOpacity={0.7}
+              accessibilityRole={day.trailId ? 'button' : 'text'}
+            >
+              <View style={styles.dayBadge}>
+                <Text style={styles.dayBadgeText}>{day.dayNumber}</Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.dayDate}>
+                  {day.date.toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' })}
+                </Text>
+                <Text style={[styles.value, !day.trailId && styles.dayFree]}>{day.label}</Text>
+                {day.note ? <Text style={styles.dayNote}>{day.note}</Text> : null}
+              </View>
+              {day.trailId ? <Icon name="chevron-forward" size={14} color={Colors.textLight} /> : null}
+            </TouchableOpacity>
+          ))}
+        </View>
+      ) : (
+        <TouchableOpacity
+          style={styles.section}
+          onPressIn={() => prefetchTrail(event.trail_id)}
+          onPress={() => router.push(`/trail/${event.trail_id}` as any)}
+          activeOpacity={0.7}
+          accessibilityRole="button"
+        >
+          <Text style={styles.label}>Trail</Text>
+          <Text style={styles.value}>{event.trails?.name_en}</Text>
+        </TouchableOpacity>
+      )}
 
       <View style={styles.section}>
         <View style={styles.labelRow}>
@@ -214,6 +261,33 @@ export default function EventDetailScreen() {
           </TouchableOpacity>
         ))}
       </View>
+
+      {inTrip ? (
+        <View style={styles.tripActions}>
+          <TouchableOpacity
+            style={styles.chatButton}
+            onPress={() => router.push(`/trail/${event.trail_id}/event/${event.id}/chat` as any)}
+            activeOpacity={0.8}
+            accessibilityRole="button"
+            testID="event-chat"
+          >
+            <Icon name="chatbubbles-outline" size={18} color={Colors.textOnPrimary} />
+            <Text style={styles.chatButtonText}>Group chat</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.inviteButton}
+            onPress={shareInvite}
+            activeOpacity={0.8}
+            accessibilityRole="button"
+            testID="event-invite"
+          >
+            <Icon name="share-social-outline" size={18} color={Colors.primary} />
+            <Text style={styles.inviteButtonText}>Invite</Text>
+          </TouchableOpacity>
+        </View>
+      ) : isAuthenticated ? (
+        <Text style={styles.joinHint}>Join to see the group chat.</Text>
+      ) : null}
 
       <View style={styles.actions}>
         {isAuthenticated && !isOrganizer && (
@@ -383,6 +457,94 @@ export default function EventDetailScreen() {
 
 const createStyles = (Colors: ColorPalette) =>
   StyleSheet.create({
+  privateNote: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginHorizontal: 16,
+    marginTop: 8,
+  },
+  privateText: {
+    flex: 1,
+    fontSize: 13,
+    color: Colors.textSecondary,
+  },
+  dayRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    paddingVertical: 8,
+  },
+  dayBadge: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.primary + '1F',
+    marginTop: 2,
+  },
+  dayBadgeText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: Colors.primary,
+  },
+  dayDate: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+  },
+  dayFree: {
+    fontStyle: 'italic',
+  },
+  dayNote: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+    marginTop: 2,
+  },
+  tripActions: {
+    flexDirection: 'row',
+    gap: 10,
+    marginHorizontal: 16,
+    marginTop: 16,
+  },
+  chatButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    minHeight: 46,
+    borderRadius: 12,
+    backgroundColor: Colors.primary,
+  },
+  chatButtonText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: Colors.textOnPrimary,
+  },
+  inviteButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    minHeight: 46,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: Colors.primary,
+  },
+  inviteButtonText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: Colors.primary,
+  },
+  joinHint: {
+    marginHorizontal: 16,
+    marginTop: 16,
+    fontSize: 13,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+  },
     container: { flex: 1, backgroundColor: Colors.background },
     listContent: { paddingBottom: 8 },
     staleNotice: { marginHorizontal: 16, marginTop: 12 },

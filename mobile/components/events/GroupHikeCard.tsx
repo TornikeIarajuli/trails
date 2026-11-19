@@ -7,6 +7,7 @@ import { Avatar } from '../ui/Avatar';
 import { useColors, ColorPalette } from '../../constants/colors';
 import type { TrailEvent } from '../../services/events';
 import { hasJoined, hikeDateLabel, participantCount, spotsLeft } from '../../utils/groupHikes';
+import { isPrivate, tripLengthLabel } from '../../utils/trips';
 import { haptics } from '../../utils/haptics';
 
 interface GroupHikeCardProps {
@@ -25,7 +26,10 @@ export function GroupHikeCard({ event, userId, variant = 'row' }: GroupHikeCardP
   const joined = hasJoined(event, userId);
   const trail = event.trails;
   const where = [trail?.name_en, trail?.region].filter(Boolean).join(' · ');
-  const when = hikeDateLabel(event.scheduled_at);
+  // "Sat 22 Nov · 08:00 · 3 days · Private"
+  const when = [hikeDateLabel(event.scheduled_at), tripLengthLabel(event), isPrivate(event) ? 'Private' : null]
+    .filter(Boolean)
+    .join(' · ');
   const status = joined ? null : left === 0 ? 'Full' : left !== null && left <= 3 ? `${left} ${left === 1 ? 'spot' : 'spots'} left` : null;
 
   const open = () => {

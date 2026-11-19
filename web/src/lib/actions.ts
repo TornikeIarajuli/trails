@@ -1068,7 +1068,28 @@ export async function getReports(params: { page: number; status?: string }): Pro
         if (r.target_type === "trail") r.target_name = names.get(r.target_id) ?? null;
       });
     }
+
+    // Quote reported chat messages: they have no admin page of their own (migration 066).
+    const messageIds = [...new Set(page.data.filter((r) => r.target_type === "message" && UUID_RE.test(r.target_id)).map((r) => r.target_id))];
+    if (messageIds.length > 0) {
+      const { data: messages, error } = await supabase.from("event_messages").select("id, body").in("id", messageIds);
+      if (error && !isMissingTable(error)) return fail(error);
+      const bodies = new Map((messages ?? []).map((m) => [m.id as string, m.body as string]));
+      page.data.forEach((r) => {
+        if (r.target_type !== "message") return;
+        const body = bodies.get(r.target_id);
+        r.target_name = body === undefined ? "(message deleted)" : `“${body.length > 140 ? `${body.slice(0, 139)}…` : body}”`;
+      });
+    }
     return page;
+  });
+}
+
+/** Deletes a trip chat message (a reported one). */
+export async function deleteEventMessage(id: string): Promise<Mutation> {
+  return asAdmin(async (supabase) => {
+    const { error } = await supabase.from("event_messages").delete().eq("id", id);
+    return error ? fail(error) : done;
   });
 }
 

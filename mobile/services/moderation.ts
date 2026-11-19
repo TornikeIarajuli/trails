@@ -10,7 +10,8 @@ export type ReportTargetType =
   | 'user'
   | 'completion'
   | 'trail'
-  | 'post';
+  | 'post'
+  | 'message';
 
 /** Problems with a trail itself (target_type 'trail'). */
 export type TrailProblemReason = 'wrong_route' | 'path_missing' | 'wrong_info';

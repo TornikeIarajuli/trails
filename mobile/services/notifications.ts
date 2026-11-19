@@ -26,6 +26,8 @@ export interface NotificationPreferences {
   /** Older servers do not send these; they count as on. */
   new_like?: boolean;
   new_comment?: boolean;
+  /** New messages in the chat of a trip you joined. */
+  group_chat?: boolean;
 }
 
 export const notificationsService = {

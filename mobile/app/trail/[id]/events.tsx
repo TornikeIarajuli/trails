@@ -20,7 +20,10 @@ import { useTrailEvents, useCreateEvent, useDeleteEvent } from '../../../hooks/u
 import { useWithoutBlocked } from '../../../hooks/useModeration';
 import { useAuthStore } from '../../../store/authStore';
 import { useSettingsStore } from '../../../store/settingsStore';
-import { TrailEvent } from '../../../services/events';
+import { EventVisibility, TrailEvent } from '../../../services/events';
+import { useTrail } from '../../../hooks/useTrails';
+import { DraftDay, TripDaysEditor, daysForApi } from '../../../components/events/TripDaysEditor';
+import { tripLengthLabel } from '../../../utils/trips';
 import { ErrorState } from '../../../components/ui/ErrorState';
 import { haptics } from '../../../utils/haptics';
 import {
@@ -76,6 +79,7 @@ function EventCard({
           <Text style={styles.cardMetaText}>
             {participantCount}{event.max_participants ? `/${event.max_participants}` : ''} hikers
           </Text>
+          {tripLengthLabel(event) ? <Text style={styles.cardMetaText}>· {tripLengthLabel(event)}</Text> : null}
         </View>
       </View>
       {isOrganizer && (
@@ -115,6 +119,9 @@ export default function TrailEventsScreen() {
   const [scheduledAt, setScheduledAt] = useState(nextFullHour);
   const [pickerMode, setPickerMode] = useState<PickerMode>(null);
   const [maxParticipants, setMaxParticipants] = useState('');
+  const [visibility, setVisibility] = useState<EventVisibility>('public');
+  const [days, setDays] = useState<DraftDay[]>([]);
+  const { data: trail } = useTrail(id);
 
   const applyPickedValue = (mode: 'date' | 'time', selected: Date) => {
     setScheduledAt((current) => {
@@ -147,6 +154,8 @@ export default function TrailEventsScreen() {
     setMaxParticipants('');
     setPickerMode(null);
     setScheduledAt(nextFullHour());
+    setVisibility('public');
+    setDays([]);
   };
 
   const handleCreate = () => {
@@ -155,10 +164,23 @@ export default function TrailEventsScreen() {
       Alert.alert(result.title, result.message);
       return;
     }
+    const extraDays = daysForApi(days);
+    if (!extraDays) {
+      Alert.alert('Name each day', 'Say what happens on a day without a trail, e.g. "Rest day in Mestia".');
+      return;
+    }
     // Failures are reported by the hook itself
     createEvent.mutate(
-      { trail_id: id, ...result.data },
-      { onSuccess: () => { haptics.success(); setShowForm(false); resetForm(); } },
+      { trail_id: id, ...result.data, visibility, ...(extraDays.length ? { days: extraDays } : {}) },
+      {
+        onSuccess: (created) => {
+          haptics.success();
+          setShowForm(false);
+          resetForm();
+          // A private trip is found through its link: open it, where the invite is shared
+          if (visibility === 'private' && created?.id) router.push(`/trail/${id}/event/${created.id}` as never);
+        },
+      },
     );
   };
 
@@ -171,7 +193,7 @@ export default function TrailEventsScreen() {
 
   const form = showForm ? (
     <View style={styles.form}>
-      <Text style={styles.formTitle}>New Group Hike</Text>
+      <Text style={styles.formTitle}>Plan a group hike or trip</Text>
       <TextInput
         style={styles.input}
         placeholder="Title"
@@ -248,6 +270,35 @@ export default function TrailEventsScreen() {
         maxLength={4}
         accessibilityLabel="Maximum participants"
       />
+      <View style={styles.visibilityRow} accessibilityRole="radiogroup">
+        {([
+          { key: 'public', label: 'Public', hint: 'Anyone can find and join it' },
+          { key: 'private', label: 'Private', hint: 'Only people you send the link to' },
+        ] as const).map((option) => {
+          const selected = visibility === option.key;
+          return (
+            <TouchableOpacity
+              key={option.key}
+              style={[styles.visibilityOption, selected && styles.visibilityOptionActive]}
+              onPress={() => setVisibility(option.key)}
+              accessibilityRole="radio"
+              accessibilityState={{ selected }}
+              testID={`event-visibility-${option.key}`}
+            >
+              <Icon
+                name={option.key === 'public' ? 'globe-outline' : 'lock-closed-outline'}
+                size={16}
+                color={selected ? Colors.textOnPrimary : Colors.primary}
+              />
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.visibilityLabel, selected && styles.visibilityLabelActive]}>{option.label}</Text>
+                <Text style={[styles.visibilityHint, selected && styles.visibilityLabelActive]}>{option.hint}</Text>
+              </View>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+      <TripDaysEditor firstTrailName={trail?.name_en ?? 'This trail'} days={days} onChange={setDays} />
       <TouchableOpacity
         style={[styles.submitBtn, createEvent.isPending && styles.submitBtnBusy]}
         onPress={handleCreate}
@@ -255,7 +306,7 @@ export default function TrailEventsScreen() {
         accessibilityRole="button"
       >
         <Text style={styles.submitText}>
-          {createEvent.isPending ? 'Creating...' : 'Create Event'}
+          {createEvent.isPending ? 'Creating...' : days.length ? 'Create trip' : 'Create group hike'}
         </Text>
       </TouchableOpacity>
     </View>
@@ -355,6 +406,36 @@ const createStyles = (Colors: ColorPalette) =>
   StyleSheet.create({
     container: { flex: 1, backgroundColor: Colors.background },
     listContent: { padding: 16, gap: 12, flexGrow: 1 },
+    visibilityRow: {
+      flexDirection: 'row',
+      gap: 8,
+    },
+    visibilityOption: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      padding: 10,
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: Colors.border,
+    },
+    visibilityOptionActive: {
+      backgroundColor: Colors.primary,
+      borderColor: Colors.primary,
+    },
+    visibilityLabel: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: Colors.text,
+    },
+    visibilityHint: {
+      fontSize: 11,
+      color: Colors.textSecondary,
+    },
+    visibilityLabelActive: {
+      color: Colors.textOnPrimary,
+    },
     form: {
       padding: 16,
       backgroundColor: Colors.surface,

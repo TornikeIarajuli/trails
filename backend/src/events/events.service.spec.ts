@@ -61,36 +61,63 @@ describe('EventsService', () => {
   // findAll
   // -------------------------------------------------------------------------
   describe('findAll', () => {
-    it('returns upcoming events', async () => {
+    /** Every method returns the builder; awaiting it gives the result. */
+    const thenable = (result: object) => {
+      const c: Record<string, any> = {};
+      for (const m of ['select', 'eq', 'gte', 'order', 'in']) c[m] = jest.fn().mockReturnValue(c);
+      c.then = (res: (v: unknown) => unknown) => Promise.resolve(result).then(res);
+      return c;
+    };
+
+    it('returns upcoming public events, with what the cards need', async () => {
       const events = [{ id: 'e1', title: 'Morning Hike' }];
-      const listChain: Record<string, jest.Mock> = {};
-      listChain.select = jest.fn().mockReturnValue(listChain);
-      listChain.gte = jest.fn().mockReturnValue(listChain);
-      listChain.order = jest
-        .fn()
-        .mockResolvedValue({ data: events, error: null });
+      const listChain = thenable({ data: events, error: null });
       mockAdmin.from.mockReturnValue(listChain);
 
       const result = await service.findAll();
       expect(result).toEqual(events);
-      // Cards need the trail's picture and region, and the app marks events the user joined
+      // Private trips are only for those with the link
+      expect(listChain.eq).toHaveBeenCalledWith('visibility', 'public');
+      // Cards need the trail's picture and region, the app marks events the user joined, and
+      // shows how many days a trip has
       const columns = String(listChain.select.mock.calls[0][0]);
-      expect(columns).toContain(
-        'trails:trail_id (id, name_en, region, difficulty, cover_image_url)',
-      );
+      expect(columns).toContain('trails:trail_id (id, name_en, region, difficulty, cover_image_url)');
       expect(columns).toContain('participants:event_participants(user_id)');
+      expect(columns).toContain('days:event_days(day_number)');
     });
 
     it('filters by trail_id when provided', async () => {
-      const listChain: Record<string, jest.Mock> = {};
-      listChain.select = jest.fn().mockReturnValue(listChain);
-      listChain.gte = jest.fn().mockReturnValue(listChain);
-      listChain.order = jest.fn().mockReturnValue(listChain);
-      listChain.eq = jest.fn().mockResolvedValue({ data: [], error: null });
+      const listChain = thenable({ data: [], error: null });
       mockAdmin.from.mockReturnValue(listChain);
 
       await service.findAll('trail-1');
       expect(listChain.eq).toHaveBeenCalledWith('trail_id', 'trail-1');
+    });
+
+    it("lists your own trips, private ones too, until a multi-day trip's last day", async () => {
+      const joined = thenable({ data: [{ event_id: 'e1' }, { event_id: 'e2' }, { event_id: 'e3' }], error: null });
+      const events = thenable({
+        data: [
+          // Started two days ago, a 4-day trip: still on
+          { id: 'e1', scheduled_at: inDays(-2), days: [{ day_number: 2 }, { day_number: 3 }, { day_number: 4 }] },
+          // A day hike two days ago: over
+          { id: 'e2', scheduled_at: inDays(-2), days: [] },
+          { id: 'e3', scheduled_at: inDays(5), visibility: 'private', days: [] },
+        ],
+        error: null,
+      });
+      mockAdmin.from.mockReturnValueOnce(joined).mockReturnValueOnce(events);
+
+      const result = (await service.findMine('me')) as unknown as Array<{ id: string }>;
+      expect(joined.eq).toHaveBeenCalledWith('user_id', 'me');
+      expect(events.in).toHaveBeenCalledWith('id', ['e1', 'e2', 'e3']);
+      expect(result.map((e) => e.id)).toEqual(['e1', 'e3']);
+    });
+
+    it('has none when you joined nothing', async () => {
+      mockAdmin.from.mockReturnValueOnce(thenable({ data: [], error: null }));
+      await expect(service.findMine('me')).resolves.toEqual([]);
+      expect(mockAdmin.from).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -499,6 +526,150 @@ describe('EventsService', () => {
 
       const result = await service.leave('user-1', 'e1');
       expect(result.left).toBe(true);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Trips: days and chat
+  // -------------------------------------------------------------------------
+  describe('trip days', () => {
+    it('sorts the days of a trip', async () => {
+      mockAdmin.from.mockReturnValue(
+        chain({ data: { id: 'e1', days: [{ day_number: 3 }, { day_number: 2 }] }, error: null }),
+      );
+      const event = (await service.findOne('e1')) as { days: { day_number: number }[] };
+      expect(event.days.map((d) => d.day_number)).toEqual([2, 3]);
+    });
+
+    it('stores further days as day 2 onwards, after checking their trails', async () => {
+      const trails: Record<string, any> = {};
+      trails.select = jest.fn().mockReturnValue(trails);
+      trails.in = jest.fn().mockResolvedValue({ data: [{ id: 't2' }], error: null });
+      const eventInsert = chain({ data: { id: 'e9' }, error: null });
+      const participants = chain({ data: null, error: null });
+      participants.select = jest.fn().mockResolvedValue({ error: null });
+      const daysDelete: Record<string, any> = {};
+      daysDelete.delete = jest.fn().mockReturnValue(daysDelete);
+      daysDelete.eq = jest.fn().mockResolvedValue({ error: null });
+      const daysInsert: Record<string, any> = {};
+      daysInsert.insert = jest.fn().mockResolvedValue({ error: null });
+      mockAdmin.from
+        .mockReturnValueOnce(trails)
+        .mockReturnValueOnce(eventInsert)
+        .mockReturnValueOnce(daysDelete)
+        .mockReturnValueOnce(daysInsert)
+        .mockReturnValueOnce(participants);
+
+      await service.create('me', {
+        trail_id: 't1',
+        title: 'Svaneti in three days',
+        scheduled_at: inDays(10),
+        visibility: 'private',
+        days: [{ trail_id: 't2' }, { title: 'Rest day in Mestia', note: 'Museum' }],
+      });
+
+      expect(eventInsert.insert).toHaveBeenCalledWith(
+        expect.objectContaining({ trail_id: 't1', visibility: 'private', organizer_id: 'me' }),
+      );
+      expect(eventInsert.insert.mock.calls[0][0]).not.toHaveProperty('days');
+      expect(daysInsert.insert).toHaveBeenCalledWith([
+        { event_id: 'e9', day_number: 2, trail_id: 't2', title: null, note: null },
+        { event_id: 'e9', day_number: 3, trail_id: null, title: 'Rest day in Mestia', note: 'Museum' },
+      ]);
+    });
+
+    it('refuses a day with neither a trail nor a title, and a trail that does not exist', async () => {
+      await expect(
+        service.create('me', { trail_id: 't1', title: 'Trip', scheduled_at: inDays(3), days: [{ note: 'hmm' }] }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+
+      const trails: Record<string, any> = {};
+      trails.select = jest.fn().mockReturnValue(trails);
+      trails.in = jest.fn().mockResolvedValue({ data: [], error: null });
+      mockAdmin.from.mockReturnValueOnce(trails);
+      await expect(
+        service.create('me', { trail_id: 't1', title: 'Trip', scheduled_at: inDays(3), days: [{ trail_id: 'nope' }] }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+  });
+
+  describe('trip chat', () => {
+    const maybe = (result: object) => {
+      const c: Record<string, any> = {};
+      for (const m of ['select', 'eq', 'order', 'limit', 'lt', 'insert', 'delete']) c[m] = jest.fn().mockReturnValue(c);
+      c.maybeSingle = jest.fn().mockResolvedValue(result);
+      c.single = jest.fn().mockResolvedValue(result);
+      c.then = (res: (v: unknown) => unknown) => Promise.resolve(result).then(res);
+      return c;
+    };
+    const event = { data: { id: 'e1', title: 'Kazbegi weekend', organizer_id: 'org', trail_id: 't1' }, error: null };
+
+    it('is closed to people who have not joined', async () => {
+      mockAdmin.from.mockReturnValueOnce(maybe(event)).mockReturnValueOnce(maybe({ data: null, error: null }));
+      await expect(service.listMessages('stranger', 'e1')).rejects.toThrow('Join the trip');
+    });
+
+    it('is not found when the trip is gone', async () => {
+      mockAdmin.from.mockReturnValueOnce(maybe({ data: null, error: null }));
+      await expect(service.listMessages('me', 'gone')).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('pages back through the messages, newest first', async () => {
+      const messages = maybe({ data: [{ id: 'm2' }, { id: 'm1' }], error: null });
+      mockAdmin.from
+        .mockReturnValueOnce(maybe(event))
+        .mockReturnValueOnce(maybe({ data: { user_id: 'me' }, error: null }))
+        .mockReturnValueOnce(messages);
+
+      await expect(service.listMessages('me', 'e1', '2026-11-20T10:00:00Z', 30)).resolves.toEqual({
+        data: [{ id: 'm2' }, { id: 'm1' }],
+      });
+      expect(messages.order).toHaveBeenCalledWith('created_at', { ascending: false });
+      expect(messages.lt).toHaveBeenCalledWith('created_at', '2026-11-20T10:00:00Z');
+      expect(messages.limit).toHaveBeenCalledWith(30);
+    });
+
+    it('lets the others know of a new message, by push only', async () => {
+      const insert = maybe({ data: { id: 'm9', body: 'Meet at 7?' }, error: null });
+      const members = maybe({ data: [{ user_id: 'me' }, { user_id: 'gio' }, { user_id: 'org' }], error: null });
+      const author = maybe({ data: { username: 'nino' }, error: null });
+      mockAdmin.from
+        .mockReturnValueOnce(maybe(event))
+        .mockReturnValueOnce(maybe({ data: { user_id: 'me' }, error: null }))
+        .mockReturnValueOnce(insert)
+        .mockReturnValueOnce(members)
+        .mockReturnValueOnce(author);
+
+      await service.postMessage('me', 'e1', 'Meet at 7?');
+      await flush();
+
+      expect(insert.insert).toHaveBeenCalledWith({ event_id: 'e1', user_id: 'me', body: 'Meet at 7?' });
+      const sent = mockNotifications.sendToUser.mock.calls;
+      expect(sent.map((c: unknown[]) => c[0])).toEqual(['gio', 'org']);
+      expect(sent[0].slice(1)).toEqual([
+        'Kazbegi weekend',
+        'nino: Meet at 7?',
+        { eventId: 'e1', trailId: 't1', messageId: 'm9' },
+        'group_chat',
+        { history: false },
+      ]);
+    });
+
+    it("lets a message be deleted by its author or the organizer, not someone else", async () => {
+      mockAdmin.from
+        .mockReturnValueOnce(maybe(event))
+        .mockReturnValueOnce(maybe({ data: { user_id: 'gio' }, error: null }))
+        .mockReturnValueOnce(maybe({ data: { id: 'm1', user_id: 'nino' }, error: null }));
+      await expect(service.deleteMessage('gio', 'e1', 'm1')).rejects.toThrow('Only its author or the organizer');
+
+      const del = maybe({ error: null });
+      mockAdmin.from
+        .mockReturnValueOnce(maybe(event))
+        .mockReturnValueOnce(maybe({ data: { user_id: 'org' }, error: null }))
+        .mockReturnValueOnce(maybe({ data: { id: 'm1', user_id: 'nino' }, error: null }))
+        .mockReturnValueOnce(del);
+      await expect(service.deleteMessage('org', 'e1', 'm1')).resolves.toEqual({ deleted: true });
+      expect(del.eq).toHaveBeenCalledWith('id', 'm1');
     });
   });
 });
