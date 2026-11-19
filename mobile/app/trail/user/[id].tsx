@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, Stack, router } from 'expo-router';
 import { useUserXp } from '../../../hooks/useXp';
+import { useGuide } from '../../../hooks/useGuides';
 import { formatXp, levelFor } from '../../../utils/xp';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Icon } from '../../../components/ui/Icon';
@@ -256,6 +257,7 @@ export default function PublicProfileScreen() {
 
   const { id } = useLocalSearchParams<{ id: string }>();
   const { data: userXp } = useUserXp(id);
+  const { data: guide } = useGuide(id);
   const currentUserId = useAuthStore((s) => s.user?.id);
   const blockedIds = useBlockedUserIds();
 
@@ -345,6 +347,17 @@ export default function PublicProfileScreen() {
             size={80}
           />
           <Text style={styles.username}>{profile.username}</Text>
+          {guide ? (
+            <TouchableOpacity
+              style={styles.guideLink}
+              onPress={() => router.push(`/trail/guides/${id}` as never)}
+              accessibilityRole="button"
+              testID="profile-guide"
+            >
+              <Icon name="shield-checkmark" size={14} color={Colors.textOnPrimary} />
+              <Text style={styles.guideLinkText}>Verified guide · see guide profile</Text>
+            </TouchableOpacity>
+          ) : null}
           {userXp ? (
             <View style={styles.levelChip} testID="profile-level">
               <Text style={styles.levelChipText}>
@@ -431,6 +444,21 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     fontWeight: '700',
     color: Colors.text,
     marginTop: 12,
+  },
+  guideLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 14,
+    backgroundColor: Colors.primary,
+  },
+  guideLinkText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: Colors.textOnPrimary,
   },
   levelChip: {
     marginTop: 6,

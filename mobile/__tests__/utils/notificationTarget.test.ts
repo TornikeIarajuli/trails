@@ -23,6 +23,12 @@ describe('getNotificationTarget', () => {
     });
   });
 
+  it('opens My bookings on the right tab, and the guide profile after a review', () => {
+    expect(getNotificationTarget('booking', { bookingId: 'b1', role: 'guide' })).toEqual({ kind: 'route', href: '/trail/bookings?tab=guide' });
+    expect(getNotificationTarget('booking', { bookingId: 'b1', role: 'hiker' })).toEqual({ kind: 'route', href: '/trail/bookings?tab=hiker' });
+    expect(getNotificationTarget('guide_status', { status: 'verified' })).toEqual({ kind: 'route', href: '/trail/guides/apply' });
+  });
+
   it("opens a trip's chat for a new message", () => {
     expect(getNotificationTarget('group_chat', { eventId: 'e1', trailId: 't1', messageId: 'm1' })).toEqual({
       kind: 'route',

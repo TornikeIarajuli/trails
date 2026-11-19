@@ -206,6 +206,26 @@ export interface PostRow {
   trails: { name_en: string } | null;
 }
 
+/** A guide application or listing (migration 067). */
+export interface GuideRow {
+  user_id: string;
+  status: "pending" | "verified" | "rejected" | "paused";
+  headline: string;
+  bio: string;
+  regions: string[];
+  languages: string[];
+  certifications: string | null;
+  price_gel: number | null;
+  price_note: string | null;
+  contact_phone: string | null;
+  contact_whatsapp: boolean;
+  contact_telegram: string | null;
+  admin_note: string | null;
+  created_at: string;
+  verified_at: string | null;
+  profiles: { username: string } | null;
+}
+
 export interface CommentRow {
   id: string;
   activity_id: string;

@@ -217,9 +217,12 @@ export class UsersService {
     });
     throwIfError(error);
 
-    const row = ((data ?? []) as Array<Record<string, number | string | null>>)[0] ?? {};
-    const num = (v: number | string | null | undefined) => (v == null ? 0 : Number(v));
-    const rank = (v: number | string | null | undefined) => (v == null ? null : Number(v));
+    const row =
+      ((data ?? []) as Array<Record<string, number | string | null>>)[0] ?? {};
+    const num = (v: number | string | null | undefined) =>
+      v == null ? 0 : Number(v);
+    const rank = (v: number | string | null | undefined) =>
+      v == null ? null : Number(v);
     return {
       total_xp: num(row.total_xp),
       week_xp: num(row.week_xp),

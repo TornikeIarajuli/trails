@@ -11,14 +11,20 @@ describe('xpWindows (Georgian time, UTC+4)', () => {
 
   it('counts Sunday night in Georgia as the old week, and Monday 00:30 as the new one', () => {
     // Sunday 22 Nov, 23:30 in Tbilisi
-    expect(xpWindows(new Date('2026-11-22T19:30:00Z')).weekStart).toBe('2026-11-15T20:00:00.000Z');
+    expect(xpWindows(new Date('2026-11-22T19:30:00Z')).weekStart).toBe(
+      '2026-11-15T20:00:00.000Z',
+    );
     // Monday 23 Nov, 00:30 in Tbilisi (still Sunday in UTC)
-    expect(xpWindows(new Date('2026-11-22T20:30:00Z')).weekStart).toBe('2026-11-22T20:00:00.000Z');
+    expect(xpWindows(new Date('2026-11-22T20:30:00Z')).weekStart).toBe(
+      '2026-11-22T20:00:00.000Z',
+    );
   });
 
   it('turns the month over at Georgian midnight', () => {
     // 1 Dec, 01:00 in Tbilisi (30 Nov in UTC)
-    expect(xpWindows(new Date('2026-11-30T21:00:00Z')).monthStart).toBe('2026-11-30T20:00:00.000Z');
+    expect(xpWindows(new Date('2026-11-30T21:00:00Z')).monthStart).toBe(
+      '2026-11-30T20:00:00.000Z',
+    );
   });
 
   it('gives no start for all time', () => {

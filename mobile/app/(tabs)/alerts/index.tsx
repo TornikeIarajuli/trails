@@ -39,6 +39,8 @@ const TYPE_MARK: Record<string, { icon: IconName; color: string }> = {
   event_invite: { icon: 'calendar', color: '#7C3AED' },
   event_update: { icon: 'calendar', color: '#7C3AED' },
   group_chat: { icon: 'chatbubbles', color: '#0F766E' },
+  booking: { icon: 'calendar', color: '#0F766E' },
+  guide_status: { icon: 'shield-checkmark', color: '#2E6B49' },
   emergency_contact: { icon: 'shield-checkmark', color: '#DC2626' },
   sos: { icon: 'alert-circle', color: '#DC2626' },
   checkin_reminder: { icon: 'time', color: '#0284C7' },

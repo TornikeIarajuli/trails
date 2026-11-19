@@ -86,6 +86,7 @@ export default function TermsOfService() {
         <section>
           <h2 className="text-xl font-semibold mt-8 mb-3">9. Disclaimers</h2>
           <p>The App is provided &quot;as is&quot; without warranties of any kind, express or implied. We do not guarantee that the App will be error-free, uninterrupted, or that trail information will be accurate or up to date.</p>
+          <p className="mt-3">Local guides listed in the app are independent. Kvali checks who they are before listing them, but does not employ them, take part in or guarantee their services, or handle payments. Prices, licences, insurance and every other arrangement are between you and the guide.</p>
         </section>
 
         <section>

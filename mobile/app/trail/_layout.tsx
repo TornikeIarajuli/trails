@@ -35,6 +35,10 @@ export default function TrailLayout() {
       <Stack.Screen name="completion/[id]" />
       <Stack.Screen name="post/[id]" />
       <Stack.Screen name="compose" />
+      <Stack.Screen name="guides/index" />
+      <Stack.Screen name="guides/[userId]" />
+      <Stack.Screen name="guides/apply" />
+      <Stack.Screen name="bookings" />
       <Stack.Screen name="check-in" />
       <Stack.Screen name="[id]/events" />
       <Stack.Screen name="[id]/event/[eventId]/index" />

@@ -63,4 +63,3 @@ export class EventMessagesQueryDto {
   @Max(100)
   limit?: number;
 }
-

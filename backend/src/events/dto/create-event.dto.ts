@@ -13,11 +13,7 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import {
-  EVENT_VISIBILITY,
-  EventDayDto,
-  MAX_TRIP_DAYS,
-} from './trip.dto';
+import { EVENT_VISIBILITY, EventDayDto, MAX_TRIP_DAYS } from './trip.dto';
 import type { EventVisibility } from './trip.dto';
 import { IsLooseUuid } from '../../common/validators/is-loose-uuid';
 

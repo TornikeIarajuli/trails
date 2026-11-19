@@ -51,7 +51,10 @@ export class MediaController {
   /** A photo for a post (stored before the post is written); returns its URL. */
   @Post('post-photo')
   @Throttle({ default: { ttl: 60000, limit: 20 } })
-  async uploadPostPhoto(@CurrentUser('id') userId: string, @Req() req: Request) {
+  async uploadPostPhoto(
+    @CurrentUser('id') userId: string,
+    @Req() req: Request,
+  ) {
     const file = await readUploadBody(req);
     return this.mediaService.uploadPostPhoto(userId, file);
   }

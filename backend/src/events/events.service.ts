@@ -94,9 +94,9 @@ export class EventsService {
       .order('scheduled_at', { ascending: true });
     throwIfError(error);
     const now = Date.now();
-    return ((data ?? []) as Array<{ scheduled_at: string; days?: DayRow[] }>).filter(
-      (event) => lastDayStart(event) + DAY_MS > now,
-    );
+    return (
+      (data ?? []) as Array<{ scheduled_at: string; days?: DayRow[] }>
+    ).filter((event) => lastDayStart(event) + DAY_MS > now);
   }
 
   async findOne(id: string) {
@@ -139,7 +139,11 @@ export class EventsService {
     if (days.some((d) => !d.trail_id && !d.title)) {
       throw new BadRequestException('Each day needs a trail or a title');
     }
-    const trailIds = [...new Set(days.map((d) => d.trail_id).filter((id): id is string => !!id))];
+    const trailIds = [
+      ...new Set(
+        days.map((d) => d.trail_id).filter((id): id is string => !!id),
+      ),
+    ];
     if (trailIds.length === 0) return;
     const { data, error } = await this.supabaseService
       .getAdminClient()
@@ -417,18 +421,32 @@ export class EventsService {
       .maybeSingle();
     throwIfError(memberError);
     if (!member) {
-      throw new ForbiddenException('Join the trip to read and write in its chat');
+      throw new ForbiddenException(
+        'Join the trip to read and write in its chat',
+      );
     }
-    return event as { id: string; title: string; organizer_id: string; trail_id: string };
+    return event as {
+      id: string;
+      title: string;
+      organizer_id: string;
+      trail_id: string;
+    };
   }
 
   /** The trip's chat, newest first, a page at a time (`before` an older message's time). */
-  async listMessages(userId: string, eventId: string, before?: string, limit = 50) {
+  async listMessages(
+    userId: string,
+    eventId: string,
+    before?: string,
+    limit = 50,
+  ) {
     await this.assertParticipant(userId, eventId);
     let query = this.supabaseService
       .getAdminClient()
       .from('event_messages')
-      .select('id, event_id, user_id, body, created_at, profiles:user_id (username, avatar_url)')
+      .select(
+        'id, event_id, user_id, body, created_at, profiles:user_id (username, avatar_url)',
+      )
       .eq('event_id', eventId)
       .order('created_at', { ascending: false })
       .limit(limit);
@@ -445,27 +463,43 @@ export class EventsService {
     const { data, error } = await admin
       .from('event_messages')
       .insert({ event_id: eventId, user_id: userId, body })
-      .select('id, event_id, user_id, body, created_at, profiles:user_id (username, avatar_url)')
+      .select(
+        'id, event_id, user_id, body, created_at, profiles:user_id (username, avatar_url)',
+      )
       .single();
     throwIfError(error);
 
-    this.notifyChat(event, userId, body, (data as { id: string }).id).catch(() => {});
+    this.notifyChat(event, userId, body, (data as { id: string }).id).catch(
+      () => {},
+    );
     return data;
   }
 
   private async notifyChat(
-    event: { id: string; title: string; organizer_id: string; trail_id: string },
+    event: {
+      id: string;
+      title: string;
+      organizer_id: string;
+      trail_id: string;
+    },
     authorId: string,
     body: string,
     messageId: string,
   ) {
     const admin = this.supabaseService.getAdminClient();
     const [{ data: members }, { data: author }] = await Promise.all([
-      admin.from('event_participants').select('user_id').eq('event_id', event.id),
+      admin
+        .from('event_participants')
+        .select('user_id')
+        .eq('event_id', event.id),
       admin.from('profiles').select('username').eq('id', authorId).single(),
     ]);
-    const name = (author as { username?: string } | null)?.username ?? 'Someone';
-    const text = body.length > MESSAGE_PREVIEW ? `${body.slice(0, MESSAGE_PREVIEW - 1)}…` : body;
+    const name =
+      (author as { username?: string } | null)?.username ?? 'Someone';
+    const text =
+      body.length > MESSAGE_PREVIEW
+        ? `${body.slice(0, MESSAGE_PREVIEW - 1)}…`
+        : body;
     for (const member of (members ?? []) as { user_id: string }[]) {
       if (member.user_id === authorId) continue;
       this.notificationsService
@@ -493,10 +527,18 @@ export class EventsService {
       .maybeSingle();
     throwIfError(error);
     if (!message) throw new NotFoundException('Message not found');
-    if ((message as { user_id: string }).user_id !== userId && event.organizer_id !== userId) {
-      throw new ForbiddenException('Only its author or the organizer can delete a message');
+    if (
+      (message as { user_id: string }).user_id !== userId &&
+      event.organizer_id !== userId
+    ) {
+      throw new ForbiddenException(
+        'Only its author or the organizer can delete a message',
+      );
     }
-    const { error: deleteError } = await admin.from('event_messages').delete().eq('id', messageId);
+    const { error: deleteError } = await admin
+      .from('event_messages')
+      .delete()
+      .eq('id', messageId);
     throwIfError(deleteError);
     return { deleted: true };
   }

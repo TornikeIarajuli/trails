@@ -152,6 +152,15 @@ export const queryKeys = {
   },
 
   // Events
+  // Local guides and booking requests
+  guides: {
+    list: (filter: string) => ['guides', 'list', filter] as const,
+    detail: (userId: string) => ['guides', 'detail', userId] as const,
+    mine: () => ['guides', 'mine'] as const,
+    contact: (userId: string) => ['guides', 'contact', userId] as const,
+    bookings: () => ['bookings'] as const,
+  },
+
   events: {
     trail: (trailId: string) => ['events', 'trail', trailId] as const,
     upcoming: () => ['events', 'upcoming'] as const,

@@ -18,6 +18,7 @@ import {
   ClipboardCheck,
   Activity,
   Newspaper,
+  BadgeCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -32,6 +33,7 @@ const navItems = [
   { href: "/conditions", label: "Conditions", icon: AlertTriangle },
   { href: "/photos", label: "Photos", icon: ImageIcon },
   { href: "/posts", label: "Posts", icon: Newspaper },
+  { href: "/guides", label: "Guides", icon: BadgeCheck },
   { href: "/comments", label: "Comments", icon: MessageSquare },
   { href: "/events", label: "Group Hikes", icon: CalendarDays },
   { href: "/reports", label: "Reports", icon: Flag },

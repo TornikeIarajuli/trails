@@ -69,7 +69,10 @@ export class PostsService {
     if (dto.photo_urls !== undefined) changes.photo_urls = dto.photo_urls;
 
     const admin = this.supabaseService.getAdminClient();
-    const { error } = await admin.from('posts').update(changes).eq('id', postId);
+    const { error } = await admin
+      .from('posts')
+      .update(changes)
+      .eq('id', postId);
     throwIfError(error);
 
     return this.feedItem(postId);

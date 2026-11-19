@@ -59,6 +59,14 @@ export function getNotificationTarget(
       if (activityId) return { kind: 'route', href: postHref(activityId, kind === 'new_comment', trailId) };
       return trailId ? { kind: 'route', href: `/trail/${trailId}` } : { kind: 'none' };
     }
+    case 'booking': {
+      // A request to the guide, or the guide's answer to the hiker
+      const tab = d.role === 'guide' ? 'guide' : 'hiker';
+      return { kind: 'route', href: `/trail/bookings?tab=${tab}` };
+    }
+    case 'guide_status':
+      // The team verified, rejected or paused your guide profile
+      return { kind: 'route', href: '/trail/guides/apply' };
     case 'group_chat': {
       // A message in a trip's chat: the chat itself
       const eventId = text(d.eventId);

@@ -26,6 +26,7 @@ import { CommentsModule } from './comments/comments.module';
 import { EventsModule } from './events/events.module';
 import { ModerationModule } from './moderation/moderation.module';
 import { PostsModule } from './posts/posts.module';
+import { GuidesModule } from './guides/guides.module';
 
 @Module({
   imports: [
@@ -57,6 +58,7 @@ import { PostsModule } from './posts/posts.module';
     EventsModule,
     ModerationModule,
     PostsModule,
+    GuidesModule,
   ],
   providers: [
     { provide: APP_FILTER, useClass: SentryGlobalFilter },

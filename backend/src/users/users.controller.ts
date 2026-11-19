@@ -87,7 +87,10 @@ export class UsersController {
   @Get('leaderboard')
   getLeaderboard(@Query() query: LeaderboardQueryDto) {
     if (query.period) {
-      return this.usersService.getXpLeaderboard(query.period, query.limit ?? 50);
+      return this.usersService.getXpLeaderboard(
+        query.period,
+        query.limit ?? 50,
+      );
     }
     return this.usersService.getLeaderboard(query.limit ?? 20);
   }

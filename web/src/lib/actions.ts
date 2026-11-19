@@ -38,6 +38,7 @@ import {
   type Paged,
   type PhotoRow,
   type PostRow,
+  type GuideRow,
   type Product,
   type ProductInput,
   type ProductListItem,
@@ -982,6 +983,58 @@ export async function deletePost(id: string): Promise<Mutation> {
       await Promise.all((post.photo_urls ?? []).map((url) => removeStoredFile(supabase, url)))
     ).filter((w): w is string => !!w);
     return { error: null, warning: warnings[0] ?? null };
+  });
+}
+
+const GUIDE_STATUSES = ["pending", "verified", "rejected", "paused"];
+
+/** Guide applications and listings, newest first; `status` filters (pending first by default). */
+export async function getGuides(params: { page: number; status?: string }): Promise<Paged<GuideRow>> {
+  return asAdmin(async (supabase) => {
+    const [from, to] = pageBounds(params?.page);
+    let query = supabase.from("guides").select("*, profiles:user_id(username)", { count: "exact" });
+    if (params?.status && GUIDE_STATUSES.includes(params.status)) query = query.eq("status", params.status);
+    const res = await query.order("created_at", { ascending: false }).order("user_id").range(from, to);
+    if (isMissingTable(res.error)) return fail("Guides need database migration 067 to be applied.");
+    return paged<GuideRow>(res);
+  });
+}
+
+/**
+ * Verifies, rejects (with a note the guide sees) or pauses a guide, and tells them in their
+ * Alerts (no push from the admin).
+ */
+export async function setGuideStatus(
+  userId: string,
+  status: "verified" | "rejected" | "paused",
+  note?: string,
+): Promise<Mutation> {
+  return asAdmin(async (supabase) => {
+    if (!GUIDE_STATUSES.includes(status)) return fail("Unknown status");
+    const changes: Record<string, unknown> = {
+      status,
+      admin_note: status === "rejected" ? (note?.trim() || null) : null,
+      updated_at: new Date().toISOString(),
+    };
+    if (status === "verified") changes.verified_at = new Date().toISOString();
+    const { data, error } = await supabase.from("guides").update(changes).eq("user_id", userId).select("user_id");
+    if (error) return fail(error);
+    if (!data?.length) return fail("Guide not found");
+
+    const message =
+      status === "verified"
+        ? { title: "You're a verified guide", body: "Your guide profile is now listed in Kvali. Hikers can send you booking requests." }
+        : status === "rejected"
+          ? { title: "Guide application not approved", body: note?.trim() ? `Note from the team: ${note.trim()}` : "Open your guide profile to see what to change." }
+          : { title: "Guide listing paused", body: "Your guide profile is hidden for now. Contact the team to put it back." };
+    await supabase.from("notifications").insert({
+      user_id: userId,
+      type: "guide_status",
+      title: message.title,
+      body: message.body,
+      data: { type: "guide_status", status },
+    });
+    return done;
   });
 }
 

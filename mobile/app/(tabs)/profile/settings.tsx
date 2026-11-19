@@ -339,6 +339,32 @@ export default function SettingsScreen() {
         </View>
 
         <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Guides</Text>
+          {[
+            { key: 'find', icon: 'shield-checkmark-outline', label: 'Find a local guide', route: '/trail/guides' },
+            { key: 'bookings', icon: 'calendar-outline', label: 'My bookings', route: '/trail/bookings' },
+            { key: 'apply', icon: 'ribbon-outline', label: 'Guide on Kvali', route: '/trail/guides/apply' },
+          ].map((row, i) => (
+            <React.Fragment key={row.key}>
+              {i > 0 ? <View style={styles.divider} /> : null}
+              <TouchableOpacity
+                style={styles.linkRow}
+                onPress={() => router.push(row.route as never)}
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                testID={`settings-guides-${row.key}`}
+              >
+                <View style={styles.rowLeft}>
+                  <Icon name={row.icon as never} size={20} color={Colors.text} />
+                  <Text style={styles.rowLabel}>{row.label}</Text>
+                </View>
+                <Icon name="chevron-forward" size={18} color={Colors.textLight} />
+              </TouchableOpacity>
+            </React.Fragment>
+          ))}
+        </View>
+
+        <View style={styles.section}>
           <Text style={styles.sectionTitle}>Data & Privacy</Text>
           <TouchableOpacity
             style={styles.linkRow}

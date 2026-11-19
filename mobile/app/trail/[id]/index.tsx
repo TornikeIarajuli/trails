@@ -41,6 +41,7 @@ import { ReviewsList } from '../../../components/trail/ReviewsList';
 import { WriteReviewModal } from '../../../components/trail/WriteReviewModal';
 import { TrailForecastCard } from '../../../components/trail/TrailForecastCard';
 import { useTrailForecast } from '../../../hooks/useTrailForecast';
+import { useGuides } from '../../../hooks/useGuides';
 import { neededHours, verdictForToday } from '../../../utils/trailVerdict';
 import { trailCache } from '../../../utils/trailCache';
 import { analytics } from '../../../utils/analytics';
@@ -94,6 +95,9 @@ export default function TrailDetailScreen() {
   const { data: allConditions, refetch: refetchConditions } = useTrailConditions(id);
   const { data: activeCount, refetch: refetchCount } = useActiveHikerCount(id);
   const gear = useGearPlan(isPlaceholderData ? undefined : trail);
+  // Local guides who know this trail or work in its region
+  const { data: trailGuides } = useGuides({ trailId: id }, !!id);
+  const guideCount = trailGuides?.length ?? 0;
   // Today's go / wait / skip, for a word of warning before starting on a "skip" day
   const forecastQuery = useTrailForecast(trail, !isPlaceholderData);
   const todaysVerdict = useMemo(() => {
@@ -520,6 +524,23 @@ export default function TrailDetailScreen() {
           )}
 
           <CheckpointList checkpoints={checkpoints} />
+
+          {guideCount > 0 && (
+            <TouchableOpacity
+              style={styles.sectionLink}
+              onPress={() =>
+                router.push({ pathname: '/trail/guides', params: { trailId: id, trailName: name } } as never)
+              }
+              accessibilityRole="button"
+              testID="trail-guides"
+            >
+              <Icon name="shield-checkmark-outline" size={18} color={Colors.primary} />
+              <Text style={styles.sectionLinkText}>
+                {guideCount === 1 ? '1 local guide' : `${guideCount} local guides`} for this trail
+              </Text>
+              <Icon name="chevron-forward" size={16} color={Colors.textLight} />
+            </TouchableOpacity>
+          )}
 
           {/* Upcoming Group Hikes */}
           <TouchableOpacity

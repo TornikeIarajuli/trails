@@ -62,7 +62,8 @@ export default function TermsOfServiceScreen() {
         <Section title="7. Safety Disclaimer" styles={styles}>
           Hiking involves inherent risks including injury, adverse weather, and dangerous terrain. Kvali provides information for reference purposes only.{'\n\n'}
           Trail conditions, difficulty ratings, and route information may not be current or accurate. Always check official sources before hiking, carry appropriate gear, and inform someone of your plans.{'\n\n'}
-          Kvali is not responsible for any injury, loss, or damage arising from your use of the app or participation in hiking activities.
+          Kvali is not responsible for any injury, loss, or damage arising from your use of the app or participation in hiking activities.{'\n\n'}
+          Local guides listed in the app are independent. Kvali checks who they are before listing them, but does not employ them, take part in or guarantee their services, or handle payments. Prices, licences, insurance and every other arrangement are between you and the guide.
         </Section>
 
         <Section title="8. Emergency SOS" styles={styles}>

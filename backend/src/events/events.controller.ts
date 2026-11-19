@@ -49,7 +49,12 @@ export class EventsController {
     @Param('id', ParseUUIDPipe) id: string,
     @Query() query: EventMessagesQueryDto,
   ) {
-    return this.eventsService.listMessages(userId, id, query.before, query.limit ?? 50);
+    return this.eventsService.listMessages(
+      userId,
+      id,
+      query.before,
+      query.limit ?? 50,
+    );
   }
 
   @Post(':id/messages')

@@ -28,7 +28,8 @@ const mockAdmin = {
   from: jest.fn((table: string) => {
     const next = queues.get(table)?.shift();
     // Nothing saved, unless a test says otherwise
-    if (!next && table === 'saved_posts') return makeBuilder({ data: [], error: null });
+    if (!next && table === 'saved_posts')
+      return makeBuilder({ data: [], error: null });
     if (!next) throw new Error(`Unexpected query on ${table}`);
     return next;
   }),
@@ -382,27 +383,40 @@ describe('FeedService', () => {
   });
   describe('saved posts', () => {
     it('marks the posts the caller saved', async () => {
-      rpcResults.set('get_activity_feed', { data: [item('a1'), item('a2')], error: null });
+      rpcResults.set('get_activity_feed', {
+        data: [item('a1'), item('a2')],
+        error: null,
+      });
       onTable('activity_likes', { data: [], error: null });
       onTable('activity_comments', { data: [], error: null });
-      const saved = onTable('saved_posts', { data: [{ activity_id: 'a2' }], error: null });
+      const saved = onTable('saved_posts', {
+        data: [{ activity_id: 'a2' }],
+        error: null,
+      });
 
       const result = await service.getFeed('me', 1, 20);
 
       expect(saved.eq).toHaveBeenCalledWith('user_id', 'me');
       expect(saved.in).toHaveBeenCalledWith('activity_id', ['a1', 'a2']);
-      expect(result.data.map((p) => (p as { saved_by_me?: boolean }).saved_by_me)).toEqual([false, true]);
+      expect(
+        result.data.map((p) => (p as { saved_by_me?: boolean }).saved_by_me),
+      ).toEqual([false, true]);
     });
 
     it('leaves saved_by_me out when the saved posts cannot be loaded', async () => {
       rpcResults.set('get_activity_feed', { data: [item('a1')], error: null });
       onTable('activity_likes', { data: [], error: null });
       onTable('activity_comments', { data: [], error: null });
-      onTable('saved_posts', { data: null, error: { message: 'relation does not exist' } });
+      onTable('saved_posts', {
+        data: null,
+        error: { message: 'relation does not exist' },
+      });
 
       const result = await service.getFeed('me', 1, 20);
 
-      expect(result.data[0]).toEqual(expect.objectContaining({ activity_id: 'a1', like_count: 0 }));
+      expect(result.data[0]).toEqual(
+        expect.objectContaining({ activity_id: 'a1', like_count: 0 }),
+      );
       expect(result.data[0]).not.toHaveProperty('saved_by_me');
     });
 
@@ -411,29 +425,55 @@ describe('FeedService', () => {
       rpcResults.set('get_saved_posts', {
         data: [
           { ...item('s1'), saved_at: '2026-11-19T10:00:00Z', total_count: 3 },
-          { ...item('s2', 'troll'), saved_at: '2026-11-18T10:00:00Z', total_count: 3 },
+          {
+            ...item('s2', 'troll'),
+            saved_at: '2026-11-18T10:00:00Z',
+            total_count: 3,
+          },
           { ...item('s3'), saved_at: '2026-11-17T10:00:00Z', total_count: 3 },
         ],
         error: null,
       });
       onTable('activity_likes', { data: [], error: null });
       onTable('activity_comments', { data: [], error: null });
-      onTable('saved_posts', { data: [{ activity_id: 's1' }, { activity_id: 's3' }], error: null });
+      onTable('saved_posts', {
+        data: [{ activity_id: 's1' }, { activity_id: 's3' }],
+        error: null,
+      });
 
       const result = await service.getSaved('me', 1, 20);
 
-      expect(mockAdmin.rpc).toHaveBeenCalledWith('get_saved_posts', { p_user_id: 'me', p_limit: 20, p_offset: 0 });
+      expect(mockAdmin.rpc).toHaveBeenCalledWith('get_saved_posts', {
+        p_user_id: 'me',
+        p_limit: 20,
+        p_offset: 0,
+      });
       expect(result.data.map((p) => p.activity_id)).toEqual(['s1', 's3']);
       expect(result.data[0]).not.toHaveProperty('total_count');
-      expect(result.data[0]).toEqual(expect.objectContaining({ saved_by_me: true, saved_at: '2026-11-19T10:00:00Z' }));
-      expect(result.pagination).toEqual({ page: 1, limit: 20, total: 3, totalPages: 1 });
+      expect(result.data[0]).toEqual(
+        expect.objectContaining({
+          saved_by_me: true,
+          saved_at: '2026-11-19T10:00:00Z',
+        }),
+      );
+      expect(result.pagination).toEqual({
+        page: 1,
+        limit: 20,
+        total: 3,
+        totalPages: 1,
+      });
     });
 
     it('saves a post that exists, once, with its type', async () => {
-      rpcResults.set('get_activity_item', { data: [{ ...item('a1'), activity_type: 'photo' }], error: null });
+      rpcResults.set('get_activity_item', {
+        data: [{ ...item('a1'), activity_type: 'photo' }],
+        error: null,
+      });
       const saved = onTable('saved_posts', { error: null });
 
-      await expect(service.savePost('me', 'a1')).resolves.toEqual({ saved: true });
+      await expect(service.savePost('me', 'a1')).resolves.toEqual({
+        saved: true,
+      });
       expect(saved.upsert).toHaveBeenCalledWith(
         { user_id: 'me', activity_id: 'a1', activity_type: 'photo' },
         { onConflict: 'user_id,activity_id', ignoreDuplicates: true },
@@ -442,16 +482,25 @@ describe('FeedService', () => {
 
     it('does not save a post that is gone, or by someone the caller blocked', async () => {
       rpcResults.set('get_activity_item', { data: [], error: null });
-      await expect(service.savePost('me', 'gone')).rejects.toBeInstanceOf(NotFoundException);
+      await expect(service.savePost('me', 'gone')).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
 
       mockModeration.getBlockedUserIds.mockResolvedValue(['troll']);
-      rpcResults.set('get_activity_item', { data: [item('a9', 'troll')], error: null });
-      await expect(service.savePost('me', 'a9')).rejects.toBeInstanceOf(NotFoundException);
+      rpcResults.set('get_activity_item', {
+        data: [item('a9', 'troll')],
+        error: null,
+      });
+      await expect(service.savePost('me', 'a9')).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
     });
 
     it("unsaves only the caller's own row", async () => {
       const saved = onTable('saved_posts', { error: null });
-      await expect(service.unsavePost('me', 'a1')).resolves.toEqual({ saved: false });
+      await expect(service.unsavePost('me', 'a1')).resolves.toEqual({
+        saved: false,
+      });
       expect(saved.delete).toHaveBeenCalled();
       expect(saved.eq).toHaveBeenCalledWith('user_id', 'me');
       expect(saved.eq).toHaveBeenCalledWith('activity_id', 'a1');
