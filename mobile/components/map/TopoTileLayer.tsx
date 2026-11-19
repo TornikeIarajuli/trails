@@ -3,12 +3,18 @@ import { Platform } from 'react-native';
 import { UrlTile, MapType } from 'react-native-maps';
 import { TILE_CACHE_MAX_AGE_S, TOPO_MAX_ZOOM, TOPO_TILE_URL } from '../../utils/topoTiles';
 import { topoTileCachePath } from '../../services/offlineMaps';
+import type { MapStyle } from '../../store/settingsStore';
 
 const CACHE_PATH = topoTileCachePath();
 
-/** Under topo tiles Android turns the Google base map off; on iOS the tiles replace Apple's map. */
-export function topoMapType(topo: boolean): MapType {
-  return topo && Platform.OS === 'android' ? 'none' : 'standard';
+/**
+ * The platform map under each style. Under topo tiles Android turns the Google base map off (on
+ * iOS the tiles replace Apple's map); satellite shows the photos with roads and place names.
+ */
+export function mapTypeFor(style: MapStyle): MapType {
+  if (style === 'satellite') return 'hybrid';
+  if (style === 'topo' && Platform.OS === 'android') return 'none';
+  return 'standard';
 }
 
 /**

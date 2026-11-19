@@ -16,8 +16,8 @@ import { useColors, ColorPalette } from '../../../constants/colors';
 import { useRegionProgress } from '../../../hooks/useRegionProgress';
 import { useTrails, usePrefetchTrail } from '../../../hooks/useTrails';
 import { useMapStyle } from '../../../hooks/useMapStyle';
-import { TopoTileLayer, topoMapType } from '../../../components/map/TopoTileLayer';
-import { MapStyleToggle } from '../../../components/map/MapStyleToggle';
+import { TopoTileLayer, mapTypeFor } from '../../../components/map/TopoTileLayer';
+import { MapStylePicker } from '../../../components/map/MapStylePicker';
 import { TopoAttribution } from '../../../components/map/TopoAttribution';
 import { haptics } from '../../../utils/haptics';
 import { useSettingsStore } from '../../../store/settingsStore';
@@ -197,7 +197,7 @@ export default function RegionsScreen() {
   const { data, isLoading, error, refetch, isRefetching } = useRegionProgress(userId || undefined);
   const [expanded, setExpanded] = useState<string | null>(null);
   const listRef = useRef<FlatList<RegionProgress>>(null);
-  const { topo, offline, toggle } = useMapStyle();
+  const { style: mapStyle, topo, offline, setStyle } = useMapStyle();
 
   const regions = useMemo(() => sortRegions(data?.regions ?? []), [data]);
 
@@ -265,14 +265,14 @@ export default function RegionsScreen() {
             provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
             initialRegion={GEORGIA}
             toolbarEnabled={false}
-            mapType={topoMapType(topo)}
+            mapType={mapTypeFor(mapStyle)}
           >
             {topo && <TopoTileLayer offline={offline} />}
             {regions.map((region) => (
               <RegionMarker key={region.region} region={region} onPress={() => showRegion(region.region)} />
             ))}
           </MapView>
-          <MapStyleToggle topo={topo} onToggle={toggle} style={styles.mapToggle} />
+          <MapStylePicker value={mapStyle} onChange={setStyle} style={styles.mapToggle} />
           {topo && <TopoAttribution />}
         </View>
 

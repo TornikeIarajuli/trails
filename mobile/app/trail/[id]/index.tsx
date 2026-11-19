@@ -22,6 +22,7 @@ import { DifficultyBadge } from '../../../components/trail/DifficultyBadge';
 import { TrailStats } from '../../../components/trail/TrailStats';
 import { CheckpointList } from '../../../components/trail/CheckpointList';
 import { TrailMap } from '../../../components/trail/TrailMap';
+import { DirectionsRow } from '../../../components/trail/DirectionsRow';
 import { ElevationProfile } from '../../../components/trail/ElevationProfile';
 import { BookmarkButton } from '../../../components/trail/BookmarkButton';
 import { ShareButton } from '../../../components/trail/ShareButton';
@@ -482,6 +483,7 @@ export default function TrailDetailScreen() {
                 checkpoints={checkpoints}
                 height={220}
               />
+              <DirectionsRow trailId={id} trailName={name} start={startPoint} />
               <TopoDownloadRow trailId={id} trailName={trail.name_en} plan={topoPlan} />
             </>
           )}

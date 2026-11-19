@@ -5,8 +5,8 @@ import { useColors, ColorPalette } from '../../constants/colors';
 import { Checkpoint } from '../../types/checkpoint';
 import { parseGeoPoint } from '../../utils/geo';
 import { useMapStyle } from '../../hooks/useMapStyle';
-import { TopoTileLayer, topoMapType } from '../map/TopoTileLayer';
-import { MapStyleToggle } from '../map/MapStyleToggle';
+import { TopoTileLayer, mapTypeFor } from '../map/TopoTileLayer';
+import { MapStylePicker } from '../map/MapStylePicker';
 import { TopoAttribution } from '../map/TopoAttribution';
 
 const OSM_COPYRIGHT_URL = 'https://www.openstreetmap.org/copyright';
@@ -28,7 +28,7 @@ export function TrailMap({
 }: TrailMapProps) {
   const Colors = useColors();
   const styles = useMemo(() => createStyles(Colors), [Colors]);
-  const { topo, offline, toggle } = useMapStyle();
+  const { style: mapStyle, topo, offline, setStyle } = useMapStyle();
 
   // Parse checkpoint coordinates
   const parsedCheckpoints = checkpoints
@@ -75,7 +75,7 @@ export function TrailMap({
           style={styles.map}
           provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
           initialRegion={region}
-          mapType={topoMapType(topo)}
+          mapType={mapTypeFor(mapStyle)}
         >
           {topo && <TopoTileLayer offline={offline} />}
           {route.length > 1 && (
@@ -101,7 +101,7 @@ export function TrailMap({
             />
           ))}
         </MapView>
-        <MapStyleToggle topo={topo} onToggle={toggle} style={styles.toggle} />
+        <MapStylePicker value={mapStyle} onChange={setStyle} style={styles.toggle} />
         {topo && <TopoAttribution />}
       </View>
       {/* The route and checkpoints come from OpenStreetMap (ODbL), which requires this credit.

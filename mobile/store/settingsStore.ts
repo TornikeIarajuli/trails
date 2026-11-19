@@ -5,8 +5,13 @@ import { DEFAULT_THEME, THEMES, ThemeChoice, isThemeChoice, resolveThemeId } fro
 
 type Language = 'en' | 'ka';
 export type GpsAccuracy = 'low' | 'balanced' | 'high';
-/** The base map on every map screen: the platform map, or OpenTopoMap's topographic tiles. */
-export type MapStyle = 'standard' | 'topo';
+/** The base map on every map screen: the platform map, OpenTopoMap's topographic tiles, or satellite photos. */
+export type MapStyle = 'standard' | 'topo' | 'satellite';
+export const MAP_STYLES: readonly MapStyle[] = ['standard', 'topo', 'satellite'];
+
+export function isMapStyle(value: unknown): value is MapStyle {
+  return MAP_STYLES.includes(value as MapStyle);
+}
 
 const STORAGE_KEY = 'app_settings';
 
@@ -98,7 +103,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
           isDarkMode: choiceIsDark(theme),
           hasSeenOnboarding: data.hasSeenOnboarding ?? false,
           gpsAccuracy: data.gpsAccuracy ?? 'balanced',
-          mapStyle: data.mapStyle === 'topo' ? 'topo' : 'standard',
+          mapStyle: isMapStyle(data.mapStyle) ? data.mapStyle : 'standard',
           _hydrated: true,
         });
       } else {

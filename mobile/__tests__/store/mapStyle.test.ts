@@ -33,13 +33,19 @@ describe('map style setting', () => {
     expect(store().mapStyle).toBe('topo');
   });
 
+  it('restores a saved satellite choice', async () => {
+    mockGetItem.mockResolvedValueOnce(JSON.stringify({ mapStyle: 'satellite' }));
+    await store().hydrate();
+    expect(store().mapStyle).toBe('satellite');
+  });
+
   it('falls back to the standard map for settings saved before the option existed, or unknown values', async () => {
     useSettingsStore.setState({ mapStyle: 'topo' });
     mockGetItem.mockResolvedValueOnce(JSON.stringify({ language: 'ka' }));
     await store().hydrate();
     expect(store().mapStyle).toBe('standard');
 
-    mockGetItem.mockResolvedValueOnce(JSON.stringify({ mapStyle: 'satellite' }));
+    mockGetItem.mockResolvedValueOnce(JSON.stringify({ mapStyle: 'terrain' }));
     await store().hydrate();
     expect(store().mapStyle).toBe('standard');
   });

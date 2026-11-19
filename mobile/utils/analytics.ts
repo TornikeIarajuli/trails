@@ -89,6 +89,10 @@ export const analytics = {
   trailBookmarked: (trailId: string) =>
     _client?.capture('trail_bookmarked', { trail_id: trailId }),
 
+  /** "Directions to the start": which maps app, or 'share' for sending the location. */
+  directionsOpened: (trailId: string, app: string) =>
+    _client?.capture('directions_opened', { trail_id: trailId, app }),
+
   photoUploaded: (context: 'hike' | 'community' | 'profile') =>
     _client?.capture('photo_uploaded', { context }),
 

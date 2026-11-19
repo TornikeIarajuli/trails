@@ -46,8 +46,8 @@ import { MAX_FIX_ACCURACY_M, buildPendingCompletion, isWithinCheckinRange } from
 import { recordKeptPastMark } from '../../../utils/pastHikes';
 import { RecordHikeResponse } from '../../../types/completion';
 import { useMapStyle } from '../../../hooks/useMapStyle';
-import { TopoTileLayer, topoMapType } from '../../../components/map/TopoTileLayer';
-import { MapStyleToggle } from '../../../components/map/MapStyleToggle';
+import { TopoTileLayer, mapTypeFor } from '../../../components/map/TopoTileLayer';
+import { MapStylePicker } from '../../../components/map/MapStylePicker';
 import { TopoAttribution } from '../../../components/map/TopoAttribution';
 
 // Isolated timer component — only this re-renders every second
@@ -122,7 +122,7 @@ export default function HikeScreen() {
   const mapRef = useRef<MapView>(null);
   const hasInitialLocation = useRef(false);
   // Offline the standard map cannot load, so the topo tiles kept on the phone take over
-  const { topo, offline, toggle: toggleMapStyle } = useMapStyle({ autoTopoWhenOffline: true });
+  const { style: mapStyle, topo, offline, setStyle: setMapStyle } = useMapStyle({ autoTopoWhenOffline: true });
 
   const hydrated = useHikeStore((s) => s._hydrated);
   const lineWarningShown = useLineWarning((s) => s.warning !== null);
@@ -532,7 +532,7 @@ export default function HikeScreen() {
         provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
         initialRegion={Config.DEFAULT_MAP_REGION}
         showsUserLocation
-        mapType={topoMapType(topo)}
+        mapType={mapTypeFor(mapStyle)}
       >
         {topo && <TopoTileLayer offline={offline} />}
 
@@ -632,9 +632,9 @@ export default function HikeScreen() {
           <Text style={styles.offlineMapBadgeText}>Offline topo map</Text>
         </View>
       ) : (
-        <MapStyleToggle
-          topo={topo}
-          onToggle={toggleMapStyle}
+        <MapStylePicker
+          value={mapStyle}
+          onChange={setMapStyle}
           style={[styles.mapStyleToggle, { bottom: 268 + insets.bottom }]}
         />
       )}
