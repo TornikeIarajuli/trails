@@ -78,6 +78,24 @@ describe('GuidesService', () => {
   });
 
   describe('list', () => {
+    it('names the foreign key of every join (the database refuses an ambiguous one)', async () => {
+      const guides = onTable('guides', { data: [], error: null });
+      await service.list({});
+      expect(String(guides.select.mock.calls[0][0])).toContain(
+        'profiles!guides_user_id_fkey (',
+      );
+
+      const asHiker = onTable('guide_bookings', { data: [], error: null });
+      const asGuide = onTable('guide_bookings', { data: [], error: null });
+      await service.listBookings('me');
+      expect(String(asHiker.select.mock.calls[0][0])).toContain(
+        'guide:guides!guide_bookings_guide_id_fkey (headline, profiles!guides_user_id_fkey (',
+      );
+      expect(String(asGuide.select.mock.calls[0][0])).toContain(
+        'hiker:profiles!guide_bookings_hiker_id_fkey (',
+      );
+    });
+
     it('lists verified guides for a trail: listed on it, or guiding in its region', async () => {
       onTable('trails', { data: { region: 'Svaneti' }, error: null });
       const guides = onTable('guides', {

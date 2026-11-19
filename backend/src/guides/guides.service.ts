@@ -14,9 +14,13 @@ import {
   GuidesQueryDto,
 } from './dto/guide.dto';
 
-/** What anyone may see of a verified guide: everything but their phone and messengers. */
+/**
+ * What anyone may see of a verified guide: everything but their phone and messengers. Joins name
+ * their foreign key: guides reach profiles directly and through guide_bookings, and the database
+ * refuses an ambiguous join (PGRST201).
+ */
 const PUBLIC_COLUMNS =
-  'user_id, headline, bio, regions, languages, certifications, price_gel, price_note, trail_ids, verified_at, profiles:user_id (username, full_name, avatar_url)';
+  'user_id, headline, bio, regions, languages, certifications, price_gel, price_note, trail_ids, verified_at, profiles!guides_user_id_fkey (username, full_name, avatar_url)';
 
 /** A hiker may have this many unanswered requests with one guide. */
 const MAX_OPEN_REQUESTS = 3;
@@ -327,7 +331,7 @@ export class GuidesService {
       this.admin
         .from('guide_bookings')
         .select(
-          '*, trails:trail_id (id, name_en), guide:guide_id (headline, profiles:user_id (username, avatar_url))',
+          '*, trails:trail_id (id, name_en), guide:guides!guide_bookings_guide_id_fkey (headline, profiles!guides_user_id_fkey (username, avatar_url))',
         )
         .eq('hiker_id', userId)
         .order('created_at', { ascending: false })
@@ -335,7 +339,7 @@ export class GuidesService {
       this.admin
         .from('guide_bookings')
         .select(
-          '*, trails:trail_id (id, name_en), hiker:hiker_id (username, avatar_url)',
+          '*, trails:trail_id (id, name_en), hiker:profiles!guide_bookings_hiker_id_fkey (username, avatar_url)',
         )
         .eq('guide_id', userId)
         .order('created_at', { ascending: false })

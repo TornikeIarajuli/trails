@@ -992,7 +992,7 @@ const GUIDE_STATUSES = ["pending", "verified", "rejected", "paused"];
 export async function getGuides(params: { page: number; status?: string }): Promise<Paged<GuideRow>> {
   return asAdmin(async (supabase) => {
     const [from, to] = pageBounds(params?.page);
-    let query = supabase.from("guides").select("*, profiles:user_id(username)", { count: "exact" });
+    let query = supabase.from("guides").select("*, profiles!guides_user_id_fkey(username)", { count: "exact" });
     if (params?.status && GUIDE_STATUSES.includes(params.status)) query = query.eq("status", params.status);
     const res = await query.order("created_at", { ascending: false }).order("user_id").range(from, to);
     if (isMissingTable(res.error)) return fail("Guides need database migration 067 to be applied.");
