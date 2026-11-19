@@ -144,6 +144,7 @@ export const IONICON_TO_SKETCHY: Record<string, string> = {
 export const EXTRA_SKETCHY = [
   'backpack', 'tent', 'footprints', 'mountain', 'mountain-snow', 'signpost', 'droplet', 'route',
   'flame-kindling', 'medal', 'award', 'calendar-check', 'zap', 'sun', 'cloud-rain', 'svaneti-tower',
+  'sunrise', 'sunset', 'wind', 'thermometer',
 ] as const;
 
 /** Filled Ionicons whose shape is painted in, so state (liked, bookmarked, rated) still shows. */

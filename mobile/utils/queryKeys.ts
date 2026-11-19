@@ -102,6 +102,9 @@ export const queryKeys = {
 
   // Weather
   weather: (lat: number, lng: number) => ['weather', lat, lng] as const,
+  /** The 7-day forecast at a trail's highest point (kept on the phone for use offline). */
+  trailForecast: (trailId: string, lat: number, lng: number, elevationM: number | null) =>
+    ['trailForecast', trailId, lat.toFixed(3), lng.toFixed(3), elevationM] as const,
 
   // Shop
   shop: {

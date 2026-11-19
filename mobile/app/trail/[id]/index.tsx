@@ -39,7 +39,9 @@ import { useActiveHikerCount } from '../../../hooks/useCompletions';
 import { useWithoutBlocked } from '../../../hooks/useModeration';
 import { ReviewsList } from '../../../components/trail/ReviewsList';
 import { WriteReviewModal } from '../../../components/trail/WriteReviewModal';
-import { WeatherCard } from '../../../components/trail/WeatherCard';
+import { TrailForecastCard } from '../../../components/trail/TrailForecastCard';
+import { useTrailForecast } from '../../../hooks/useTrailForecast';
+import { neededHours, verdictForToday } from '../../../utils/trailVerdict';
 import { trailCache } from '../../../utils/trailCache';
 import { analytics } from '../../../utils/analytics';
 import { localName } from '../../../utils/i18n';
@@ -92,6 +94,13 @@ export default function TrailDetailScreen() {
   const { data: allConditions, refetch: refetchConditions } = useTrailConditions(id);
   const { data: activeCount, refetch: refetchCount } = useActiveHikerCount(id);
   const gear = useGearPlan(isPlaceholderData ? undefined : trail);
+  // Today's go / wait / skip, for a word of warning before starting on a "skip" day
+  const forecastQuery = useTrailForecast(trail, !isPlaceholderData);
+  const todaysVerdict = useMemo(() => {
+    const point = forecastQuery.point;
+    if (!forecastQuery.data || !trail) return null;
+    return verdictForToday(forecastQuery.data, { neededHours: neededHours(trail), topM: point?.atTop ? point.elevationM : null });
+  }, [forecastQuery.data, forecastQuery.point, trail]);
   const topoDownloading = useOfflineMapsStore((s) => (s.active?.trailId === id ? s.active : null));
 
   const [refreshing, setRefreshing] = useState(false);
@@ -266,6 +275,14 @@ export default function TrailDetailScreen() {
       return;
     }
 
+    if (!resumingThisHike && todaysVerdict?.verdict === 'skip') {
+      Alert.alert('The forecast says skip today', `${todaysVerdict.headline}.\n\nStart a hike anyway?`, [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Start anyway', style: 'destructive', onPress: openHikeAfterGearCheck },
+      ]);
+      return;
+    }
+
     if (resumingThisHike) openHike();
     else openHikeAfterGearCheck();
   };
@@ -406,11 +423,8 @@ export default function TrailDetailScreen() {
 
           <TrailCompletionStatus trailId={id} hikeActiveHere={resumingThisHike} />
 
-          {/* Weather */}
-          <WeatherCard
-            latitude={startPoint?.latitude ?? null}
-            longitude={startPoint?.longitude ?? null}
-          />
+          {/* Go, wait or skip: the forecast at the highest point, today and the next six days */}
+          <TrailForecastCard trail={trail} ready={!isPlaceholderData} />
 
           {/* Elevation Profile */}
           <ElevationProfile

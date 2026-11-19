@@ -2,7 +2,8 @@ import type { Query } from '@tanstack/react-query';
 
 /**
  * Query roots worth keeping on the device between launches: what a hiker needs offline
- * (trails, their own profile, completions, bookmarks, badges, recent condition reports).
+ * (trails, their own profile, completions, bookmarks, badges, recent condition reports, trail
+ * forecasts).
  * Everything else (feed, comments, likes, notifications, leaderboards, search…) is cheap to
  * refetch and would only make every save of the cache slower.
  */
@@ -19,6 +20,8 @@ const OFFLINE_ROOTS = new Set<string>([
   'checkpointCompletions',
   'myEmergencyContact',
   'moderation',
+  // The mountain forecast, so the morning's forecast still shows at a trailhead without signal
+  'trailForecast',
 ]);
 
 export function shouldPersistQuery(query: Pick<Query, 'queryKey' | 'state'>): boolean {
