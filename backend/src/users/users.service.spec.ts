@@ -240,6 +240,55 @@ describe('UsersService', () => {
   // -------------------------------------------------------------------------
   // getLeaderboard
   // -------------------------------------------------------------------------
+  describe('XP', () => {
+    it('ranks by XP over the period, from Monday in Georgia for the week', async () => {
+      mockAdmin.rpc.mockResolvedValue({
+        data: [
+          { id: 'u1', username: 'nino', full_name: null, avatar_url: null, xp: '640', rank: '1' },
+          { id: 'u2', username: 'gio', full_name: 'Gio', avatar_url: 'a.jpg', xp: 300, rank: 2 },
+        ],
+        error: null,
+      });
+
+      const result = await service.getXpLeaderboard('week', 50);
+
+      const [name, args] = mockAdmin.rpc.mock.calls[0];
+      expect(name).toBe('get_xp_leaderboard');
+      expect(args.p_limit).toBe(50);
+      expect(new Date(args.p_since).getUTCHours()).toBe(20); // Monday 00:00 in Tbilisi
+      expect(result).toEqual([
+        { rank: 1, id: 'u1', username: 'nino', full_name: null, avatar_url: null, xp: 640 },
+        { rank: 2, id: 'u2', username: 'gio', full_name: 'Gio', avatar_url: 'a.jpg', xp: 300 },
+      ]);
+    });
+
+    it('asks for all time without a start, and keeps the answer for a few minutes', async () => {
+      mockAdmin.rpc.mockResolvedValue({ data: [], error: null });
+      await service.getXpLeaderboard('all', 20);
+      await service.getXpLeaderboard('all', 20);
+      expect(mockAdmin.rpc).toHaveBeenCalledTimes(1);
+      expect(mockAdmin.rpc).toHaveBeenCalledWith('get_xp_leaderboard', { p_since: '-infinity', p_limit: 20 });
+    });
+
+    it("gives a hiker's XP and ranks, with no rank at 0 XP", async () => {
+      mockAdmin.rpc.mockResolvedValue({
+        data: [{ total_xp: '855', week_xp: 0, month_xp: '105', total_rank: '1', week_rank: null, month_rank: 1 }],
+        error: null,
+      });
+
+      await expect(service.getXp('u1')).resolves.toEqual({
+        total_xp: 855,
+        week_xp: 0,
+        month_xp: 105,
+        ranks: { all: 1, week: null, month: 1 },
+      });
+      expect(mockAdmin.rpc).toHaveBeenCalledWith(
+        'get_user_xp',
+        expect.objectContaining({ p_user_id: 'u1', p_week_start: expect.any(String), p_month_start: expect.any(String) }),
+      );
+    });
+  });
+
   describe('getLeaderboard', () => {
     const leaderChain = (result: object) => {
       const c: Record<string, jest.Mock> = {};

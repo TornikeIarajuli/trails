@@ -72,6 +72,27 @@ export interface LeaderboardEntry {
   rank: number;
 }
 
+/** Leaderboard periods: this week (from Monday, Georgian time), this month, or all time. */
+export type XpPeriod = 'week' | 'month' | 'all';
+
+/** A row of the XP leaderboard: XP earned in the period. */
+export interface XpLeaderboardEntry {
+  rank: number;
+  id: string;
+  username: string;
+  full_name: string | null;
+  avatar_url: string | null;
+  xp: number;
+}
+
+/** A hiker's XP and ranks; a rank is null at 0 XP in that period. */
+export interface UserXp {
+  total_xp: number;
+  week_xp: number;
+  month_xp: number;
+  ranks: { all: number | null; week: number | null; month: number | null };
+}
+
 /** Response of `POST /users/me/sos`. `sent` is true only if a push reached the contact's device(s). */
 export interface SosResult {
   sent: boolean;

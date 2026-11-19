@@ -24,6 +24,9 @@ function invalidateCompletionState(queryClient: QueryClient) {
   queryClient.invalidateQueries({ queryKey: queryKeys.profile.root() });
   queryClient.invalidateQueries({ queryKey: queryKeys.badges.root() });
   queryClient.invalidateQueries({ queryKey: queryKeys.leaderboard(0).slice(0, 1) });
+  // XP: yours, and the XP leaderboards
+  queryClient.invalidateQueries({ queryKey: queryKeys.myXp().slice(0, 1) });
+  queryClient.invalidateQueries({ queryKey: queryKeys.xpLeaderboard('').slice(0, 1) });
   queryClient.invalidateQueries({ queryKey: queryKeys.recommendations() });
 }
 

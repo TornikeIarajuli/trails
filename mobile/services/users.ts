@@ -1,5 +1,14 @@
 import api from './api';
-import { UserProfile, PublicProfile, LeaderboardEntry, SosResult, SuggestedHiker } from '../types/user';
+import {
+  UserProfile,
+  PublicProfile,
+  LeaderboardEntry,
+  SosResult,
+  SuggestedHiker,
+  UserXp,
+  XpLeaderboardEntry,
+  XpPeriod,
+} from '../types/user';
 
 export const usersService = {
   async getMyProfile(): Promise<UserProfile> {
@@ -15,6 +24,22 @@ export const usersService = {
     instagram_handle?: string | null;
   }): Promise<UserProfile> {
     const response = await api.patch('/users/me', data);
+    return response.data;
+  },
+
+  /** Hikers by XP earned in the period. */
+  async getXpLeaderboard(period: XpPeriod, limit = 50): Promise<XpLeaderboardEntry[]> {
+    const response = await api.get('/users/leaderboard', { params: { period, limit } });
+    return response.data;
+  },
+
+  async getMyXp(): Promise<UserXp> {
+    const response = await api.get('/users/me/xp');
+    return response.data;
+  },
+
+  async getUserXp(userId: string): Promise<UserXp> {
+    const response = await api.get(`/users/${encodeURIComponent(userId)}/xp`);
     return response.data;
   },
 

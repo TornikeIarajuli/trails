@@ -5,6 +5,8 @@ jest.mock('expo-router', () => ({ router: { push: jest.fn(), navigate: jest.fn()
 jest.mock('../../hooks/useRegionProgress', () => ({
   useRegionProgress: () => ({ data: { totals: { regions_started: 4, regions_total: 15 } } }),
 }));
+const mockXp: { data: unknown } = { data: undefined };
+jest.mock('../../hooks/useXp', () => ({ useMyXp: () => mockXp }));
 const mockCompletions: { data: unknown[] | undefined; isLoading: boolean } = { data: [], isLoading: false };
 jest.mock('../../hooks/useCompletions', () => ({
   useMyCompletions: () => mockCompletions,
@@ -30,6 +32,23 @@ const texts = (r: ReactTestRenderer) =>
   r.root.findAllByType(Text).map((t) => [t.props.children].flat().join(''));
 
 describe('HikingSummary', () => {
+  afterEach(() => {
+    mockXp.data = undefined;
+  });
+
+  it('shows your level, the way to the next one and this week, which open the leaderboard', () => {
+    mockXp.data = { total_xp: 1240, week_xp: 120, month_xp: 300, ranks: { all: 9, week: 3, month: 4 } };
+    const r = render(<HikingSummary stats={{ total: 7, easy: 1, medium: 3, hard: 3, ultra: 0 } as never} />);
+    const shown = texts(r).join(' | ');
+    expect(shown).toContain('Trekker');
+    expect(shown).toContain('Level 4');
+    expect(shown).toContain('1,240 XP');
+    expect(shown).toContain('260 XP to Ridge walker');
+    expect(shown).toContain('This week 120 XP · #3');
+    act(() => r.root.findAll((n) => n.props.testID === 'level-card' && n.props.onPress)[0].props.onPress());
+    expect(router.navigate).toHaveBeenCalledWith('/(tabs)/feed?segment=leaderboard');
+  });
+
   it('shows the difficulty split and the way into My Georgia', () => {
     const r = render(<HikingSummary stats={{ total: 7, easy: 1, medium: 3, hard: 3, ultra: 0 } as never} />);
     const shown = texts(r).join(' | ');

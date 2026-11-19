@@ -10,6 +10,8 @@ import {
   RefreshControl,
 } from 'react-native';
 import { useLocalSearchParams, Stack, router } from 'expo-router';
+import { useUserXp } from '../../../hooks/useXp';
+import { formatXp, levelFor } from '../../../utils/xp';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Icon } from '../../../components/ui/Icon';
 import { useColors, ColorPalette } from '../../../constants/colors';
@@ -253,6 +255,7 @@ export default function PublicProfileScreen() {
   const styles = useMemo(() => createStyles(Colors), [Colors]);
 
   const { id } = useLocalSearchParams<{ id: string }>();
+  const { data: userXp } = useUserXp(id);
   const currentUserId = useAuthStore((s) => s.user?.id);
   const blockedIds = useBlockedUserIds();
 
@@ -342,6 +345,14 @@ export default function PublicProfileScreen() {
             size={80}
           />
           <Text style={styles.username}>{profile.username}</Text>
+          {userXp ? (
+            <View style={styles.levelChip} testID="profile-level">
+              <Text style={styles.levelChipText}>
+                Level {levelFor(userXp.total_xp).current.level} · {levelFor(userXp.total_xp).current.name} ·{' '}
+                {formatXp(userXp.total_xp)}
+              </Text>
+            </View>
+          ) : null}
           {(() => {
             const { online, label } = getOnlineStatus(profile.last_seen_at ?? null);
             return (
@@ -420,6 +431,18 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     fontWeight: '700',
     color: Colors.text,
     marginTop: 12,
+  },
+  levelChip: {
+    marginTop: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: 12,
+    backgroundColor: Colors.primary + '18',
+  },
+  levelChipText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: Colors.primary,
   },
   onlineRow: {
     flexDirection: 'row',

@@ -1,6 +1,9 @@
 import { TtlCache } from '../common/ttl-cache';
 import { isMissingRelationError, throwIfError } from '../common/supabase-error';
+import { XpPeriod, periodStart, xpWindows } from './xp';
 const LEADERBOARD_TTL = 15 * 60 * 1000;
+/** XP rankings move with every hike: refreshed more often. */
+const XP_LEADERBOARD_TTL = 5 * 60 * 1000;
 
 import {
   BadRequestException,
@@ -163,6 +166,70 @@ export class UsersService {
     });
     this.cache.set(cacheKey, result, LEADERBOARD_TTL);
     return result;
+  }
+
+  /**
+   * Hikers ranked by XP earned this week (from Monday, Georgian time), this month, or all
+   * time: rank, id, username, full_name, avatar_url and xp.
+   */
+  async getXpLeaderboard(period: XpPeriod, limit = 50) {
+    const since = periodStart(period);
+    const cacheKey = `xp-leaderboard:${period}:${since ?? 'all'}:${limit}`;
+    const cached = this.cache.get(cacheKey);
+    if (cached) return cached;
+
+    const admin = this.supabaseService.getAdminClient();
+    const { data, error } = await admin.rpc('get_xp_leaderboard', {
+      p_since: since ?? '-infinity',
+      p_limit: limit,
+    });
+    throwIfError(error);
+
+    const result = (
+      (data ?? []) as Array<{
+        id: string;
+        username: string;
+        full_name: string | null;
+        avatar_url: string | null;
+        xp: number | string;
+        rank: number | string;
+      }>
+    ).map((row) => ({
+      rank: Number(row.rank),
+      id: row.id,
+      username: row.username,
+      full_name: row.full_name,
+      avatar_url: row.avatar_url,
+      xp: Number(row.xp),
+    }));
+    this.cache.set(cacheKey, result, XP_LEADERBOARD_TTL);
+    return result;
+  }
+
+  /** A hiker's XP all time, this week and this month, and their rank in each (null at 0 XP). */
+  async getXp(userId: string) {
+    const { weekStart, monthStart } = xpWindows();
+    const admin = this.supabaseService.getAdminClient();
+    const { data, error } = await admin.rpc('get_user_xp', {
+      p_user_id: userId,
+      p_week_start: weekStart,
+      p_month_start: monthStart,
+    });
+    throwIfError(error);
+
+    const row = ((data ?? []) as Array<Record<string, number | string | null>>)[0] ?? {};
+    const num = (v: number | string | null | undefined) => (v == null ? 0 : Number(v));
+    const rank = (v: number | string | null | undefined) => (v == null ? null : Number(v));
+    return {
+      total_xp: num(row.total_xp),
+      week_xp: num(row.week_xp),
+      month_xp: num(row.month_xp),
+      ranks: {
+        all: rank(row.total_rank),
+        week: rank(row.week_rank),
+        month: rank(row.month_rank),
+      },
+    };
   }
 
   async deleteAccount(userId: string) {

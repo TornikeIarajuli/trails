@@ -37,6 +37,7 @@ import { VerificationReason } from '../../../types/completion';
 import { completionDateLabel, isPastHike, pastHikeYear } from '../../../utils/pastHikes';
 import { HowWasTheTrail } from '../../../components/completion/HowWasTheTrail';
 import { ShareHikeSheet } from '../../../components/completion/ShareHikeSheet';
+import { hikeXp } from '../../../utils/xp';
 import { useTrail } from '../../../hooks/useTrails';
 import { parseGeoLineString } from '../../../utils/geo';
 import { isPlausibleHikeTime } from '../../../utils/feedPost';
@@ -177,6 +178,12 @@ export default function CompletionDetailScreen() {
       : null,
   });
   const isVerified = outcome.state === 'verified';
+  // XP as the server counts it (065): a verified hike of five minutes or more, or a past hike
+  const xpEarned = past
+    ? 20
+    : isVerified && (completion.elapsed_seconds == null || completion.elapsed_seconds >= 300)
+      ? hikeXp(trail?.distance_km, trail?.elevation_gain_m)
+      : null;
 
   // Why the hike just recorded on a past-marked trail did not verify, in plain words
   const coverage = toNumber(coverageParam);
@@ -394,6 +401,14 @@ export default function CompletionDetailScreen() {
                 <Icon name="trending-up-outline" size={24} color={Colors.primary} />
                 <Text style={styles.statValue}>{formatElevation(trail.elevation_gain_m)}</Text>
                 <Text style={styles.statLabel}>Elevation</Text>
+              </View>
+            )}
+
+            {xpEarned != null && (
+              <View style={styles.statCard} testID="completion-xp">
+                <Icon name="trophy-outline" size={24} color={Colors.primary} />
+                <Text style={styles.statValue}>+{xpEarned.toLocaleString('en-US')}</Text>
+                <Text style={styles.statLabel}>XP earned</Text>
               </View>
             )}
 

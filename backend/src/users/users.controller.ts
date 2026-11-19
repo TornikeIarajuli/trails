@@ -18,6 +18,7 @@ import { UsersService } from './users.service';
 import { AuthGuard } from '../common/guards/auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { PaginationDto } from '../common/dto/pagination.dto';
+import { LeaderboardQueryDto } from './dto/leaderboard.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { EmergencyContactDto, SosDto } from './dto/safety.dto';
 import { SearchUsersQueryDto } from './dto/search-users.dto';
@@ -82,9 +83,20 @@ export class UsersController {
     return this.usersService.getSuggestedHikers(userId, query.limit);
   }
 
+  /** By XP this week / month / all time with `period`; without it, by trails hiked (older builds). */
   @Get('leaderboard')
-  getLeaderboard(@Query() query: PaginationDto) {
+  getLeaderboard(@Query() query: LeaderboardQueryDto) {
+    if (query.period) {
+      return this.usersService.getXpLeaderboard(query.period, query.limit ?? 50);
+    }
     return this.usersService.getLeaderboard(query.limit ?? 20);
+  }
+
+  /** Your XP (all time, this week, this month) and your rank in each. */
+  @Get('me/xp')
+  @UseGuards(AuthGuard)
+  getMyXp(@CurrentUser('id') userId: string) {
+    return this.usersService.getXp(userId);
   }
 
   @Patch('me/emergency-contact')
@@ -134,6 +146,12 @@ export class UsersController {
   @Throttle({ default: { ttl: 60000, limit: 3 } })
   triggerSos(@CurrentUser('id') userId: string, @Body() dto: SosDto) {
     return this.usersService.triggerSos(userId, dto.lat, dto.lng);
+  }
+
+  /** Anyone's XP, for the level on their profile. */
+  @Get(':id/xp')
+  getUserXp(@Param('id', ParseUUIDPipe) id: string) {
+    return this.usersService.getXp(id);
   }
 
   @Get(':id/regions')

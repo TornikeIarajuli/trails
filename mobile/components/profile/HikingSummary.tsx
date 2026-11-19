@@ -5,6 +5,8 @@ import { Icon } from '../ui/Icon';
 import { useColors, ColorPalette } from '../../constants/colors';
 import { ProfileStats } from '../../types/user';
 import { useRegionProgress } from '../../hooks/useRegionProgress';
+import { useMyXp } from '../../hooks/useXp';
+import { LevelCard } from './LevelCard';
 
 /**
  * The own profile's "My hiking" card: one bar showing how completed trails split by difficulty,
@@ -14,6 +16,7 @@ export function HikingSummary({ stats }: { stats: ProfileStats }) {
   const Colors = useColors();
   const styles = useMemo(() => createStyles(Colors), [Colors]);
   const { data: regions } = useRegionProgress();
+  const { data: xp } = useMyXp();
 
   const parts = [
     { key: 'easy', label: 'Easy', value: stats.easy, color: Colors.difficulty.easy },
@@ -26,6 +29,8 @@ export function HikingSummary({ stats }: { stats: ProfileStats }) {
   return (
     <View style={styles.card}>
       <Text style={styles.title}>My hiking</Text>
+
+      {xp ? <LevelCard xp={xp} /> : null}
 
       <View
         style={styles.bar}

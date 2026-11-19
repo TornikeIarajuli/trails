@@ -101,6 +101,10 @@ export const queryKeys = {
 
   // Leaderboard
   leaderboard: (limit: number) => ['leaderboard', limit] as const,
+  xpLeaderboard: (period: string) => ['xpLeaderboard', period] as const,
+  // XP: yours, and anyone's for their profile
+  myXp: () => ['xp', 'me'] as const,
+  userXp: (userId: string) => ['xp', 'user', userId] as const,
 
   // Weather
   weather: (lat: number, lng: number) => ['weather', lat, lng] as const,
