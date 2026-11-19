@@ -114,7 +114,8 @@ const createStyles = (Colors: ColorPalette) =>
     },
     list: {
       paddingTop: 4,
-      paddingBottom: 16,
+      // Room under the last post for the Feed's "Post" button
+      paddingBottom: 88,
     },
     listEmpty: {
       flexGrow: 1,

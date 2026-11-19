@@ -2,7 +2,7 @@ import { useInfiniteQuery, useMutation, useQuery, useQueryClient, QueryClient } 
 import { feedService } from '../services/feed';
 import { usersService } from '../services/users';
 import { FeedItem } from '../types/feed';
-import { FeedPages, findFeedItem, mapFeedItem } from '../utils/feedCache';
+import { FeedPages, findFeedItem, mapFeedItem, withoutFeedItem } from '../utils/feedCache';
 import { queryKeys } from '../utils/queryKeys';
 import { showError } from '../utils/showError';
 
@@ -80,6 +80,14 @@ export function patchFeedItem(
     queryClient.setQueryData<FeedPages>(key, (old) => mapFeedItem(old, activityId, patch));
   }
   queryClient.setQueryData<FeedItem>(queryKeys.feedPost(activityId), (old) => (old ? patch(old) : old));
+}
+
+/** Takes a deleted post out of every cached list and drops its own screen's copy. */
+export function removeFeedItem(queryClient: QueryClient, activityId: string) {
+  for (const key of POST_LISTS) {
+    queryClient.setQueryData<FeedPages>(key, (old) => withoutFeedItem(old, activityId));
+  }
+  queryClient.removeQueries({ queryKey: queryKeys.feedPost(activityId) });
 }
 
 /** The cached copy of an activity: from Following, Discover, or else its post screen. */

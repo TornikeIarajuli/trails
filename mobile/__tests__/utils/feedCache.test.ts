@@ -1,4 +1,5 @@
 import {
+  withoutFeedItem,
   FeedPages,
   findFeedItem,
   hasLikeSummary,
@@ -110,5 +111,18 @@ describe('findFeedItem / mapFeedItem', () => {
   it('copes with an empty cache', () => {
     expect(mapFeedItem(undefined, 'a', withLikeToggled)).toBeUndefined();
     expect(findFeedItem(undefined, 'a')).toBeUndefined();
+  });
+});
+
+describe('withoutFeedItem', () => {
+  it('takes a deleted post out of the pages and the total', () => {
+    const feed = {
+      pageParams: [1],
+      pages: [{ data: [{ activity_id: 'a' }, { activity_id: 'b' }] as never[], pagination: { page: 1, limit: 20, total: 2, totalPages: 1 } }],
+    };
+    const next = withoutFeedItem(feed as never, 'a')!;
+    expect(next.pages[0].data.map((i: { activity_id: string }) => i.activity_id)).toEqual(['b']);
+    expect(next.pages[0].pagination.total).toBe(1);
+    expect(withoutFeedItem(feed as never, 'zzz')).toBe(feed);
   });
 });

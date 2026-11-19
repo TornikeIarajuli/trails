@@ -37,6 +37,7 @@ import {
   type Mutation,
   type Paged,
   type PhotoRow,
+  type PostRow,
   type Product,
   type ProductInput,
   type ProductListItem,
@@ -945,6 +946,42 @@ export async function deleteCommunityPhoto(id: string): Promise<Mutation> {
     const warning = await removeStoredFile(supabase, photo.url);
     await bustTrailCache(photo.trail_id); // the cached trail carries its photo count
     return { error: null, warning };
+  });
+}
+
+export async function getPosts(params: { page: number }): Promise<Paged<PostRow>> {
+  return asAdmin(async (supabase) => {
+    const [from, to] = pageBounds(params?.page);
+    return paged<PostRow>(
+      await supabase
+        .from("posts")
+        .select("id, body, place_name, photo_urls, created_at, profiles:user_id(username), trails:trail_id(name_en)", {
+          count: "exact",
+        })
+        .order("created_at", { ascending: false })
+        .order("id")
+        .range(from, to),
+    );
+  });
+}
+
+/** Deletes a post with its likes, comments and saves, and its photos from storage. */
+export async function deletePost(id: string): Promise<Mutation> {
+  return asAdmin(async (supabase) => {
+    const { data, error } = await supabase.from("posts").delete().eq("id", id).select("photo_urls");
+    if (error) return fail(error);
+    const post = data?.[0] as { photo_urls: string[] | null } | undefined;
+    if (!post) return done;
+
+    await Promise.all([
+      supabase.from("activity_likes").delete().eq("activity_id", id),
+      supabase.from("activity_comments").delete().eq("activity_id", id),
+      supabase.from("saved_posts").delete().eq("activity_id", id),
+    ]);
+    const warnings = (
+      await Promise.all((post.photo_urls ?? []).map((url) => removeStoredFile(supabase, url)))
+    ).filter((w): w is string => !!w);
+    return { error: null, warning: warnings[0] ?? null };
   });
 }
 

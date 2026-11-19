@@ -469,6 +469,23 @@ export default function TrailDetailScreen() {
             </TouchableOpacity>
           )}
 
+          {/* A post about this trail, in the feed */}
+          {isAuthenticated && (
+            <TouchableOpacity
+              style={styles.reportLink}
+              onPress={() =>
+                router.push({ pathname: '/trail/compose', params: { trailId: id, trailName: name } } as never)
+              }
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              testID="post-about-trail"
+            >
+              <Icon name="create-outline" size={18} color={Colors.primary} />
+              <Text style={styles.reportLinkText}>Write a post about this trail</Text>
+              <Icon name="chevron-forward" size={16} color={Colors.textLight} style={{ marginLeft: 'auto' }} />
+            </TouchableOpacity>
+          )}
+
           {/* Problems with the trail data itself (route, existence, details) */}
           <TouchableOpacity
             style={styles.reportLink}

@@ -35,6 +35,19 @@ export function mapFeedItem(
   };
 }
 
+/** Returns the feed without that activity (a deleted post), or the same feed when it is not in it. */
+export function withoutFeedItem(feed: FeedPages | undefined, activityId: string): FeedPages | undefined {
+  if (!feed || !findFeedItem(feed, activityId)) return feed;
+  return {
+    ...feed,
+    pages: feed.pages.map((page) => ({
+      ...page,
+      data: page.data.filter((item) => item.activity_id !== activityId),
+      pagination: { ...page.pagination, total: Math.max(0, page.pagination.total - 1) },
+    })),
+  };
+}
+
 /** What the item will look like once the server has toggled the like. */
 export function withLikeToggled(item: FeedItem): FeedItem {
   if (!hasLikeSummary(item)) return item;

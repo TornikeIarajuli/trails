@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, Pressable, StyleSheet, Share } from 'react-native';
+import { View, Text, Pressable, StyleSheet, Share, Alert } from 'react-native';
 import { router } from 'expo-router';
 import Animated, {
   useAnimatedStyle,
@@ -16,6 +16,9 @@ import { FeedItem } from '../../types/feed';
 import { useComments } from '../../hooks/useComments';
 import { useLikes, useToggleLike } from '../../hooks/useLikes';
 import { useToggleSave } from '../../hooks/useFeed';
+import { useDeletePost } from '../../hooks/usePosts';
+import { useAuthStore } from '../../store/authStore';
+import { showError } from '../../utils/showError';
 import { usePrefetchTrail } from '../../hooks/useTrails';
 import { useSettingsStore } from '../../store/settingsStore';
 import { hasLikeSummary } from '../../utils/feedCache';
@@ -35,6 +38,7 @@ import {
 import { CommentsSheet } from './CommentsSheet';
 import { PostMedia } from './PostMedia';
 import { ContentMenu } from '../moderation/ContentMenu';
+import { ActionSheet } from '../ui/ActionSheet';
 
 /** Liked-heart red: the same in every theme, like Instagram's. */
 export const LIKE_RED = '#E53935';
@@ -45,7 +49,83 @@ const REPORT_LABEL: Record<string, string> = {
   photo: 'photo',
   condition: 'condition report',
   review: 'review',
+  post: 'post',
 };
+
+/** A post's text runs long: show this many lines, then "more". */
+const POST_PREVIEW_LINES = 6;
+
+/** The "⋯" on your own post: edit it, or delete it (after asking). */
+function OwnPostMenu({ item, style, color }: { item: FeedItem; style: object; color: string }) {
+  const [open, setOpen] = useState(false);
+  const deletePost = useDeletePost();
+
+  const choose = (key: string) => {
+    if (key === 'edit') {
+      router.push({ pathname: '/trail/compose', params: { postId: item.activity_id } } as never);
+      return;
+    }
+    Alert.alert('Delete this post?', 'Its likes and comments go with it.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: () =>
+          deletePost.mutate(item.activity_id, {
+            onSuccess: () => haptics.success(),
+            onError: (err) => showError(err),
+          }),
+      },
+    ]);
+  };
+
+  return (
+    <>
+      <Pressable
+        style={style}
+        onPress={() => {
+          haptics.tap();
+          setOpen(true);
+        }}
+        hitSlop={6}
+        accessibilityRole="button"
+        accessibilityLabel="Post options"
+        testID="own-post-menu"
+      >
+        <Icon name="ellipsis-horizontal" size={22} color={color} />
+      </Pressable>
+      <ActionSheet
+        visible={open}
+        title="Your post"
+        options={[
+          { key: 'edit', label: 'Edit post', icon: 'create-outline' },
+          { key: 'delete', label: 'Delete post', icon: 'trash-outline', destructive: true },
+        ]}
+        onSelect={choose}
+        onClose={() => setOpen(false)}
+        closeOnSelect
+      />
+    </>
+  );
+}
+
+/** A post's text: a few lines at first, all of it after "more". */
+function PostBody({ text, styles }: { text: string; styles: Styles }) {
+  const [expanded, setExpanded] = useState(false);
+  const long = text.length > 280 || text.split('\n').length > POST_PREVIEW_LINES;
+  return (
+    <View>
+      <Text style={styles.postBody} numberOfLines={long && !expanded ? POST_PREVIEW_LINES : undefined} testID="post-body">
+        {text}
+      </Text>
+      {long && !expanded ? (
+        <Text style={styles.more} onPress={() => setExpanded(true)} accessibilityRole="button" testID="post-more">
+          more
+        </Text>
+      ) : null}
+    </View>
+  );
+}
 
 type Styles = ReturnType<typeof createStyles>;
 
@@ -156,12 +236,18 @@ export const ActivityCard = React.memo(function ActivityCard({
   const chips = completionChips(item);
 
   const prefetchTrail = usePrefetchTrail();
-  const trailName = localName(item.trail_name_en, item.trail_name_ka, language);
+  // Only a post can have no trail
+  const trailName = item.trail_name_en ? localName(item.trail_name_en, item.trail_name_ka, language) : null;
   const openTrail = () => {
+    if (!item.trail_id) return;
     haptics.tap();
     router.push(`/trail/${item.trail_id}`);
   };
-  const warmTrail = () => prefetchTrail(item.trail_id);
+  const warmTrail = () => {
+    if (item.trail_id) prefetchTrail(item.trail_id);
+  };
+  const currentUserId = useAuthStore((s) => s.user?.id);
+  const ownPost = item.activity_type === 'post' && !!currentUserId && item.user_id === currentUserId;
   const openUser = () => router.push(`/trail/user/${item.user_id}`);
 
   const setLike = (next: boolean) => {
@@ -197,6 +283,7 @@ export const ActivityCard = React.memo(function ActivityCard({
   const media = feedMedia(item);
   const stars = item.activity_type === 'review' ? reviewStars(item.extra_text) : 0;
   const caption = item.activity_type === 'photo' ? item.extra_text?.trim() : null;
+  const postText = item.activity_type === 'post' ? item.extra_text?.trim() : null;
   const condition = item.activity_type === 'condition' ? conditionLabel(item.extra_text) : '';
   const likes = likesLabel(likeCount);
   const latestComment = item.latest_comment ?? null;
@@ -220,21 +307,31 @@ export const ActivityCard = React.memo(function ActivityCard({
           <Text style={styles.username} onPress={openUser} suppressHighlighting>
             {item.user_username}
           </Text>
-          {` ${feedAction(item.activity_type)} `}
-          <Text style={styles.trailName} onPressIn={warmTrail} onPress={openTrail} suppressHighlighting>
-            {trailName}
-          </Text>
+          {trailName ? (
+            <>
+              {` ${feedAction(item.activity_type)} `}
+              <Text style={styles.trailName} onPressIn={warmTrail} onPress={openTrail} suppressHighlighting>
+                {trailName}
+              </Text>
+            </>
+          ) : (
+            ` ${feedAction(item.activity_type, false)}`
+          )}
           <Text style={styles.time}>{`  ${shortTimeAgo(item.created_at)}`}</Text>
         </Text>
-        <ContentMenu
-          style={styles.menu}
-          targetType={item.activity_type}
-          targetId={item.activity_id}
-          targetLabel={REPORT_LABEL[item.activity_type] ?? 'post'}
-          authorId={item.user_id}
-          authorName={item.user_username}
-          iconSize={22}
-        />
+        {ownPost ? (
+          <OwnPostMenu item={item} style={styles.menu} color={Colors.textSecondary} />
+        ) : (
+          <ContentMenu
+            style={styles.menu}
+            targetType={item.activity_type}
+            targetId={item.activity_id}
+            targetLabel={REPORT_LABEL[item.activity_type] ?? 'post'}
+            authorId={item.user_id}
+            authorName={item.user_username}
+            iconSize={22}
+          />
+        )}
       </View>
 
       {/* Photos, or the trail as a compact card */}
@@ -246,10 +343,14 @@ export const ActivityCard = React.memo(function ActivityCard({
           onSingleTap={openTrail}
           burstTrigger={burst}
           accessibilityLabel={
-            media.kind === 'cover' ? `${trailName}, trail photo` : `Photo by ${item.user_username} on ${trailName}`
+            media.kind === 'cover'
+              ? `${trailName}, trail photo`
+              : trailName
+                ? `Photo by ${item.user_username} on ${trailName}`
+                : `Photo by ${item.user_username}`
           }
         />
-      ) : (
+      ) : !item.trail_id ? null : (
         <Pressable
           style={({ pressed }) => [styles.compact, pressed && styles.actionPressed]}
           onPressIn={warmTrail}
@@ -291,7 +392,7 @@ export const ActivityCard = React.memo(function ActivityCard({
           icon="send"
           color={Colors.text}
           onPress={share}
-          label={`Share ${trailName}`}
+          label={trailName ? `Share ${trailName}` : 'Share post'}
           styles={styles}
           testID="share-button"
         />
@@ -337,6 +438,15 @@ export const ActivityCard = React.memo(function ActivityCard({
             <Text style={styles.conditionText}>{condition}</Text>
           </View>
         ) : null}
+
+        {item.activity_type === 'post' && item.place_name ? (
+          <View style={styles.place} testID="post-place">
+            <Icon name="location-outline" size={15} color={Colors.textSecondary} />
+            <Text style={styles.placeText}>{item.place_name}</Text>
+          </View>
+        ) : null}
+
+        {postText ? <PostBody text={postText} styles={styles} /> : null}
 
         {caption ? (
           <Text style={styles.caption} numberOfLines={3}>
@@ -527,6 +637,27 @@ const createStyles = (Colors: ColorPalette) =>
       fontSize: 14,
       lineHeight: 20,
       color: Colors.text,
+    },
+    postBody: {
+      fontSize: 15,
+      lineHeight: 22,
+      color: Colors.text,
+    },
+    more: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: Colors.textSecondary,
+      marginTop: 2,
+    },
+    place: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+    },
+    placeText: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: Colors.textSecondary,
     },
     commentsLink: {
       fontSize: 14,

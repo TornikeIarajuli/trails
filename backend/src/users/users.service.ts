@@ -339,6 +339,7 @@ export class UsersService {
       followingResult,
       badgesResult,
       savedPostsResult,
+      postsResult,
     ] = await Promise.all([
       admin.from('profiles').select('*').eq('id', userId).single(),
       admin
@@ -375,6 +376,7 @@ export class UsersService {
         .select('*, badges:badge_id (name_en, description_en)')
         .eq('user_id', userId),
       admin.from('saved_posts').select('*').eq('user_id', userId),
+      admin.from('posts').select('*').eq('user_id', userId),
     ]);
 
     return {
@@ -391,6 +393,7 @@ export class UsersService {
       followers: followingResult.data ?? [],
       badges: badgesResult.data ?? [],
       saved_posts: savedPostsResult.data ?? [],
+      posts: postsResult.data ?? [],
     };
   }
 

@@ -2,8 +2,11 @@ import type { FeedItem } from '../types/feed';
 import { formatDistance } from './formatters';
 
 /** What happened, between the username and the trail name: "nino completed Juta to Roshka". */
-export function feedAction(type: string): string {
+/** What the post's author did; a post without a trail just "posted". */
+export function feedAction(type: string, hasTrail = true): string {
   switch (type) {
+    case 'post':
+      return hasTrail ? 'wrote about' : 'posted';
     case 'completion':
       return 'completed';
     case 'photo':
@@ -28,7 +31,8 @@ export function feedMedia(item: FeedItem): { urls: string[]; kind: PostMediaKind
     [...new Set(urls.filter((url): url is string => typeof url === 'string' && url.length > 0))];
   // A completion's photos are those taken on the hike; its single photo_url is only the
   // fallback (the newest of them, or the proof photo when there are none)
-  const hikePhotos = item.activity_type === 'completion' ? valid(item.photo_urls ?? []) : [];
+  const hikePhotos =
+    item.activity_type === 'completion' || item.activity_type === 'post' ? valid(item.photo_urls ?? []) : [];
   const own = hikePhotos.length > 0 ? hikePhotos : valid([item.photo_url]);
   if (own.length > 0) return { urls: own, kind: 'photos' };
   if (item.activity_type === 'completion' && item.trail_cover_image_url) {
@@ -111,6 +115,16 @@ export function completionChips(item: FeedItem): StatChip[] {
 }
 
 /** What the share sheet sends for a post: who did what, where, and a link to the trail. */
+/** A post's text in a share message: its first 140 characters. */
+const SHARED_TEXT_LENGTH = 140;
+
 export function shareMessage(item: FeedItem): string {
-  return `${item.user_username} ${feedAction(item.activity_type)} ${item.trail_name_en} on Kvali.\n\nmikiri-trails://trail/${item.trail_id}`;
+  const link = item.trail_id ? `\n\nmikiri-trails://trail/${item.trail_id}` : '';
+  if (item.activity_type === 'post') {
+    const text = (item.extra_text ?? '').trim();
+    const excerpt = text.length > SHARED_TEXT_LENGTH ? `${text.slice(0, SHARED_TEXT_LENGTH - 1).trimEnd()}…` : text;
+    const about = item.trail_name_en ? ` about ${item.trail_name_en}` : '';
+    return `${item.user_username} wrote${about} on Kvali${excerpt ? `: "${excerpt}"` : '.'}${link}`;
+  }
+  return `${item.user_username} ${feedAction(item.activity_type)} ${item.trail_name_en} on Kvali.${link}`;
 }

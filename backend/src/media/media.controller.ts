@@ -48,6 +48,14 @@ export class MediaController {
     return this.mediaService.uploadHikePhoto(userId, trailId, file, caption);
   }
 
+  /** A photo for a post (stored before the post is written); returns its URL. */
+  @Post('post-photo')
+  @Throttle({ default: { ttl: 60000, limit: 20 } })
+  async uploadPostPhoto(@CurrentUser('id') userId: string, @Req() req: Request) {
+    const file = await readUploadBody(req);
+    return this.mediaService.uploadPostPhoto(userId, file);
+  }
+
   @Post('proof')
   @Throttle({ default: { ttl: 60000, limit: 10 } })
   async uploadProofPhoto(@Req() req: Request) {

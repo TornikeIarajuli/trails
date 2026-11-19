@@ -5,8 +5,14 @@ export class CreateCommentDto {
   @IsLooseUuid()
   activity_id: string;
 
-  @IsIn(['completion', 'photo', 'condition', 'review', 'event'])
-  activity_type: 'completion' | 'photo' | 'condition' | 'review' | 'event';
+  @IsIn(['completion', 'photo', 'condition', 'review', 'event', 'post'])
+  activity_type:
+    | 'completion'
+    | 'photo'
+    | 'condition'
+    | 'review'
+    | 'event'
+    | 'post';
 
   @IsString()
   @IsNotEmpty()

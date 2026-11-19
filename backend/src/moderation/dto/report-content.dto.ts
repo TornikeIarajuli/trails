@@ -15,6 +15,7 @@ export const REPORT_TARGET_TYPES = [
   'user',
   'completion',
   'trail',
+  'post',
 ] as const;
 
 export const REPORT_REASONS = [

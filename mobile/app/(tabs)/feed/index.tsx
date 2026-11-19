@@ -8,6 +8,7 @@ import { PostList } from '../../../components/feed/PostList';
 import { DiscoverList } from '../../../components/feed/DiscoverList';
 import { LeaderboardView } from '../../../components/leaderboard/LeaderboardView';
 import { haptics } from '../../../utils/haptics';
+import { Icon } from '../../../components/ui/Icon';
 import { FEED_SEGMENTS, FeedSegment, feedSegmentFromParam } from '../../../utils/feedSegment';
 
 type Styles = ReturnType<typeof createStyles>;
@@ -108,6 +109,24 @@ export default function FeedScreen() {
           </SegmentPane>
         )}
       </View>
+
+      {/* Write a post: over the posts, not the leaderboard */}
+      {segment !== 'leaderboard' && (
+        <TouchableOpacity
+          style={styles.newPost}
+          onPress={() => {
+            haptics.tap();
+            router.push('/trail/compose' as never);
+          }}
+          activeOpacity={0.85}
+          accessibilityRole="button"
+          accessibilityLabel="New post"
+          testID="new-post"
+        >
+          <Icon name="create-outline" size={20} color={Colors.textOnPrimary} />
+          <Text style={styles.newPostText}>Post</Text>
+        </TouchableOpacity>
+      )}
     </View>
   );
 }
@@ -116,6 +135,28 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,
+  },
+  newPost: {
+    position: 'absolute',
+    right: 16,
+    bottom: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    minHeight: 48,
+    paddingHorizontal: 18,
+    borderRadius: 24,
+    backgroundColor: Colors.primary,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+  },
+  newPostText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: Colors.textOnPrimary,
   },
   segmented: {
     flexDirection: 'row',

@@ -19,6 +19,10 @@ jest.mock('expo-router', () => ({
   useLocalSearchParams: () => ({}),
 }));
 jest.mock('../../utils/queryClient', () => ({ queryClient: { clear: jest.fn() } }));
+jest.mock('react-native-safe-area-context', () => ({
+  useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
+}));
+jest.mock('../../services/posts', () => ({ postsService: { create: jest.fn(), update: jest.fn(), remove: jest.fn() } }));
 jest.mock('../../utils/haptics', () => ({
   haptics: { tap: jest.fn(), select: jest.fn(), success: jest.fn(), warning: jest.fn() },
 }));
@@ -58,6 +62,10 @@ import { trailsService } from '../../services/trails';
 import { haptics } from '../../utils/haptics';
 import { DOUBLE_TAP_MS } from '../../hooks/useDoubleTap';
 import type { FeedItem } from '../../types/feed';
+import { Alert } from 'react-native';
+import { postsService } from '../../services/posts';
+import { useAuthStore } from '../../store/authStore';
+import { SHEET_EXIT_MS } from '../../components/ui/Sheet';
 
 const getFeed = feedService.getFeed as jest.Mock;
 const savePost = feedService.savePost as jest.Mock;
@@ -403,5 +411,76 @@ describe('saving a post', () => {
     await press('save-button');
     expect(savePost).toHaveBeenCalled();
     expect(bookmark()).toBe('icon-bookmark-outline');
+  });
+});
+
+describe('a free-form post', () => {
+  const textPost = (extra: Partial<FeedItem> = {}) =>
+    post({
+      activity_id: 'p1',
+      activity_type: 'post',
+      trail_id: null,
+      trail_name_en: null,
+      photo_url: null,
+      photo_urls: null,
+      extra_text: 'Snow above 2,500 m on the Chaukhi side. Crampons needed.',
+      place_name: 'Juta',
+      ...extra,
+    });
+
+  afterEach(() => {
+    useAuthStore.setState({ user: null, isAuthenticated: false } as never);
+  });
+
+  it('says who posted, with the place and the text, and no trail card', async () => {
+    await render([textPost()]);
+    expect(shown()).toContain('nino posted  2h');
+    expect(shown()).toEqual(expect.arrayContaining(['Juta', 'Snow above 2,500 m on the Chaukhi side. Crampons needed.']));
+    expect(pressable('post-trail-card')).toBeUndefined();
+    expect(hostByTestId('post-pager')).toHaveLength(0);
+  });
+
+  it('names the trail when the post has one', async () => {
+    await render([textPost({ trail_id: 't1', trail_name_en: 'Juta to Roshka' })]);
+    expect(shown()).toContain('nino wrote about Juta to Roshka  2h');
+    expect(pressable('post-trail-card')).toBeDefined();
+  });
+
+  it('shows a long text in part, then all of it after "more"', async () => {
+    const long = 'Day one. '.repeat(60).trim();
+    await render([textPost({ extra_text: long })]);
+    const body = () =>
+      renderer!.root.findAll(
+        (n) => n.props.testID === 'post-body' && typeof n.type !== 'string' && n.props.numberOfLines !== undefined,
+      );
+    expect(body()).toHaveLength(1);
+    await press('post-more');
+    expect(body()).toHaveLength(0);
+  });
+
+  it('offers edit and delete on your own post, and deletes it after asking', async () => {
+    useAuthStore.setState({ user: { id: 'u1' }, isAuthenticated: true } as never);
+    (postsService.remove as jest.Mock).mockResolvedValue(undefined);
+    const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+    await render([textPost(), post({ activity_id: 'c9', user_id: 'u2', user_username: 'gio' })]);
+
+    await press('own-post-menu');
+    jest.useFakeTimers();
+    await act(async () => {
+      renderer!.root.findAll((n) => n.props.accessibilityLabel === 'Delete post' && n.props.onPress)[0].props.onPress();
+    });
+    act(() => {
+      jest.advanceTimersByTime(SHEET_EXIT_MS + 50);
+    });
+    jest.useRealTimers();
+    expect(alert).toHaveBeenCalledWith('Delete this post?', 'Its likes and comments go with it.', expect.any(Array));
+    const buttons = alert.mock.calls[0][2] as { text: string; onPress?: () => void }[];
+    await act(async () => {
+      buttons.find((b) => b.text === 'Delete')!.onPress!();
+    });
+    await flush();
+    expect(postsService.remove).toHaveBeenCalledWith('p1');
+    expect(byTestId('feed-post')).toHaveLength(1);
+    alert.mockRestore();
   });
 });

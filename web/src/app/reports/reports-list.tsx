@@ -33,6 +33,7 @@ function targetHref(type: string, id: string): string | null {
     case "review": return "/reviews";
     case "condition": return "/conditions";
     case "completion": return "/completions";
+    case "post": return "/posts";
     default: return null;
   }
 }

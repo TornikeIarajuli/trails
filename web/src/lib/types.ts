@@ -195,6 +195,17 @@ export interface PhotoRow {
   trails: { name_en: string } | null;
 }
 
+/** A free-form post (migration 064). */
+export interface PostRow {
+  id: string;
+  body: string;
+  place_name: string | null;
+  photo_urls: string[] | null;
+  created_at: string;
+  profiles: { username: string } | null;
+  trails: { name_en: string } | null;
+}
+
 export interface CommentRow {
   id: string;
   activity_id: string;

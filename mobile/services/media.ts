@@ -99,6 +99,11 @@ function photoHeaders(caption?: string): Record<string, string> {
 }
 
 export const mediaService = {
+  /** A photo for a post, uploaded before the post is written; the post keeps its URL. */
+  async uploadPostPhoto(fileUri: string, fileName: string, mimeType: string): Promise<{ url: string }> {
+    return uploadFile('/media/post-photo', fileUri, fileName, mimeType);
+  },
+
   async uploadProofPhoto(
     fileUri: string,
     fileName: string,

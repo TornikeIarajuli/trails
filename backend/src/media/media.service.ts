@@ -122,6 +122,20 @@ export class MediaService {
     return media;
   }
 
+  /** A post's photo, under posts/<user>/; the post itself stores the URL. */
+  async uploadPostPhoto(userId: string, file: Buffer) {
+    const type = this.detectType(file, ['image']);
+    const admin = this.supabaseService.getAdminClient();
+    const url = await this.store(
+      admin,
+      'trail-media',
+      `posts/${userId}/${randomUUID()}.${type.ext}`,
+      file,
+      type,
+    );
+    return { url };
+  }
+
   async uploadProofPhoto(file: Buffer) {
     const type = this.detectType(file, ['image']);
     const admin = this.supabaseService.getAdminClient();

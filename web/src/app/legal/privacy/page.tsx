@@ -14,7 +14,7 @@ export default function PrivacyPolicy() {
             <li><strong>Account information:</strong> email address, username, and the optional profile details you add (name, bio, profile photo, contact details).</li>
             <li><strong>Location data:</strong> GPS coordinates while you record a hike, your position when you ask for trails near you, and your position when you trigger SOS. When you finish a hike, the recorded GPS track is sent to our servers and stored there to verify the completion. If you set a &ldquo;Back by&rdquo; time for a hike, your position is also sent to our servers about every 10 minutes during that hike. Warnings near the occupation line and the state border are worked out on your phone; nothing is sent for them.</li>
             <li><strong>Photos:</strong> images you upload as trail photos, proof of completion, or profile photo.</li>
-            <li><strong>Activity:</strong> trail completions, reviews, trail condition reports, bookmarks, saved posts, comments, likes, follows, the group hikes you create or join, and the emergency contact you choose.</li>
+            <li><strong>Activity:</strong> trail completions, reviews, trail condition reports, bookmarks, posts you write and save, comments, likes, follows, the group hikes you create or join, and the emergency contact you choose.</li>
             <li><strong>Presence:</strong> the time you last had the App open (&quot;last seen&quot;).</li>
             <li><strong>Device information:</strong> device type, operating system, and push notification tokens.</li>
             <li><strong>Usage analytics:</strong> events that describe how the App is used (for example trails viewed, hikes started and finished, searches), linked to your user ID and email address.</li>

@@ -17,6 +17,7 @@ import {
   Flag,
   ClipboardCheck,
   Activity,
+  Newspaper,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -30,6 +31,7 @@ const navItems = [
   { href: "/reviews", label: "Reviews", icon: Star },
   { href: "/conditions", label: "Conditions", icon: AlertTriangle },
   { href: "/photos", label: "Photos", icon: ImageIcon },
+  { href: "/posts", label: "Posts", icon: Newspaper },
   { href: "/comments", label: "Comments", icon: MessageSquare },
   { href: "/events", label: "Group Hikes", icon: CalendarDays },
   { href: "/reports", label: "Reports", icon: Flag },

@@ -1,10 +1,12 @@
-export type ActivityType = 'completion' | 'photo' | 'condition' | 'review';
+/** 'post': a free-form post (text, photos, optionally a trail and a place). */
+export type ActivityType = 'completion' | 'photo' | 'condition' | 'review' | 'post';
 
 export interface FeedItem {
   activity_id: string;
   activity_type: ActivityType;
   user_id: string;
-  trail_id: string;
+  /** Null only for a post without a trail. */
+  trail_id: string | null;
   created_at: string;
   extra_text: string | null;
   photo_url: string | null;
@@ -12,7 +14,7 @@ export interface FeedItem {
   user_username: string;
   user_full_name: string | null;
   user_avatar_url: string | null;
-  trail_name_en: string;
+  trail_name_en: string | null;
   trail_name_ka: string | null;
   trail_cover_image_url: string | null;
   // Sent by current API versions; undefined when talking to an older backend.
@@ -26,6 +28,8 @@ export interface FeedItem {
   elapsed_seconds?: number | null;
   /** The newest comment, by someone the viewer has not blocked; shown under the post. */
   latest_comment?: FeedComment | null;
+  /** A post's place ("Ushguli"); null for other kinds of post. */
+  place_name?: string | null;
   /** Whether the viewer saved the post for later (Profile > Saved posts). */
   saved_by_me?: boolean;
   /** When the viewer saved it; only on the saved posts list. */

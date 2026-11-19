@@ -158,3 +158,28 @@ describe('shareMessage', () => {
     );
   });
 });
+
+describe('free-form posts', () => {
+  const post = (extra: Partial<FeedItem> = {}) =>
+    item({ activity_type: 'post', extra_text: 'Snow above 2,500 m, crampons needed.', ...extra });
+
+  it('says the author wrote about the trail, or just posted when there is none', () => {
+    expect(feedAction('post')).toBe('wrote about');
+    expect(feedAction('post', false)).toBe('posted');
+  });
+
+  it('shows all of a post’s photos', () => {
+    expect(feedMedia(post({ photo_urls: ['a', 'b'], photo_url: 'a' }))).toEqual({ urls: ['a', 'b'], kind: 'photos' });
+    expect(feedMedia(post({ trail_id: null, trail_name_en: null }))).toEqual({ urls: [], kind: 'none' });
+  });
+
+  it('shares the start of the text, with the trail link when there is a trail', () => {
+    expect(shareMessage(post())).toBe(
+      'nino wrote about Juta to Roshka on Kvali: "Snow above 2,500 m, crampons needed."\n\nmikiri-trails://trail/t1',
+    );
+    expect(shareMessage(post({ trail_id: null, trail_name_en: null, extra_text: 'x'.repeat(200) }))).toBe(
+      `nino wrote on Kvali: "${'x'.repeat(139)}…"`,
+    );
+    expect(shareMessage(post({ trail_id: null, trail_name_en: null, extra_text: '' }))).toBe('nino wrote on Kvali.');
+  });
+});

@@ -17,6 +17,7 @@ const ACTIVITY_SOURCES: Record<string, { table: string; ownerColumn: string }> =
     condition: { table: 'trail_conditions', ownerColumn: 'user_id' },
     review: { table: 'trail_reviews', ownerColumn: 'user_id' },
     event: { table: 'events', ownerColumn: 'organizer_id' },
+    post: { table: 'posts', ownerColumn: 'user_id' },
   };
 
 // What the owner calls each kind of activity: "nino liked your hike"
@@ -26,6 +27,7 @@ const ACTIVITY_NOUNS: Record<string, string> = {
   condition: 'trail report',
   review: 'review',
   event: 'group hike',
+  post: 'post',
 };
 
 const activityNoun = (activityType: string) =>
